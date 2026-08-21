@@ -1,0 +1,117 @@
+@page "/sucursales"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — Sucursal</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else if (_form is null)
+{
+    <MudText>Cargando...</MudText>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudText Typo="Typo.h5" Class="mb-4">Configuración de la sucursal</MudText>
+
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Datos generales</MudText>
+            <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+            <MudTextField T="string" Label="RNC" @bind-Value="_form.Rnc" Class="mb-2" />
+            <MudTextField T="string" Label="Dirección" @bind-Value="_form.Direccion" Class="mb-2" />
+            <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Módulos opcionales</MudText>
+            <MudCheckBox T="bool" @bind-Value="_form.ModuloMeseroActivo" Label="Módulo de Mesero" />
+            <MudCheckBox T="bool" @bind-Value="_form.ModuloCocinaActivo" Label="Módulo de Cocina (KDS)" />
+            <MudCheckBox T="bool" @bind-Value="_form.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" />
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Correo saliente (SMTP) — opcional</MudText>
+            <MudCheckBox T="bool" @bind-Value="_form.SmtpActivo" Label="Activar envío de correo" Class="mb-2" />
+            @if (_form.SmtpActivo)
+            {
+                <MudTextField T="string" Label="Servidor SMTP" @bind-Value="_form.SmtpHost" Class="mb-2" />
+                <MudNumericField T="int?" Label="Puerto" @bind-Value="_form.SmtpPuerto" Class="mb-2" />
+                <MudTextField T="string" Label="Usuario" @bind-Value="_form.SmtpUsuario" Class="mb-2" />
+                <MudTextField T="string" Label="Contraseña (dejar en blanco para no cambiarla)" InputType="InputType.Password" @bind-Value="_form.SmtpPassword" Class="mb-2" />
+                <MudTextField T="string" Label="Remitente" @bind-Value="_form.SmtpRemitente" Class="mb-2" />
+                <MudCheckBox T="bool" @bind-Value="_form.SmtpUsaSsl" Label="Usar SSL/TLS" />
+            }
+        </MudPaper>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+        }
+        @if (_guardado)
+        {
+            <MudAlert Severity="Severity.Success" Class="mb-3">Guardado correctamente.</MudAlert>
+        }
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </MudContainer>
+}
+
+@code {
+    private ActualizarSucursalRequestDto? _form;
+    private Guid _sucursalId;
+    private string? _error;
+    private bool _guardado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        _sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursal = await ApiClient.ObtenerSucursalAsync(_sucursalId);
+        if (sucursal is null)
+            return;
+
+        _form = new ActualizarSucursalRequestDto
+        {
+            Nombre = sucursal.Nombre,
+            Rnc = sucursal.Rnc,
+            Direccion = sucursal.Direccion,
+            Telefono = sucursal.Telefono,
+            ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
+            ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
+            EcfActivo = sucursal.EcfActivo,
+            SmtpActivo = sucursal.SmtpActivo,
+            SmtpHost = sucursal.SmtpHost,
+            SmtpPuerto = sucursal.SmtpPuerto,
+            SmtpUsuario = sucursal.SmtpUsuario,
+            SmtpRemitente = sucursal.SmtpRemitente,
+            SmtpUsaSsl = sucursal.SmtpUsaSsl
+        };
+    }
+
+    private async Task GuardarAsync()
+    {
+        _error = null;
+        _guardado = false;
+
+        var (exito, error) = await ApiClient.ActualizarSucursalAsync(_sucursalId, _form!);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _guardado = true;
+    }
+}

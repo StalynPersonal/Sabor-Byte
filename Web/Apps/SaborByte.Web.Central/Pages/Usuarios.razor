@@ -1,0 +1,133 @@
+@page "/usuarios"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — Usuarios</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="@(_editando ? 7 : 12)">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h5">Usuarios</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoUsuario">
+                    Nuevo usuario
+                </MudButton>
+            </div>
+
+            <MudTable Items="_usuarios" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Usuario</MudTh>
+                    <MudTh>Nombre</MudTh>
+                    <MudTh>Roles</MudTh>
+                    <MudTh>Activo</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.NombreUsuario</MudTd>
+                    <MudTd>@context.Nombre</MudTd>
+                    <MudTd>@string.Join(", ", context.Roles)</MudTd>
+                    <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+                    <MudTd>
+                        <MudButton Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)">Desactivar</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+
+        @if (_editando)
+        {
+            <MudItem xs="12" md="5">
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">Nuevo usuario</MudText>
+
+                    <MudTextField T="string" Label="Nombre de usuario" @bind-Value="_form.NombreUsuario" Class="mb-2" />
+                    <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_form.Password" Class="mb-2" />
+                    <MudTextField T="string" Label="Nombre completo" @bind-Value="_form.Nombre" Class="mb-2" />
+                    <MudTextField T="string" Label="Email (opcional)" @bind-Value="_form.Email" Class="mb-2" />
+
+                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Roles</MudText>
+                    @foreach (var rol in _rolesDisponibles)
+                    {
+                        <MudCheckBox T="bool" Label="@rol" Value="_form.Roles.Contains(rol)"
+                                     ValueChanged="@((bool marcado) => AlternarRol(rol, marcado))" />
+                    }
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                    }
+
+                    <div class="d-flex gap-2 mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+                        <MudButton Variant="Variant.Outlined" OnClick="() => _editando = false">Cancelar</MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<UsuarioDto> _usuarios = [];
+    private readonly string[] _rolesDisponibles = ["Admin", "Supervisor", "Cajero", "Mesero", "Cocina"];
+    private bool _editando;
+    private CrearUsuarioRequestDto _form = new();
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync() => _usuarios = await ApiClient.ListarUsuariosAsync();
+
+    private void NuevoUsuario()
+    {
+        _form = new CrearUsuarioRequestDto { SucursalesAsignadas = [Sesion.SucursalesPermitidas.FirstOrDefault()] };
+        _error = null;
+        _editando = true;
+    }
+
+    private void AlternarRol(string rol, bool marcado)
+    {
+        if (marcado && !_form.Roles.Contains(rol))
+            _form.Roles.Add(rol);
+        else if (!marcado)
+            _form.Roles.Remove(rol);
+    }
+
+    private async Task GuardarAsync()
+    {
+        _error = null;
+        var (exito, error) = await ApiClient.CrearUsuarioAsync(_form);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _editando = false;
+        await CargarAsync();
+    }
+
+    private async Task DesactivarAsync(Guid id)
+    {
+        await ApiClient.DesactivarUsuarioAsync(id);
+        await CargarAsync();
+    }
+}

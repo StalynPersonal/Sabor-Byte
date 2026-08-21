@@ -180,6 +180,39 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<List<UsuarioDto>> ListarUsuariosAsync()
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<UsuarioDto>>("api/usuarios") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearUsuarioAsync(CrearUsuarioRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/usuarios", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> DesactivarUsuarioAsync(Guid usuarioId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.DeleteAsync($"api/usuarios/{usuarioId}");
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<SucursalDto?> ObtenerSucursalAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<SucursalDto>($"api/sucursales/{sucursalId}");
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarSucursalAsync(Guid sucursalId, ActualizarSucursalRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/sucursales/{sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     private static async Task<string?> LeerMensajeErrorAsync(HttpResponseMessage respuesta)
     {
         try
