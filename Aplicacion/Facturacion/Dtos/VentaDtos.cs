@@ -15,6 +15,12 @@ public class CrearVentaRequestDto
     public Guid TurnoCajaId { get; set; }
     public Guid? ClienteId { get; set; }
     public FormaPago FormaPago { get; set; }
+
+    // Si se factura desde una comanda existente (mesero -> cocina -> caja), los items
+    // se toman de la comanda (excluyendo los cancelados) y Items debe venir vacío —
+    // el inventario ya se descontó al enviar la comanda a cocina, no se vuelve a descontar.
+    public Guid? ComandaId { get; set; }
+
     public List<ItemVentaDto> Items { get; set; } = [];
 
     // Propina: se acepta un % sugerido (ej. 10) o un monto fijo; si ambos vienen,

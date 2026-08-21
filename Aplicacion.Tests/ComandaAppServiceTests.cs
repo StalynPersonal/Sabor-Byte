@@ -135,4 +135,71 @@ public class ComandaAppServiceTests
             servicio.CancelarItemAsync(_sucursalId, itemId, _meseroId,
                 new CancelarItemRequestDto { Motivo = "Tarde", Rol = RolQueCancelo.Mesero }));
     }
+
+    [Fact]
+    public async Task CancelarComanda_RevierteInventarioDeTodosLosItemsYLiberaMesa()
+    {
+        var insumoId = await PrepararProductoConRecetaAsync();
+        var servicio = CrearServicio();
+
+        var mesa = new Mesa { SucursalId = _sucursalId, Numero = "07" };
+        _db.Mesas.Add(mesa);
+        await _db.SaveChangesAsync();
+
+        var comanda = await servicio.CrearComandaAsync(_sucursalId, _meseroId, new CrearComandaRequestDto
+        {
+            MesaId = mesa.Id,
+            Items =
+            [
+                new ItemComandaRequestDto { ProductoId = _productoId, Cantidad = 2 },
+                new ItemComandaRequestDto { ProductoId = _productoId, Cantidad = 1 }
+            ]
+        });
+
+        var mesaOcupada = await _db.Mesas.FindAsync(mesa.Id);
+        Assert.Equal(EstadoMesa.Ocupada, mesaOcupada!.Estado);
+
+        await servicio.CancelarComandaAsync(_sucursalId, comanda.Id, _meseroId,
+            new CancelarComandaRequestDto { Motivo = "Cliente se fue", Rol = RolQueCancelo.Mesero });
+
+        var comandaActualizada = await _db.Comandas.FindAsync(comanda.Id);
+        Assert.Equal(EstadoComanda.Cancelada, comandaActualizada!.Estado);
+
+        var insumo = await _db.Productos.FindAsync(insumoId);
+        Assert.Equal(50m, insumo!.StockActual); // se revirtieron los 3 (2+1) consumidos
+
+        var mesaLibre = await _db.Mesas.FindAsync(mesa.Id);
+        Assert.Equal(EstadoMesa.Libre, mesaLibre!.Estado);
+    }
+
+    [Fact]
+    public async Task CancelarComanda_ConItemYaEntregado_DejaLaComandaCerradaNoAcancelada()
+    {
+        await PrepararProductoConRecetaAsync();
+        var servicio = CrearServicio();
+
+        var comanda = await servicio.CrearComandaAsync(_sucursalId, _meseroId, new CrearComandaRequestDto
+        {
+            Items =
+            [
+                new ItemComandaRequestDto { ProductoId = _productoId, Cantidad = 1 },
+                new ItemComandaRequestDto { ProductoId = _productoId, Cantidad = 1 }
+            ]
+        });
+
+        var primerItemId = comanda.Items[0].Id;
+        await servicio.CambiarEstadoItemAsync(_sucursalId, primerItemId, EstadoItemComanda.EnPreparacion);
+        await servicio.CambiarEstadoItemAsync(_sucursalId, primerItemId, EstadoItemComanda.Listo);
+        await servicio.CambiarEstadoItemAsync(_sucursalId, primerItemId, EstadoItemComanda.Entregado);
+
+        await servicio.CancelarComandaAsync(_sucursalId, comanda.Id, _meseroId,
+            new CancelarComandaRequestDto { Motivo = "El segundo plato ya no se quiere", Rol = RolQueCancelo.Mesero });
+
+        var comandaActualizada = await _db.Comandas.FindAsync(comanda.Id);
+        // No puede quedar "Cancelada" del todo porque ya se entregó (y probablemente facturó) un ítem.
+        Assert.Equal(EstadoComanda.Cerrada, comandaActualizada!.Estado);
+
+        var segundoItem = await _db.ComandaItems.FindAsync(comanda.Items[1].Id);
+        Assert.Equal(EstadoItemComanda.Cancelado, segundoItem!.Estado);
+    }
 }

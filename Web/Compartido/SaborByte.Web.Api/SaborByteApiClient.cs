@@ -119,6 +119,44 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<(bool Exito, string? Error)> CancelarComandaAsync(
+        Guid sucursalId, Guid comandaId, string motivo, RolQueCancelo rol)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync(
+            $"api/comandas/{comandaId}/cancelar?sucursalId={sucursalId}",
+            new CancelarComandaRequestDto { Motivo = motivo, Rol = rol });
+
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<MesaDto>> ListarMesasAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<MesaDto>>($"api/mesas?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearMesaAsync(Guid sucursalId, GuardarMesaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/mesas?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarMesaAsync(Guid sucursalId, Guid mesaId, GuardarMesaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/mesas/{mesaId}?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> LiberarMesaAsync(Guid sucursalId, Guid mesaId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsync($"api/mesas/{mesaId}/liberar?sucursalId={sucursalId}", null);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<(bool Exito, Guid? Codigo, string? Error)> SolicitarAutorizacionAsync(
         string nombreUsuario, string password, string accion)
     {

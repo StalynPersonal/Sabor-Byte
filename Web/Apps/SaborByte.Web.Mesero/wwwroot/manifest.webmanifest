@@ -1,6 +1,6 @@
 {
-  "name": "SaborByte.Web.Mesero",
-  "short_name": "SaborByte.Web.Mesero",
+  "name": "Sabor Byte — Mesero",
+  "short_name": "SB Mesero",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

@@ -23,6 +23,7 @@ public class ComandaItemDto
     public Guid ProductoId { get; set; }
     public string NombreProducto { get; set; } = string.Empty;
     public decimal Cantidad { get; set; }
+    public decimal PrecioUnitario { get; set; }
     public EstadoItemComanda Estado { get; set; }
     public string? Notas { get; set; }
     public List<Guid> IngredientesExcluidosIds { get; set; } = [];

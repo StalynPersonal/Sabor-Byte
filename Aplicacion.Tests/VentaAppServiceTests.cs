@@ -7,6 +7,7 @@ using SaborByte.Aplicacion.Tests.Dobles;
 using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Identidad;
+using SaborByte.Dominio.Pedidos;
 using SaborByte.Infraestructura.Persistencia;
 using Xunit;
 
@@ -24,7 +25,7 @@ public class VentaAppServiceTests
     {
         var inventario = new InventarioAppService(_db);
         var autorizacion = new AutorizacionAppService(_db, new PasswordHasherFalso(), new AuditoriaEnMemoria());
-        return new VentaAppService(_db, inventario, autorizacion, new AuditoriaEnMemoria());
+        return new VentaAppService(_db, inventario, autorizacion, new AuditoriaEnMemoria(), new NotificadorComandasEnMemoria());
     }
 
     private async Task PrepararEscenarioAsync()
@@ -127,7 +128,7 @@ public class VentaAppServiceTests
             Accion = "Descuento"
         });
 
-        var servicio = new VentaAppService(_db, new InventarioAppService(_db), autorizacion, new AuditoriaEnMemoria());
+        var servicio = new VentaAppService(_db, new InventarioAppService(_db), autorizacion, new AuditoriaEnMemoria(), new NotificadorComandasEnMemoria());
 
         var resultado = await servicio.CrearVentaAsync(_sucursalId, _usuarioId, new CrearVentaRequestDto
         {
@@ -162,4 +163,59 @@ public class VentaAppServiceTests
     // La regresión de concurrencia del NCF vive en VentaAppServiceConcurrenciaTests.cs (usa
     // SQLite en memoria, no el proveedor InMemory de aquí, porque InMemory no soporta
     // ExecuteUpdateAsync — que es justamente el mecanismo del fix).
+
+    [Fact]
+    public async Task CrearVenta_DesdeComanda_TomaLosItemsDeLaComandaYLaCierra()
+    {
+        await PrepararEscenarioAsync();
+
+        var mesa = new Mesa { SucursalId = _sucursalId, Numero = "05" };
+        var comanda = new Comanda { SucursalId = _sucursalId, MesaId = mesa.Id, Estado = EstadoComanda.EnviadaCocina };
+        comanda.Items.Add(new ComandaItem
+        {
+            ComandaId = comanda.Id,
+            ProductoId = _productoId,
+            NombreProducto = "Hamburguesa",
+            Cantidad = 2,
+            PrecioUnitario = 250m,
+            Estado = EstadoItemComanda.Listo
+        });
+
+        _db.Mesas.Add(mesa);
+        _db.Comandas.Add(comanda);
+        await _db.SaveChangesAsync();
+
+        var servicio = CrearServicio();
+
+        var resultado = await servicio.CrearVentaAsync(_sucursalId, _usuarioId, new CrearVentaRequestDto
+        {
+            TurnoCajaId = _turnoId,
+            FormaPago = FormaPago.Efectivo,
+            ComandaId = comanda.Id
+        });
+
+        Assert.Equal(500m, resultado.Subtotal); // 2 x 250, tomado de la comanda, no de Items
+
+        var comandaActualizada = await _db.Comandas.FindAsync(comanda.Id);
+        Assert.Equal(EstadoComanda.Cerrada, comandaActualizada!.Estado);
+
+        var mesaActualizada = await _db.Mesas.FindAsync(mesa.Id);
+        Assert.Equal(EstadoMesa.Libre, mesaActualizada!.Estado);
+    }
+
+    [Fact]
+    public async Task CrearVenta_DesdeComandaConItemsEnRequest_Rechaza()
+    {
+        await PrepararEscenarioAsync();
+        var servicio = CrearServicio();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.CrearVentaAsync(_sucursalId, _usuarioId,
+            new CrearVentaRequestDto
+            {
+                TurnoCajaId = _turnoId,
+                FormaPago = FormaPago.Efectivo,
+                ComandaId = Guid.NewGuid(),
+                Items = [new ItemVentaDto { ProductoId = _productoId, Cantidad = 1 }]
+            }));
+    }
 }

@@ -1,6 +1,6 @@
 {
-  "name": "SaborByte.Web.Cocina",
-  "short_name": "SaborByte.Web.Cocina",
+  "name": "Sabor Byte — Cocina",
+  "short_name": "SB Cocina",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

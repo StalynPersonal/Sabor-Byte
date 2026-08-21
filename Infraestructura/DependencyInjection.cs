@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Facturacion.NotaCreditoDebitoAppService>();
         services.AddScoped<Aplicacion.Caja.CajaAppService>();
         services.AddScoped<Aplicacion.Pedidos.ComandaAppService>();
+        services.AddScoped<Aplicacion.Pedidos.MesaAppService>();
         services.AddScoped<Aplicacion.Clientes.ClienteAppService>();
         services.AddScoped<Aplicacion.CxcCxp.CxcCxpAppService>();
         services.AddScoped<Aplicacion.Reportes.ReporteAppService>();

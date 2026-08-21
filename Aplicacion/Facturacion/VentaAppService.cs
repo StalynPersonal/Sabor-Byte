@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Facturacion.Dtos;
 using SaborByte.Aplicacion.Interfaces;
+using SaborByte.Aplicacion.Pedidos.Dtos;
 using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Facturacion;
+using SaborByte.Dominio.Pedidos;
 
 namespace SaborByte.Aplicacion.Facturacion;
 
@@ -10,13 +12,43 @@ public class VentaAppService(
     IAppDbContext db,
     Inventario.InventarioAppService inventario,
     Identidad.AutorizacionAppService autorizacion,
-    IAuditoriaService auditoria)
+    IAuditoriaService auditoria,
+    INotificadorComandas notificadorComandas)
 {
     private const decimal TasaItbis = 0.18m;
 
     public async Task<VentaResultadoDto> CrearVentaAsync(
         Guid sucursalId, Guid usuarioId, CrearVentaRequestDto request, CancellationToken ct = default)
     {
+        // Facturar desde una comanda existente (mesero -> cocina -> caja): los items se
+        // toman de la comanda, no del request — evita que caja invente/altere lo que se
+        // preparó en cocina. El inventario ya se descontó al enviar la comanda a cocina.
+        Comanda? comandaOrigen = null;
+        if (request.ComandaId is not null)
+        {
+            if (request.Items.Count > 0)
+                throw new InvalidOperationException("Al facturar desde una comanda, Items debe venir vacío.");
+
+            comandaOrigen = await db.Comandas
+                .Include(c => c.Items).ThenInclude(i => i.IngredientesExcluidos)
+                .FirstOrDefaultAsync(c => c.Id == request.ComandaId && c.SucursalId == sucursalId, ct)
+                ?? throw new InvalidOperationException("La comanda no existe.");
+
+            if (comandaOrigen.Estado is EstadoComanda.Cerrada or EstadoComanda.Cancelada)
+                throw new InvalidOperationException($"No se puede facturar una comanda en estado '{comandaOrigen.Estado}'.");
+
+            var itemsVigentes = comandaOrigen.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado).ToList();
+            if (itemsVigentes.Count == 0)
+                throw new InvalidOperationException("La comanda no tiene ítems vigentes para facturar.");
+
+            request.Items = itemsVigentes.Select(i => new ItemVentaDto
+            {
+                ProductoId = i.ProductoId,
+                Cantidad = i.Cantidad,
+                IngredientesExcluidosIds = i.IngredientesExcluidos.Select(e => e.IngredienteId).ToList()
+            }).ToList();
+        }
+
         if (request.Items.Count == 0)
             throw new InvalidOperationException("La venta debe tener al menos un producto.");
 
@@ -53,6 +85,7 @@ public class VentaAppService(
             SucursalId = sucursalId,
             CajaTurnoId = turno.Id,
             ClienteId = request.ClienteId,
+            ComandaId = comandaOrigen?.Id,
             CreadoPorUsuarioId = usuarioId,
             FechaEmision = DateTime.UtcNow
         };
@@ -108,14 +141,34 @@ public class VentaAppService(
             Descripcion = $"Venta {factura.NumeroNcf ?? factura.Id.ToString()[..8]}"
         });
 
-        foreach (var item in request.Items)
+        // Si viene de una comanda, el inventario ya se descontó al enviarla a cocina
+        // (ComandaAppService.CrearComandaAsync) — descontarlo de nuevo aquí duplicaría el consumo.
+        if (comandaOrigen is null)
         {
-            await inventario.DescontarPorVentaAsync(
-                sucursalId, item.ProductoId, item.Cantidad, factura.Id,
-                item.IngredientesExcluidosIds, usuarioId, ct);
+            foreach (var item in request.Items)
+            {
+                await inventario.DescontarPorVentaAsync(
+                    sucursalId, item.ProductoId, item.Cantidad, factura.Id,
+                    item.IngredientesExcluidosIds, usuarioId, ct);
+            }
+        }
+
+        if (comandaOrigen is not null)
+        {
+            comandaOrigen.Estado = EstadoComanda.Cerrada;
+
+            if (comandaOrigen.MesaId is not null)
+            {
+                var mesa = await db.Mesas.FirstOrDefaultAsync(m => m.Id == comandaOrigen.MesaId, ct);
+                if (mesa is not null)
+                    mesa.Estado = EstadoMesa.Libre;
+            }
         }
 
         await db.SaveChangesAsync(ct);
+
+        if (comandaOrigen is not null)
+            await notificadorComandas.ComandaCerradaAsync(sucursalId, comandaOrigen.Id);
 
         return new VentaResultadoDto
         {

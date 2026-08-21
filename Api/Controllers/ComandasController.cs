@@ -70,4 +70,22 @@ public class ComandasController(ComandaAppService comandas) : ControllerBase
             return BadRequest(new { mensaje = ex.Message });
         }
     }
+
+    [HttpPost("{comandaId:guid}/cancelar")]
+    public async Task<IActionResult> CancelarComanda(
+        [FromQuery] Guid sucursalId, Guid comandaId, CancelarComandaRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        try
+        {
+            await comandas.CancelarComandaAsync(sucursalId, comandaId, User.ObtenerUsuarioId(), request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
 }

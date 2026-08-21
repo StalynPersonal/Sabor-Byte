@@ -23,6 +23,7 @@ public class CrearVentaRequestDto
     public Guid TurnoCajaId { get; set; }
     public Guid? ClienteId { get; set; }
     public FormaPago FormaPago { get; set; }
+    public Guid? ComandaId { get; set; }
     public List<ItemVentaDto> Items { get; set; } = [];
     public decimal? PorcentajePropina { get; set; }
     public decimal? MontoPropinaFijo { get; set; }

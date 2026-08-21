@@ -91,6 +91,8 @@ else if (_cerrando)
 }
 else
 {
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
+    <MudTabPanel Text="Venta directa">
     <MudGrid>
         <MudItem xs="8">
             <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
@@ -175,6 +177,71 @@ else
             </MudPaper>
         </MudItem>
     </MudGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Comandas abiertas">
+        @if (_comandaParaFacturar is null)
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-3" OnClick="CargarComandasAbiertasAsync">
+                Actualizar
+            </MudButton>
+
+            @if (_comandasAbiertas.Count == 0)
+            {
+                <MudText Typo="Typo.body2">No hay comandas abiertas para facturar.</MudText>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var comanda in _comandasAbiertas)
+                    {
+                        <MudItem xs="6" sm="4" md="3">
+                            <MudCard Class="cursor-pointer" @onclick="() => SeleccionarComanda(comanda)">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle1">Comanda #@comanda.NumeroComanda</MudText>
+                                    <MudText Typo="Typo.body2">@comanda.Items.Count(i => i.Estado != EstadoItemComanda.Cancelado) ítem(s)</MudText>
+                                    <MudText Typo="Typo.caption">@comanda.CreadoEn.ToLocalTime().ToString("HH:mm")</MudText>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        }
+        else
+        {
+            <MudPaper Class="pa-4" Style="max-width:500px">
+                <MudText Typo="Typo.h6" Class="mb-2">Comanda #@_comandaParaFacturar.NumeroComanda</MudText>
+
+                @foreach (var item in _comandaParaFacturar.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
+                {
+                    <div class="d-flex justify-space-between mb-1">
+                        <MudText Typo="Typo.body2">@item.Cantidad x @item.NombreProducto</MudText>
+                    </div>
+                }
+
+                <MudSelect T="FormaPago" Label="Forma de pago" @bind-Value="_formaPagoComanda" Class="my-3">
+                    <MudSelectItem Value="FormaPago.Efectivo">Efectivo</MudSelectItem>
+                    <MudSelectItem Value="FormaPago.Tarjeta">Tarjeta</MudSelectItem>
+                    <MudSelectItem Value="FormaPago.Transferencia">Transferencia</MudSelectItem>
+                    <MudSelectItem Value="FormaPago.Deposito">Depósito</MudSelectItem>
+                </MudSelect>
+
+                @if (!string.IsNullOrEmpty(_errorComanda))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-2">@_errorComanda</MudAlert>
+                }
+
+                <div class="d-flex gap-2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="FacturarComandaAsync">
+                        Facturar comanda
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="() => _comandaParaFacturar = null">Volver</MudButton>
+                </div>
+            </MudPaper>
+        }
+    </MudTabPanel>
+    </MudTabs>
 
     @if (_mostrarDialogoDescuento)
     {
@@ -265,6 +332,11 @@ else
     private decimal _montoTransferenciaContado;
     private decimal _montoDepositoContado;
 
+    private List<ComandaDto> _comandasAbiertas = [];
+    private ComandaDto? _comandaParaFacturar;
+    private FormaPago _formaPagoComanda = FormaPago.Efectivo;
+    private string? _errorComanda;
+
     private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
     // Aproximación en pantalla (con ITBIS incluido de forma simplificada); el total real, con ITBIS
     // exacto por línea y la propina aplicada sobre el total con impuestos, lo calcula el backend.
@@ -303,12 +375,59 @@ else
 
         _turnoCajaId = turnoId;
         await BuscarAsync();
+        await CargarComandasAbiertasAsync();
     }
 
     private async Task BuscarAsync()
     {
         var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
         _productos = await ApiClient.BuscarProductosAsync(sucursalId, _textoBusqueda);
+    }
+
+    private async Task CargarComandasAbiertasAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _comandasAbiertas = await ApiClient.ObtenerComandasAbiertasAsync(sucursalId);
+    }
+
+    private void SeleccionarComanda(ComandaDto comanda)
+    {
+        _comandaParaFacturar = comanda;
+        _formaPagoComanda = FormaPago.Efectivo;
+        _errorComanda = null;
+    }
+
+    private async Task FacturarComandaAsync()
+    {
+        _errorComanda = null;
+
+        var request = new CrearVentaRequestDto
+        {
+            TurnoCajaId = _turnoCajaId!.Value,
+            ComandaId = _comandaParaFacturar!.Id,
+            FormaPago = _formaPagoComanda
+        };
+
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var (exito, resultado, error) = await ApiClient.CrearVentaAsync(sucursalId, request);
+
+        if (!exito)
+        {
+            _errorComanda = error;
+            return;
+        }
+
+        _ultimaVenta = resultado;
+        _lineasUltimaVenta = _comandaParaFacturar.Items
+            .Where(i => i.Estado != EstadoItemComanda.Cancelado)
+            .Select(i => new LineaCarrito { ProductoId = i.ProductoId, Nombre = i.NombreProducto, Cantidad = (int)i.Cantidad, Precio = i.PrecioUnitario })
+            .ToList();
+
+        _comandaParaFacturar = null;
+        await CargarComandasAbiertasAsync();
+
+        StateHasChanged();
+        await JS.InvokeVoidAsync("print");
     }
 
     private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct)

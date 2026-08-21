@@ -1,6 +1,6 @@
 {
-  "name": "SaborByte.Web.Central",
-  "short_name": "SaborByte.Web.Central",
+  "name": "Sabor Byte — Central",
+  "short_name": "SB Central",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

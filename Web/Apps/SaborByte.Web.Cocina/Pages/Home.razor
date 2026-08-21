@@ -6,6 +6,7 @@
 @inject SesionCliente Sesion
 @inject ConexionComandas Conexion
 @inject NavigationManager Navegacion
+@inject IJSRuntime JS
 
 <PageTitle>Sabor Byte — Cocina</PageTitle>
 
@@ -20,7 +21,12 @@ else
         {
             <MudItem xs="12" sm="6" md="4">
                 <MudPaper Class="pa-4" Elevation="4">
-                    <MudText Typo="Typo.h6">Comanda #@comanda.NumeroComanda</MudText>
+                    <div class="d-flex justify-space-between align-center">
+                        <MudText Typo="Typo.h6">Comanda #@comanda.NumeroComanda</MudText>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => ImprimirAsync(comanda)">
+                            Imprimir
+                        </MudButton>
+                    </div>
                     <MudText Typo="Typo.caption" Class="mb-2">@comanda.CreadoEn.ToLocalTime().ToString("HH:mm")</MudText>
 
                     @foreach (var item in comanda.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
@@ -61,8 +67,26 @@ else
     </MudGrid>
 }
 
+@if (_comandaAImprimir is not null)
+{
+    <div class="solo-imprimir">
+        <p style="text-align:center; margin:0; font-weight:bold">COMANDA #@_comandaAImprimir.NumeroComanda</p>
+        <p style="text-align:center; margin:0">@_comandaAImprimir.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+        <hr />
+        @foreach (var item in _comandaAImprimir.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
+        {
+            <p style="margin:4px 0">@item.Cantidad x @item.NombreProducto</p>
+            @if (!string.IsNullOrEmpty(item.Notas))
+            {
+                <p style="margin:0 0 4px 12px">Nota: @item.Notas</p>
+            }
+        }
+    </div>
+}
+
 @code {
     private List<ComandaDto> _comandas = [];
+    private ComandaDto? _comandaAImprimir;
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,6 +140,13 @@ else
         await ApiClient.CancelarItemAsync(sucursalId, item.Id, "Cancelado desde cocina", RolQueCancelo.Cocina);
         item.Estado = EstadoItemComanda.Cancelado;
         StateHasChanged();
+    }
+
+    private async Task ImprimirAsync(ComandaDto comanda)
+    {
+        _comandaAImprimir = comanda;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("print");
     }
 
     public async ValueTask DisposeAsync()

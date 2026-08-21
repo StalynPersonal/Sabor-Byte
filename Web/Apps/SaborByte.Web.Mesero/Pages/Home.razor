@@ -4,6 +4,8 @@
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
+@inject ConexionComandas Conexion
+@implements IAsyncDisposable
 
 <PageTitle>Sabor Byte — Mesero</PageTitle>
 
@@ -13,67 +15,144 @@
 }
 else
 {
-    <MudGrid>
-        <MudItem xs="8">
-            <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
-                           @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
-                           OnDebounceIntervalElapsed="BuscarAsync" Class="mb-4" />
-
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
+        <MudTabPanel Text="Nuevo pedido">
             <MudGrid>
-                @foreach (var producto in _productos)
-                {
-                    <MudItem xs="4" sm="3">
-                        <MudCard Class="cursor-pointer" @onclick="() => AgregarAlPedido(producto)">
-                            <MudCardContent>
-                                <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
-                                <MudText Typo="Typo.body2">RD$ @producto.Precio.ToString("0.00")</MudText>
-                            </MudCardContent>
-                        </MudCard>
-                    </MudItem>
-                }
+                <MudItem xs="8">
+                    <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
+                                   @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
+                                   OnDebounceIntervalElapsed="BuscarAsync" Class="mb-4" />
+
+                    <MudGrid>
+                        @foreach (var producto in _productos)
+                        {
+                            <MudItem xs="4" sm="3">
+                                <MudCard Class="cursor-pointer" @onclick="() => AgregarAlPedido(producto)">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
+                                        <MudText Typo="Typo.body2">RD$ @producto.Precio.ToString("0.00")</MudText>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudItem>
+
+                <MudItem xs="4">
+                    <MudPaper Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Pedido</MudText>
+
+                        <MudSelect T="Guid?" Label="Mesa (opcional)" @bind-Value="_mesaId" Class="mb-3" Clearable="true">
+                            @foreach (var mesa in _mesas)
+                            {
+                                <MudSelectItem Value="@((Guid?)mesa.Id)">
+                                    Mesa @mesa.Numero @(string.IsNullOrEmpty(mesa.Salon) ? "" : $"— {mesa.Salon}") @(mesa.Estado == EstadoMesa.Ocupada ? "(ocupada)" : "")
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        @foreach (var linea in _pedido)
+                        {
+                            <div class="d-flex justify-space-between align-center mb-1">
+                                <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
+                                <MudTextField T="string" Label="Notas" @bind-Value="linea.Notas" Margin="Margin.Dense" />
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_error))
+                        {
+                            <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_mensajeExito))
+                        {
+                            <MudAlert Severity="Severity.Success" Class="my-2">@_mensajeExito</MudAlert>
+                        }
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                                   Disabled="_pedido.Count == 0" OnClick="EnviarACocinaAsync" Class="mt-2">
+                            Enviar a cocina
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
             </MudGrid>
-        </MudItem>
+        </MudTabPanel>
 
-        <MudItem xs="4">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-2">Pedido</MudText>
-
-                <MudTextField T="string" Label="Mesa (opcional)" @bind-Value="_numeroMesa" Class="mb-3" />
-
-                @foreach (var linea in _pedido)
+        <MudTabPanel Text="Mis comandas">
+            @if (_comandas.Count == 0)
+            {
+                <MudText Typo="Typo.body2">No hay comandas abiertas.</MudText>
+            }
+            else
+            {
+                @foreach (var comanda in _comandas)
                 {
-                    <div class="d-flex justify-space-between align-center mb-1">
-                        <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
-                        <MudTextField T="string" Label="Notas" @bind-Value="linea.Notas" Margin="Margin.Dense" />
-                    </div>
+                    <MudPaper Class="pa-4 mb-3">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudText Typo="Typo.subtitle1">
+                                Comanda #@comanda.NumeroComanda
+                                @(comanda.MesaId is null ? "" : $"— Mesa {NombreMesa(comanda.MesaId)}")
+                            </MudText>
+                            <MudButton Size="Size.Small" Color="Color.Error"
+                                       OnClick="() => AbrirCancelarComanda(comanda.Id)">
+                                Cancelar comanda
+                            </MudButton>
+                        </div>
+
+                        @foreach (var item in comanda.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
+                        {
+                            <div class="d-flex justify-space-between align-center mb-1">
+                                <MudText Typo="Typo.body2">@item.Cantidad x @item.NombreProducto — @item.Estado</MudText>
+                                @if (item.Estado == EstadoItemComanda.Listo)
+                                {
+                                    <MudButton Size="Size.Small" Color="Color.Success"
+                                               OnClick="() => MarcarEntregadoAsync(item.Id)">
+                                        Marcar entregado
+                                    </MudButton>
+                                }
+                            </div>
+                        }
+                    </MudPaper>
+                }
+            }
+        </MudTabPanel>
+    </MudTabs>
+
+    @if (_mostrarDialogoCancelarComanda)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999" @onclick="() => _mostrarDialogoCancelarComanda = false">
+            <MudPaper Class="pa-6" @onclick:stopPropagation="true" Style="width:400px">
+                <MudText Typo="Typo.h6" Class="mb-3">Cancelar comanda completa</MudText>
+                <MudTextField T="string" Label="Motivo" @bind-Value="_motivoCancelacion" Class="mb-2" />
+
+                @if (!string.IsNullOrEmpty(_errorCancelacion))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-2">@_errorCancelacion</MudAlert>
                 }
 
-                @if (!string.IsNullOrEmpty(_error))
-                {
-                    <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
-                }
-
-                @if (!string.IsNullOrEmpty(_mensajeExito))
-                {
-                    <MudAlert Severity="Severity.Success" Class="my-2">@_mensajeExito</MudAlert>
-                }
-
-                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
-                           Disabled="_pedido.Count == 0" OnClick="EnviarACocinaAsync" Class="mt-2">
-                    Enviar a cocina
-                </MudButton>
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarCancelarComandaAsync">Cancelar comanda</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoCancelarComanda = false">Volver</MudButton>
+                </div>
             </MudPaper>
-        </MudItem>
-    </MudGrid>
+        </MudOverlay>
+    }
 }
 
 @code {
     private string _textoBusqueda = string.Empty;
     private List<ProductoResumenDto> _productos = [];
     private readonly List<LineaPedido> _pedido = [];
-    private string _numeroMesa = string.Empty;
+    private List<MesaDto> _mesas = [];
+    private Guid? _mesaId;
     private string? _error;
     private string? _mensajeExito;
+
+    private List<ComandaDto> _comandas = [];
+    private bool _mostrarDialogoCancelarComanda;
+    private Guid? _comandaACancelar;
+    private string _motivoCancelacion = string.Empty;
+    private string? _errorCancelacion;
 
     protected override async Task OnInitializedAsync()
     {
@@ -83,7 +162,43 @@ else
             return;
         }
 
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
         await BuscarAsync();
+        _mesas = await ApiClient.ListarMesasAsync(sucursalId);
+        await CargarComandasAsync();
+
+        Conexion.ItemActualizado += OnItemActualizado;
+        Conexion.ComandaCerrada += OnComandaCerrada;
+        Conexion.ComandaCancelada += OnComandaCancelada;
+        await Conexion.ConectarAsync();
+    }
+
+    private void OnItemActualizado(Guid comandaId, ComandaItemDto item)
+    {
+        var comanda = _comandas.FirstOrDefault(c => c.Id == comandaId);
+        var existente = comanda?.Items.FirstOrDefault(i => i.Id == item.Id);
+        if (existente is not null)
+        {
+            comanda!.Items[comanda.Items.IndexOf(existente)] = item;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnComandaCerrada(Guid comandaId)
+    {
+        _comandas.RemoveAll(c => c.Id == comandaId);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnComandaCancelada(Guid comandaId, Guid? itemId)
+        => await InvokeAsync(async () => { await CargarComandasAsync(); StateHasChanged(); });
+
+    private string NombreMesa(Guid? mesaId) => _mesas.FirstOrDefault(m => m.Id == mesaId)?.Numero ?? "?";
+
+    private async Task CargarComandasAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _comandas = await ApiClient.ObtenerComandasAbiertasAsync(sucursalId);
     }
 
     private async Task BuscarAsync()
@@ -108,6 +223,7 @@ else
 
         var request = new CrearComandaRequestDto
         {
+            MesaId = _mesaId,
             Items = _pedido.Select(l => new ItemComandaRequestDto
             {
                 ProductoId = l.ProductoId,
@@ -127,7 +243,57 @@ else
 
         _mensajeExito = $"Comanda #{comanda!.NumeroComanda} enviada a cocina.";
         _pedido.Clear();
-        _numeroMesa = string.Empty;
+        _mesaId = null;
+        _mesas = await ApiClient.ListarMesasAsync(sucursalId);
+        await CargarComandasAsync();
+    }
+
+    private async Task MarcarEntregadoAsync(Guid comandaItemId)
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        await ApiClient.CambiarEstadoItemAsync(sucursalId, comandaItemId, EstadoItemComanda.Entregado);
+        await CargarComandasAsync();
+    }
+
+    private void AbrirCancelarComanda(Guid comandaId)
+    {
+        _comandaACancelar = comandaId;
+        _motivoCancelacion = string.Empty;
+        _errorCancelacion = null;
+        _mostrarDialogoCancelarComanda = true;
+    }
+
+    private async Task ConfirmarCancelarComandaAsync()
+    {
+        _errorCancelacion = null;
+
+        if (string.IsNullOrWhiteSpace(_motivoCancelacion))
+        {
+            _errorCancelacion = "El motivo es obligatorio.";
+            return;
+        }
+
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var (exito, error) = await ApiClient.CancelarComandaAsync(
+            sucursalId, _comandaACancelar!.Value, _motivoCancelacion, RolQueCancelo.Mesero);
+
+        if (!exito)
+        {
+            _errorCancelacion = error;
+            return;
+        }
+
+        _mostrarDialogoCancelarComanda = false;
+        _mesas = await ApiClient.ListarMesasAsync(sucursalId);
+        await CargarComandasAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Conexion.ItemActualizado -= OnItemActualizado;
+        Conexion.ComandaCerrada -= OnComandaCerrada;
+        Conexion.ComandaCancelada -= OnComandaCancelada;
+        await Task.CompletedTask;
     }
 
     private class LineaPedido

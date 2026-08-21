@@ -1,0 +1,159 @@
+@page "/mesas"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — Mesas</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="@(_editando ? 7 : 12)">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h5">Mesas</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaMesa">
+                    Nueva mesa
+                </MudButton>
+            </div>
+
+            @if (_mesas.Count == 0)
+            {
+                <MudText Typo="Typo.body2">No hay mesas registradas.</MudText>
+            }
+            else
+            {
+                @foreach (var salonGrupo in _mesas.GroupBy(m => m.Salon ?? "Sin salón"))
+                {
+                    <MudText Typo="Typo.subtitle1" Class="mt-3 mb-2">@salonGrupo.Key</MudText>
+                    <MudGrid>
+                        @foreach (var mesa in salonGrupo)
+                        {
+                            <MudItem xs="6" sm="4" md="3">
+                                <MudCard Class="cursor-pointer" Style="@EstiloTarjeta(mesa)" @onclick="() => EditarMesa(mesa)">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.subtitle1">Mesa @mesa.Numero</MudText>
+                                        <MudText Typo="Typo.body2">Capacidad: @mesa.Capacidad</MudText>
+                                        <MudText Typo="Typo.body2">@(mesa.Estado == EstadoMesa.Libre ? "Libre" : "Ocupada")</MudText>
+                                    </MudCardContent>
+                                    @if (mesa.Estado == EstadoMesa.Ocupada)
+                                    {
+                                        <MudCardActions>
+                                            <MudButton Size="Size.Small" Color="Color.Warning"
+                                                       OnClick="@(async (MouseEventArgs e) => await LiberarAsync(mesa.Id))">
+                                                Liberar
+                                            </MudButton>
+                                        </MudCardActions>
+                                    }
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                }
+            }
+        </MudItem>
+
+        @if (_editando)
+        {
+            <MudItem xs="12" md="5">
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">@(_mesaId is null ? "Nueva mesa" : "Editar mesa")</MudText>
+
+                    <MudTextField T="string" Label="Número" @bind-Value="_form.Numero" Class="mb-2" />
+                    <MudTextField T="string" Label="Salón (opcional)" @bind-Value="_form.Salon" Class="mb-2" />
+                    <MudNumericField T="int" Label="Capacidad" @bind-Value="_form.Capacidad" Min="0" Class="mb-2" />
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                    }
+
+                    <div class="d-flex gap-2 mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+                        <MudButton Variant="Variant.Outlined" OnClick="() => _editando = false">Cancelar</MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<MesaDto> _mesas = [];
+    private bool _editando;
+    private Guid? _mesaId;
+    private GuardarMesaRequestDto _form = new();
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _mesas = await ApiClient.ListarMesasAsync(sucursalId);
+    }
+
+    private static string EstiloTarjeta(MesaDto mesa) =>
+        mesa.Estado == EstadoMesa.Ocupada ? "border-left: 4px solid var(--mud-palette-warning)" : "border-left: 4px solid var(--mud-palette-success)";
+
+    private void NuevaMesa()
+    {
+        _mesaId = null;
+        _form = new GuardarMesaRequestDto();
+        _error = null;
+        _editando = true;
+    }
+
+    private void EditarMesa(MesaDto mesa)
+    {
+        _mesaId = mesa.Id;
+        _form = new GuardarMesaRequestDto
+        {
+            Numero = mesa.Numero,
+            Salon = mesa.Salon,
+            Capacidad = mesa.Capacidad
+        };
+        _error = null;
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _error = null;
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+
+        var (exito, error) = _mesaId is null
+            ? await ApiClient.CrearMesaAsync(sucursalId, _form)
+            : await ApiClient.ActualizarMesaAsync(sucursalId, _mesaId.Value, _form);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _editando = false;
+        await CargarAsync();
+    }
+
+    private async Task LiberarAsync(Guid mesaId)
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        await ApiClient.LiberarMesaAsync(sucursalId, mesaId);
+        await CargarAsync();
+    }
+}
