@@ -23,6 +23,7 @@ public class Factura
     public decimal Subtotal { get; set; }
     public decimal Itbis { get; set; }
     public decimal Descuento { get; set; }
+    public decimal Propina { get; set; }
     public decimal Total { get; set; }
 
     public EstadoDgii EstadoDgii { get; set; } = EstadoDgii.NoAplica;

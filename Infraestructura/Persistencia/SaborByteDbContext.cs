@@ -176,6 +176,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Subtotal).HasColumnType("decimal(18,2)");
             b.Property(x => x.Itbis).HasColumnType("decimal(18,2)");
             b.Property(x => x.Descuento).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Propina).HasColumnType("decimal(18,2)");
             b.Property(x => x.Total).HasColumnType("decimal(18,2)");
             b.Property(x => x.NumeroNcf).HasMaxLength(20);
             b.Property(x => x.TipoComprobante).HasMaxLength(10);

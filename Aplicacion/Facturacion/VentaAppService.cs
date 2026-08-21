@@ -63,10 +63,15 @@ public class VentaAppService(IAppDbContext db, Inventario.InventarioAppService i
             });
         }
 
+        var propina = request.MontoPropinaFijo ?? (request.PorcentajePropina is > 0
+            ? Math.Round((subtotal - descuentoTotal + itbis) * (request.PorcentajePropina.Value / 100m), 2)
+            : 0m);
+
         factura.Subtotal = subtotal;
         factura.Descuento = descuentoTotal;
         factura.Itbis = itbis;
-        factura.Total = subtotal - descuentoTotal + itbis;
+        factura.Propina = propina;
+        factura.Total = subtotal - descuentoTotal + itbis + propina;
 
         await AsignarNcfSiAplicaAsync(sucursalId, factura, ct);
 
@@ -98,6 +103,7 @@ public class VentaAppService(IAppDbContext db, Inventario.InventarioAppService i
             Subtotal = factura.Subtotal,
             Itbis = factura.Itbis,
             Descuento = factura.Descuento,
+            Propina = factura.Propina,
             Total = factura.Total,
             FechaEmision = factura.FechaEmision
         };

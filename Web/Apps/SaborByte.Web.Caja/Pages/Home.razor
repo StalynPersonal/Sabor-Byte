@@ -73,7 +73,15 @@ else
                 }
 
                 <MudDivider Class="my-2" />
-                <MudText Typo="Typo.subtitle1">Total: RD$ @TotalCarrito.ToString("0.00")</MudText>
+                <MudText Typo="Typo.body2">Subtotal: RD$ @TotalCarrito.ToString("0.00")</MudText>
+
+                <MudSelect T="decimal" Label="Propina" @bind-Value="_porcentajePropina" Class="my-2">
+                    <MudSelectItem Value="0m">Sin propina</MudSelectItem>
+                    <MudSelectItem Value="10m">10%</MudSelectItem>
+                    <MudSelectItem Value="15m">15%</MudSelectItem>
+                </MudSelect>
+
+                <MudText Typo="Typo.subtitle1">Total: RD$ @TotalConPropina.ToString("0.00")</MudText>
 
                 <MudSelect T="FormaPago" Label="Forma de pago" @bind-Value="_formaPago" Class="my-3">
                     <MudSelectItem Value="FormaPago.Efectivo">Efectivo</MudSelectItem>
@@ -110,8 +118,12 @@ else
     private List<ProductoResumenDto> _productos = [];
     private readonly List<LineaCarrito> _carrito = [];
     private FormaPago _formaPago = FormaPago.Efectivo;
+    private decimal _porcentajePropina;
 
     private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
+    // Aproximación en pantalla (con ITBIS incluido de forma simplificada); el total real, con ITBIS
+    // exacto por línea y la propina aplicada sobre el total con impuestos, lo calcula el backend.
+    private decimal TotalConPropina => TotalCarrito * 1.18m * (1 + _porcentajePropina / 100m);
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,7 +187,8 @@ else
         {
             TurnoCajaId = _turnoCajaId!.Value,
             FormaPago = _formaPago,
-            Items = _carrito.Select(l => new ItemVentaDto { ProductoId = l.ProductoId, Cantidad = l.Cantidad }).ToList()
+            Items = _carrito.Select(l => new ItemVentaDto { ProductoId = l.ProductoId, Cantidad = l.Cantidad }).ToList(),
+            PorcentajePropina = _porcentajePropina > 0 ? _porcentajePropina : null
         };
 
         var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
@@ -188,6 +201,7 @@ else
         }
 
         _carrito.Clear();
+        _porcentajePropina = 0;
     }
 
     private async Task AbrirCierreAsync()

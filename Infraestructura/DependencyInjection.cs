@@ -35,6 +35,8 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.CxcCxp.CxcCxpAppService>();
         services.AddScoped<Aplicacion.Reportes.ReporteAppService>();
         services.AddScoped<Aplicacion.Identidad.UsuarioAppService>();
+        services.AddScoped<Aplicacion.Sucursales.SucursalAppService>();
+        services.AddScoped<IEmailSender, Email.SmtpEmailSender>();
 
         return services;
     }

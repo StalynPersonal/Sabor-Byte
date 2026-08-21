@@ -24,6 +24,8 @@ public class CrearVentaRequestDto
     public Guid? ClienteId { get; set; }
     public FormaPago FormaPago { get; set; }
     public List<ItemVentaDto> Items { get; set; } = [];
+    public decimal? PorcentajePropina { get; set; }
+    public decimal? MontoPropinaFijo { get; set; }
 }
 
 public class VentaResultadoDto
@@ -33,6 +35,7 @@ public class VentaResultadoDto
     public decimal Subtotal { get; set; }
     public decimal Itbis { get; set; }
     public decimal Descuento { get; set; }
+    public decimal Propina { get; set; }
     public decimal Total { get; set; }
     public DateTime FechaEmision { get; set; }
 }

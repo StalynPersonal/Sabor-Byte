@@ -16,6 +16,11 @@ public class CrearVentaRequestDto
     public Guid? ClienteId { get; set; }
     public FormaPago FormaPago { get; set; }
     public List<ItemVentaDto> Items { get; set; } = [];
+
+    // Propina: se acepta un % sugerido (ej. 10) o un monto fijo; si ambos vienen,
+    // el monto fijo tiene prioridad. El reparto entre meseros queda fuera de v1.
+    public decimal? PorcentajePropina { get; set; }
+    public decimal? MontoPropinaFijo { get; set; }
 }
 
 public class VentaResultadoDto
@@ -25,6 +30,7 @@ public class VentaResultadoDto
     public decimal Subtotal { get; set; }
     public decimal Itbis { get; set; }
     public decimal Descuento { get; set; }
+    public decimal Propina { get; set; }
     public decimal Total { get; set; }
     public DateTime FechaEmision { get; set; }
 }
