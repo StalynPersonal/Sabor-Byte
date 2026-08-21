@@ -1,0 +1,197 @@
+==================================================================
+SABOR BYTE — GUIA PARA LEVANTAR EL SISTEMA Y PROBARLO
+==================================================================
+
+Este documento explica como levantar la Api y las 4 apps (Central,
+Caja, Cocina, Mesero) en tu maquina de desarrollo, y da un flujo de
+prueba completo paso a paso que cubre el sistema entero.
+
+
+------------------------------------------------------------------
+1) REQUISITOS
+------------------------------------------------------------------
+
+- SQL Server corriendo en "localhost" (Trusted_Connection / Windows
+  Auth, ver Api/appsettings.Development.json).
+- .NET 10 SDK instalado.
+- 5 terminales abiertas (una para la Api, una por cada app), o una
+  sola terminal reutilizando pestanas si prefieres ir de a una.
+
+Todas las apps estan preconfiguradas para hablar con la Api en:
+    http://localhost:5080/
+(ver Web/Apps/SaborByte.Web.*/wwwroot/appsettings.Development.json)
+
+Si cambias el puerto de la Api, tienes que actualizar esos 4
+archivos tambien, o el login va a fallar con "Failed to fetch" /
+ERR_CONNECTION_REFUSED en la consola del navegador.
+
+
+------------------------------------------------------------------
+2) LEVANTAR LA API (puerto 5080, SIEMPRE debe ser este puerto)
+------------------------------------------------------------------
+
+Abre una terminal en la raiz del repo y corre:
+
+    cd Api
+    dotnet run
+
+(Api/Properties/launchSettings.json ya tiene el puerto por defecto
+en 5080, asi que no hace falta pasar --urls. Si por algun motivo
+arranca en otro puerto, fuerzalo explicitamente con:
+    dotnet run --urls http://localhost:5080
+y revisa que launchSettings.json no se haya modificado.)
+
+Dejala corriendo. En modo Development, al arrancar la Api:
+  - Aplica automaticamente cualquier migracion pendiente de la base
+    de datos.
+  - Siembra los usuarios de prueba (ver seccion 4) si la base esta
+    vacia.
+
+Como saber que arranco bien: en la consola deberias ver la linea
+    "Now listening on: http://localhost:5080"
+
+Prueba rapida desde otra terminal (opcional):
+    curl -i http://localhost:5080/api/auth/login -X POST ^
+      -H "Content-Type: application/json" ^
+      -d "{\"nombreUsuario\":\"admin\",\"password\":\"Admin#2026\"}"
+
+Si responde 200, la Api esta lista.
+
+
+------------------------------------------------------------------
+3) LEVANTAR LAS 4 APPS (cada una en su propia terminal/puerto)
+------------------------------------------------------------------
+
+    cd Web/Apps/SaborByte.Web.Central
+    dotnet run --urls http://localhost:5090
+
+    cd Web/Apps/SaborByte.Web.Caja
+    dotnet run --urls http://localhost:5091
+
+    cd Web/Apps/SaborByte.Web.Cocina
+    dotnet run --urls http://localhost:5092
+
+    cd Web/Apps/SaborByte.Web.Mesero
+    dotnet run --urls http://localhost:5093
+
+Abre cada URL en el navegador, idealmente en ventanas/pestanas
+separadas (cada app maneja su propia sesion, sin localStorage — si
+recargas la pagina, se pierde el login de esa pestana).
+
+
+------------------------------------------------------------------
+4) USUARIOS DE PRUEBA (ya sembrados automaticamente)
+------------------------------------------------------------------
+
+    Usuario:     admin
+    Contrasena:  Admin#2026
+    Rol:         Admin (entra en las 4 apps)
+
+    Usuario:     supervisor
+    Contrasena:  Supervisor#2026
+    Rol:         Supervisor (para autorizar descuentos)
+
+Sucursal ya sembrada:  "Sucursal Principal"
+Caja ya sembrada:      "01"
+
+
+------------------------------------------------------------------
+5) FLUJO DE PRUEBA COMPLETO, PASO A PASO
+------------------------------------------------------------------
+
+Este flujo cubre: catalogo, mesas, inventario, ITBIS por producto,
+comandas (mesero -> cocina -> caja), impresion, cancelaciones, venta
+directa y cuadre de caja.
+
+--- PASO 1: Central (http://localhost:5090) ---
+  1. Login con admin / Admin#2026.
+  2. Ir a "Productos":
+     - Crear un producto Vendible, ej. "Hamburguesa Clasica",
+       precio 250, Aplica ITBIS = si, Tasa de ITBIS = 18%.
+     - (Opcional) Crear otro producto y probarlo con 16% o 0% para
+       confirmar que el selector de tasa funciona.
+  3. Ir a "Mesas":
+     - Crear 2 o 3 mesas (ej. "01", "02", "03").
+  4. Ir a "Inventario":
+     - Crear un producto tipo Insumo, ej. "Pan de hamburguesa".
+     - Click "Registrar entrada": cantidad 50, guardar. Confirmar
+       que el stock sube a 50 en la tabla de insumos.
+     - Click "Registrar ajuste": poner un nuevo stock (ej. 45) con
+       un motivo ("conteo fisico"), guardar. Confirmar que el stock
+       baja y que aparece un movimiento tipo "Ajuste" en la tabla de
+       movimientos recientes.
+
+--- PASO 2: Mesero (http://localhost:5093) ---
+  1. Login con admin / Admin#2026.
+  2. Pestana "Nuevo pedido":
+     - Buscar "Hamburguesa" y agregarla al pedido.
+     - Seleccionar una mesa en el dropdown "Mesa (opcional)".
+     - Click "Enviar a cocina". Debe aparecer un mensaje de exito
+       con el numero de comanda.
+  3. Volver a Central -> Mesas: la mesa elegida debe verse ahora
+     "Ocupada".
+
+--- PASO 3: Cocina (http://localhost:5092) ---
+  1. Login con admin / Admin#2026.
+  2. La comanda enviada por el mesero debe aparecer sola, en tiempo
+     real, sin recargar la pagina (SignalR).
+  3. Click "Preparar" en el item -> pasa a "En preparacion".
+  4. Click "Listo" -> pasa a "Listo".
+  5. Click el boton "Imprimir" de la comanda: debe abrirse el
+     dialogo de impresion del navegador con el ticket de cocina
+     (numero de comanda + items, sin precios).
+
+--- PASO 4: Mesero de nuevo (http://localhost:5093) ---
+  1. Ir a la pestana "Mis comandas".
+  2. El item deberia verse en estado "Listo" con un boton
+     "Marcar entregado". Hacer click.
+  3. Confirmar que el estado cambia a "Entregado".
+
+--- PASO 5: Caja (http://localhost:5091) ---
+  1. Login con admin / Admin#2026.
+  2. Elegir la Caja "01", monto de apertura (ej. 1000), "Abrir turno".
+  3. Pestana "Comandas abiertas":
+     - Debe aparecer la comanda del mesero. Seleccionarla.
+     - Elegir forma de pago, click "Facturar comanda".
+     - Debe abrirse el dialogo de impresion con la boleta.
+  4. Volver a Central -> Mesas: la mesa debe volver a "Libre".
+  5. Probar tambien una venta directa (pestana "Venta directa"):
+     buscar un producto, agregarlo al carrito, elegir forma de pago,
+     "Facturar".
+  6. Cerrar turno:
+     - Click "Cerrar turno".
+     - Contar el efectivo esperado (o dejar los campos en 0 para una
+       prueba rapida) y confirmar el cierre.
+
+--- PASO 6 (opcional): Cancelacion de comanda completa ---
+  1. En Mesero, crear una comanda nueva (paso 2) y NO facturarla.
+  2. En la pestana "Mis comandas", click "Cancelar comanda", escribir
+     un motivo, confirmar.
+  3. Ir a Central -> Inventario -> deberia verse un movimiento tipo
+     "ReversoCancelacion" devolviendo el insumo consumido.
+  4. Ir a Central -> Mesas -> la mesa debe volver a "Libre".
+
+
+------------------------------------------------------------------
+6) NOTAS Y PROBLEMAS COMUNES
+------------------------------------------------------------------
+
+- "Failed to fetch" / ERR_CONNECTION_REFUSED en la consola del
+  navegador: la Api no esta corriendo en el puerto 5080, o se cayo.
+  Volver a correr el paso 2. Si "dotnet run" (sin --urls) levanta en
+  un puerto distinto a 5080, es que Properties/launchSettings.json
+  se modifico — revisar "applicationUrl" ahi.
+
+- "Ya existe un turno abierto en esta caja": quedo un turno sin
+  cerrar de una prueba anterior. Hay que cerrarlo desde Caja antes
+  de poder abrir uno nuevo.
+
+- Envio real a DGII: requiere el certificado digital configurado en
+  Api/certificados/ (ver Api/certificados/README.md) y vigente. Sin
+  eso, las ventas con e-CF activo quedan marcadas "Contingencia"
+  automaticamente — la venta NO se bloquea, solo queda pendiente de
+  reenvio.
+
+- Las 4 apps no comparten sesion entre si (cada una su propio login),
+  y ninguna persiste la sesion en el navegador (sin localStorage) —
+  si recargas una pestana, hay que volver a iniciar sesion ahi.
