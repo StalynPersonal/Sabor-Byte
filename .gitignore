@@ -1,0 +1,30 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secretos locales (no confundir con appsettings.Development.json, que sí se versiona a propósito)
+.env
+.env.local
