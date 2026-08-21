@@ -2,8 +2,11 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Infraestructura;
+using SaborByte.Infraestructura.Persistencia;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +38,14 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+
+// Las 4 apps Blazor viven en orígenes/puertos distintos al de la Api; se autentican
+// con JWT (no cookies), por lo que permitir cualquier origen aquí no compromete CSRF.
+builder.Services.AddCors(opciones =>
+{
+    opciones.AddPolicy("AppsBlazor", politica =>
+        politica.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
 
 // Rate limiting nativo de .NET: política estricta para login, más permisiva para el resto.
 builder.Services.AddRateLimiter(opciones =>
@@ -72,9 +83,17 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<SaborByteDbContext>();
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    await db.Database.MigrateAsync();
+    await SeedData.EjecutarAsync(db, passwordHasher);
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AppsBlazor");
 
 app.UseRateLimiter();
 

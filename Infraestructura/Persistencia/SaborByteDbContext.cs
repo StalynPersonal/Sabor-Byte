@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
+using SaborByte.Dominio.Inventario;
 using SaborByte.Dominio.Sucursales;
 
 namespace SaborByte.Infraestructura.Persistencia;
 
-public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : DbContext(options)
+public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : DbContext(options), IAppDbContext
 {
     public DbSet<Sucursal> Sucursales => Set<Sucursal>();
 
@@ -19,6 +22,17 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<Categoria> Categorias => Set<Categoria>();
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<ProductoIngrediente> ProductoIngredientes => Set<ProductoIngrediente>();
+
+    public DbSet<Dominio.Caja.Caja> Cajas => Set<Dominio.Caja.Caja>();
+    public DbSet<Dominio.Caja.TurnoCaja> TurnosCaja => Set<Dominio.Caja.TurnoCaja>();
+    public DbSet<Dominio.Caja.MovimientoCaja> MovimientosCaja => Set<Dominio.Caja.MovimientoCaja>();
+    public DbSet<Dominio.Caja.DenominacionCierre> DenominacionesCierre => Set<Dominio.Caja.DenominacionCierre>();
+
+    public DbSet<SecuenciaNcf> SecuenciasNcf => Set<SecuenciaNcf>();
+    public DbSet<Factura> Facturas => Set<Factura>();
+    public DbSet<FacturaDetalle> FacturaDetalles => Set<FacturaDetalle>();
+
+    public DbSet<MovimientoInventario> MovimientosInventario => Set<MovimientoInventario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -88,6 +102,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Precio).HasColumnType("decimal(18,2)");
             b.Property(x => x.StockMinimo).HasColumnType("decimal(18,3)");
             b.Property(x => x.StockMaximo).HasColumnType("decimal(18,3)");
+            b.Property(x => x.StockActual).HasColumnType("decimal(18,3)");
             b.HasIndex(x => x.CodigoBarra);
         });
 
@@ -99,6 +114,74 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
                 .OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.Insumo).WithMany().HasForeignKey(x => x.InsumoId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Dominio.Caja.Caja>(b =>
+        {
+            b.ToTable("Cajas", "caja");
+            b.Property(x => x.Numero).HasMaxLength(50).IsRequired();
+            b.HasIndex(x => new { x.SucursalId, x.Numero }).IsUnique();
+        });
+
+        modelBuilder.Entity<Dominio.Caja.TurnoCaja>(b =>
+        {
+            b.ToTable("TurnosCaja", "caja");
+            b.Property(x => x.MontoAperturaEfectivo).HasColumnType("decimal(18,2)");
+            b.HasOne(x => x.Caja).WithMany().HasForeignKey(x => x.CajaId);
+            // Máximo un turno Abierto por caja a la vez.
+            b.HasIndex(x => x.CajaId).IsUnique().HasFilter("[Estado] = 0");
+        });
+
+        modelBuilder.Entity<Dominio.Caja.MovimientoCaja>(b =>
+        {
+            b.ToTable("MovimientosCaja", "caja");
+            b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
+            b.HasOne(x => x.TurnoCaja).WithMany(t => t.Movimientos).HasForeignKey(x => x.TurnoCajaId);
+        });
+
+        modelBuilder.Entity<Dominio.Caja.DenominacionCierre>(b =>
+        {
+            b.ToTable("DenominacionesCierre", "caja");
+            b.Property(x => x.Denominacion).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Subtotal).HasColumnType("decimal(18,2)");
+            b.HasOne(x => x.TurnoCaja).WithMany(t => t.DenominacionesCierre).HasForeignKey(x => x.TurnoCajaId);
+        });
+
+        modelBuilder.Entity<SecuenciaNcf>(b =>
+        {
+            b.ToTable("SecuenciasNcf", "facturacion");
+            b.Property(x => x.TipoComprobante).HasMaxLength(10).IsRequired();
+        });
+
+        modelBuilder.Entity<Factura>(b =>
+        {
+            b.ToTable("Facturas", "facturacion");
+            b.Property(x => x.Subtotal).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Itbis).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Descuento).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Total).HasColumnType("decimal(18,2)");
+            b.Property(x => x.NumeroNcf).HasMaxLength(20);
+            b.Property(x => x.TipoComprobante).HasMaxLength(10);
+        });
+
+        modelBuilder.Entity<FacturaDetalle>(b =>
+        {
+            b.ToTable("FacturaDetalles", "facturacion");
+            b.Property(x => x.NombreProducto).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
+            b.Property(x => x.PrecioUnitario).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Descuento).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Itbis).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Total).HasColumnType("decimal(18,2)");
+            b.HasOne(x => x.Factura).WithMany(f => f.Detalle).HasForeignKey(x => x.FacturaId);
+        });
+
+        modelBuilder.Entity<MovimientoInventario>(b =>
+        {
+            b.ToTable("MovimientosInventario", "inventario");
+            b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
+            b.Property(x => x.CostoUnitario).HasColumnType("decimal(18,2)");
+            b.Property(x => x.SaldoResultante).HasColumnType("decimal(18,3)");
         });
     }
 }

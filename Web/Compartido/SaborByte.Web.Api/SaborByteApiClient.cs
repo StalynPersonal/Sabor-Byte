@@ -1,0 +1,94 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using SaborByte.Web.Api.Dtos;
+
+namespace SaborByte.Web.Api;
+
+public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
+{
+    private void AdjuntarToken()
+    {
+        http.DefaultRequestHeaders.Authorization = sesion.Token is null
+            ? null
+            : new AuthenticationHeaderValue("Bearer", sesion.Token);
+    }
+
+    public async Task<LoginResponseDto?> LoginAsync(string nombreUsuario, string password)
+    {
+        var respuesta = await http.PostAsJsonAsync("api/auth/login",
+            new LoginRequestDto { NombreUsuario = nombreUsuario, Password = password });
+
+        if (!respuesta.IsSuccessStatusCode)
+            return null;
+
+        var resultado = await respuesta.Content.ReadFromJsonAsync<LoginResponseDto>();
+        if (resultado is not null)
+            sesion.EstablecerSesion(resultado.Token, resultado.Nombre, resultado.Roles, resultado.SucursalesPermitidas);
+
+        return resultado;
+    }
+
+    public async Task<List<ProductoResumenDto>> BuscarProductosAsync(Guid sucursalId, string? texto)
+    {
+        AdjuntarToken();
+        var url = $"api/productos?sucursalId={sucursalId}&texto={Uri.EscapeDataString(texto ?? string.Empty)}";
+        return await http.GetFromJsonAsync<List<ProductoResumenDto>>(url) ?? [];
+    }
+
+    public async Task<List<CajaResumenDto>> ListarCajasAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<CajaResumenDto>>($"api/caja?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, Guid? TurnoCajaId, string? Error)> AbrirTurnoAsync(Guid cajaId, decimal montoApertura)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/caja/turnos/abrir",
+            new AbrirTurnoRequestDto { CajaId = cajaId, MontoAperturaEfectivo = montoApertura });
+
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        var resultado = await respuesta.Content.ReadFromJsonAsync<AbrirTurnoResponseDto>();
+        return (true, resultado?.TurnoCajaId, null);
+    }
+
+    public async Task<ResumenTurnoDto?> ObtenerResumenTurnoAsync(Guid turnoCajaId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<ResumenTurnoDto>($"api/caja/turnos/{turnoCajaId}/resumen");
+    }
+
+    public async Task<(bool Exito, string? Error)> CerrarTurnoAsync(CerrarTurnoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/caja/turnos/cerrar", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, VentaResultadoDto? Resultado, string? Error)> CrearVentaAsync(
+        Guid sucursalId, CrearVentaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/ventas?sucursalId={sucursalId}", request);
+
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        return (true, await respuesta.Content.ReadFromJsonAsync<VentaResultadoDto>(), null);
+    }
+
+    private static async Task<string?> LeerMensajeErrorAsync(HttpResponseMessage respuesta)
+    {
+        try
+        {
+            var cuerpo = await respuesta.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+            return cuerpo?.GetValueOrDefault("mensaje") ?? $"Error {(int)respuesta.StatusCode}";
+        }
+        catch
+        {
+            return $"Error {(int)respuesta.StatusCode}";
+        }
+    }
+}

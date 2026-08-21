@@ -24,6 +24,7 @@ public class Producto : EntidadBase
     // Solo aplica a productos de tipo Insumo, controlan alertas de inventario.
     public decimal? StockMinimo { get; set; }
     public decimal? StockMaximo { get; set; }
+    public decimal StockActual { get; set; }
 
     public ICollection<ProductoIngrediente> Receta { get; set; } = [];
 }

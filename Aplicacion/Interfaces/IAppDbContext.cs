@@ -1,0 +1,38 @@
+using Microsoft.EntityFrameworkCore;
+using SaborByte.Dominio.Caja;
+using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.Facturacion;
+using SaborByte.Dominio.Identidad;
+using SaborByte.Dominio.Inventario;
+using SaborByte.Dominio.Sucursales;
+
+namespace SaborByte.Aplicacion.Interfaces;
+
+// Punto único de acceso a datos para los servicios de aplicación, implementado
+// por el DbContext real en Infraestructura. Evita depender de EF Core/SQL Server
+// concretos desde Aplicacion, sin caer en un repositorio por entidad.
+public interface IAppDbContext
+{
+    DbSet<Sucursal> Sucursales { get; }
+
+    DbSet<Usuario> Usuarios { get; }
+    DbSet<Rol> Roles { get; }
+    DbSet<UsuarioRol> UsuarioRoles { get; }
+
+    DbSet<Categoria> Categorias { get; }
+    DbSet<Producto> Productos { get; }
+    DbSet<ProductoIngrediente> ProductoIngredientes { get; }
+
+    DbSet<Dominio.Caja.Caja> Cajas { get; }
+    DbSet<TurnoCaja> TurnosCaja { get; }
+    DbSet<MovimientoCaja> MovimientosCaja { get; }
+    DbSet<DenominacionCierre> DenominacionesCierre { get; }
+
+    DbSet<SecuenciaNcf> SecuenciasNcf { get; }
+    DbSet<Factura> Facturas { get; }
+    DbSet<FacturaDetalle> FacturaDetalles { get; }
+
+    DbSet<MovimientoInventario> MovimientosInventario { get; }
+
+    Task<int> SaveChangesAsync(CancellationToken ct = default);
+}

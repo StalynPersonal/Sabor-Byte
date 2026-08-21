@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Infraestructura.Facturacion;
+using SaborByte.Infraestructura.Identidad;
 using SaborByte.Infraestructura.Persistencia;
 
 namespace SaborByte.Infraestructura;
@@ -14,9 +15,19 @@ public static class DependencyInjection
     {
         services.AddDbContext<SaborByteDbContext>(opciones =>
             opciones.UseSqlServer(configuration.GetConnectionString("SaborByteDb")));
+        services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<SaborByteDbContext>());
 
         services.AddScoped<IServicioFacturacionElectronica, ServicioFacturacionElectronicaDgii>();
         services.AddScoped<IFacturacionElectronicaGateway, FacturacionElectronicaGateway>();
+
+        services.AddScoped<IPasswordHasher, PasswordHasherAdaptador>();
+        services.AddScoped<IGeneradorTokenJwt, GeneradorTokenJwt>();
+
+        services.AddScoped<Aplicacion.Identidad.AutenticacionAppService>();
+        services.AddScoped<Aplicacion.Catalogo.ProductoAppService>();
+        services.AddScoped<Aplicacion.Inventario.InventarioAppService>();
+        services.AddScoped<Aplicacion.Facturacion.VentaAppService>();
+        services.AddScoped<Aplicacion.Caja.CajaAppService>();
 
         return services;
     }

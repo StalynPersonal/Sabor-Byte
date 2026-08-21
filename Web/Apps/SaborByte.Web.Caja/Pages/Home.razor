@@ -1,6 +1,210 @@
 @page "/"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
 
 <PageTitle>Sabor Byte — Caja</PageTitle>
 
-<MudText Typo="Typo.h4">Sabor Byte — Caja</MudText>
-<MudText Typo="Typo.body1" Class="mt-2">Punto de venta y facturación.</MudText>
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else if (_turnoCajaId is null)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+        <MudPaper Class="pa-8" Elevation="3">
+            <MudText Typo="Typo.h5" Class="mb-4">Abrir turno de caja</MudText>
+
+            <MudSelect T="Guid" Label="Caja" @bind-Value="_cajaSeleccionadaId" Class="mb-3">
+                @foreach (var caja in _cajas)
+                {
+                    <MudSelectItem Value="@caja.Id">Caja @caja.Numero</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudNumericField T="decimal" Label="Monto de apertura (efectivo)" @bind-Value="_montoApertura" Class="mb-3" />
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AbrirTurnoAsync">
+                Abrir turno
+            </MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="8">
+            <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
+                           @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
+                           OnDebounceIntervalElapsed="BuscarAsync" Class="mb-4" />
+
+            <MudGrid>
+                @foreach (var producto in _productos)
+                {
+                    <MudItem xs="4" sm="3">
+                        <MudCard Class="cursor-pointer" @onclick="() => AgregarAlCarrito(producto)">
+                            <MudCardContent>
+                                <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
+                                <MudText Typo="Typo.body2">RD$ @producto.Precio.ToString("0.00")</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+
+        <MudItem xs="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">Carrito</MudText>
+
+                @foreach (var linea in _carrito)
+                {
+                    <div class="d-flex justify-space-between mb-1">
+                        <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
+                        <MudText Typo="Typo.body2">RD$ @((linea.Precio * linea.Cantidad).ToString("0.00"))</MudText>
+                    </div>
+                }
+
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle1">Total: RD$ @TotalCarrito.ToString("0.00")</MudText>
+
+                <MudSelect T="FormaPago" Label="Forma de pago" @bind-Value="_formaPago" Class="my-3">
+                    <MudSelectItem Value="FormaPago.Efectivo">Efectivo</MudSelectItem>
+                    <MudSelectItem Value="FormaPago.Tarjeta">Tarjeta</MudSelectItem>
+                    <MudSelectItem Value="FormaPago.Transferencia">Transferencia</MudSelectItem>
+                    <MudSelectItem Value="FormaPago.Deposito">Depósito</MudSelectItem>
+                </MudSelect>
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-2">@_error</MudAlert>
+                }
+
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                           Disabled="_carrito.Count == 0" OnClick="FacturarAsync" Class="mb-2">
+                    Facturar
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="AbrirCierreAsync">
+                    Cerrar turno
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private Guid? _turnoCajaId;
+    private List<CajaResumenDto> _cajas = [];
+    private Guid _cajaSeleccionadaId;
+    private decimal _montoApertura;
+    private string? _error;
+
+    private string _textoBusqueda = string.Empty;
+    private List<ProductoResumenDto> _productos = [];
+    private readonly List<LineaCarrito> _carrito = [];
+    private FormaPago _formaPago = FormaPago.Efectivo;
+
+    private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _cajas = await ApiClient.ListarCajasAsync(sucursalId);
+        if (_cajas.Count > 0)
+            _cajaSeleccionadaId = _cajas[0].Id;
+    }
+
+    private async Task AbrirTurnoAsync()
+    {
+        _error = null;
+        var (exito, turnoId, error) = await ApiClient.AbrirTurnoAsync(_cajaSeleccionadaId, _montoApertura);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _turnoCajaId = turnoId;
+        await BuscarAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _productos = await ApiClient.BuscarProductosAsync(sucursalId, _textoBusqueda);
+    }
+
+    private void AgregarAlCarrito(ProductoResumenDto producto)
+    {
+        var existente = _carrito.FirstOrDefault(l => l.ProductoId == producto.Id);
+        if (existente is not null)
+        {
+            existente.Cantidad++;
+        }
+        else
+        {
+            _carrito.Add(new LineaCarrito
+            {
+                ProductoId = producto.Id,
+                Nombre = producto.Nombre,
+                Precio = producto.Precio,
+                Cantidad = 1
+            });
+        }
+    }
+
+    private async Task FacturarAsync()
+    {
+        _error = null;
+
+        var request = new CrearVentaRequestDto
+        {
+            TurnoCajaId = _turnoCajaId!.Value,
+            FormaPago = _formaPago,
+            Items = _carrito.Select(l => new ItemVentaDto { ProductoId = l.ProductoId, Cantidad = l.Cantidad }).ToList()
+        };
+
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var (exito, resultado, error) = await ApiClient.CrearVentaAsync(sucursalId, request);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _carrito.Clear();
+    }
+
+    private async Task AbrirCierreAsync()
+    {
+        // v1: cierre simplificado, sin desglose de denominaciones en la UI todavía.
+        var (exito, error) = await ApiClient.CerrarTurnoAsync(new CerrarTurnoRequestDto { TurnoCajaId = _turnoCajaId!.Value });
+        if (exito)
+            _turnoCajaId = null;
+        else
+            _error = error;
+    }
+
+    private class LineaCarrito
+    {
+        public Guid ProductoId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public decimal Precio { get; set; }
+        public int Cantidad { get; set; }
+    }
+}
