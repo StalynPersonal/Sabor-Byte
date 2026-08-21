@@ -8,8 +8,15 @@ public class FacturacionElectronicaOpciones
     public string? RutaCertificado { get; set; }
     public string? PasswordCertificado { get; set; }
 
-    // URL base del ambiente de pruebas/certificación o producción de DGII.
-    // No se fija ningún valor por defecto: DGII exige registrar el ambiente exacto
-    // y este proyecto no tiene acceso verificado a esas URLs oficiales.
-    public string? UrlBaseDgii { get; set; }
+    // URLs de los servicios web REST de DGII. Los valores por defecto son los del
+    // ambiente de pruebas "TesteCF" (confirmados por el usuario, no inventados) —
+    // para producción, DGII entrega un set de URLs equivalente que hay que sobreescribir
+    // vía configuración (appsettings/vault), NUNCA hardcodear un cambio de host aquí.
+    public string UrlSemilla { get; set; } = "https://ecf.dgii.gov.do/testecf/autenticacion/api/Autenticacion/Semilla";
+    public string UrlValidacionCertificado { get; set; } = "https://ecf.dgii.gov.do/testecf/autenticacion/api/Autenticacion/ValidarSemilla";
+    public string UrlRecepcionEcf { get; set; } = "https://ecf.dgii.gov.do/testecf/recepcion/api/FacturasElectronicas";
+
+    // ConsultaTrackId espera el TrackId concatenado como query string (?TrackId=...),
+    // no como parámetro separado — así lo entregó DGII.
+    public string UrlConsultaTrackId { get; set; } = "https://ecf.dgii.gov.do/testecf/consultaresultado/api/Consultas/Estado?TrackId=";
 }

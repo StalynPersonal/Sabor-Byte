@@ -1,31 +1,35 @@
-using System.Security.Cryptography;
-using System.Text;
-using FacturacionElectronicaDGII.Modelos;
+using System.Xml;
 
 namespace FacturacionElectronicaDGII;
 
-// ADVERTENCIA: el XSD "RFCE 32 v.1.0.xsd" define el campo CodigoSeguridadeCF como
-// un string de exactamente 6 caracteres ("Hash generado en factura de consumo
-// original"), pero NO especifica el algoritmo exacto (qué campos se concatenan,
-// qué función hash, cómo se codifica el resultado a 6 caracteres). Esa parte vive
-// en la documentación técnica de servicios web de DGII, no en los XSD disponibles
-// en este proyecto. La implementación de abajo es un PLACEHOLDER funcional (hash
-// SHA-256 de los campos clave del comprobante, truncado a 6 caracteres alfanuméricos
-// en mayúscula) — NO está verificado contra la especificación oficial de DGII y
-// DEBE confirmarse/ajustarse antes de usarse contra el ambiente de certificación real.
+// Confirmado contra la documentación oficial de DGII (Informe Técnico e-CF v1.0,
+// sección 18.2.3, y el glosario del Instructivo del Facturador Gratuito de FE):
+// "CodigoSeguridad: corresponde a los primeros seis (6) dígitos del hash generado
+// en el SignatureValue de la firma digital del e-CF". No es un hash propio calculado
+// sobre campos del comprobante (como se asumía en la versión anterior de este archivo)
+// — es directamente el prefijo del valor Base64 ya presente en <SignatureValue> de la
+// firma XML-DSig. Confirmado también empíricamente: ningún e-CF real de ejemplo
+// (carpeta /xsd) trae un campo CodigoSeguridadeCF dentro del XML firmado — el código
+// se usa solo externamente, en la URL de consulta de comprobante (QR / representación
+// impresa), nunca dentro del documento firmado.
 public static class GeneradorCodigoSeguridad
 {
-    public static string Generar(ComprobanteDto comprobante)
+    public static string Generar(string comprobanteFirmado)
     {
-        var insumo = string.Join('|',
-            comprobante.Emisor.Rnc,
-            comprobante.NumeroNcf,
-            comprobante.FechaEmision.ToString("yyyyMMdd"),
-            comprobante.Total.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+        var documento = new XmlDocument();
+        documento.LoadXml(comprobanteFirmado);
 
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(insumo));
-        var alfanumerico = Convert.ToHexString(hash); // solo [0-9A-F], cumple con .{6}
+        var gestorNamespaces = new XmlNamespaceManager(documento.NameTable);
+        gestorNamespaces.AddNamespace("ds", "http://www.w3.org/2000/09/xmldsig#");
 
-        return alfanumerico[..6];
+        var nodoValorFirma = documento.SelectSingleNode("//ds:Signature/ds:SignatureValue", gestorNamespaces)
+            ?? throw new InvalidOperationException(
+                "El XML no contiene un elemento SignatureValue; ¿el comprobante fue firmado antes de generar el código de seguridad?");
+
+        var valorFirma = nodoValorFirma.InnerText.Trim();
+        if (valorFirma.Length < 6)
+            throw new InvalidOperationException("El SignatureValue es demasiado corto para derivar el código de seguridad.");
+
+        return valorFirma[..6];
     }
 }

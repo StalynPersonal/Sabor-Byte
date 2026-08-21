@@ -14,13 +14,23 @@ En `Api/appsettings.Development.json`, sección `FacturacionElectronica`:
 ```json
 "FacturacionElectronica": {
   "RutaCertificado": "certificados/mi-certificado.p12",
-  "PasswordCertificado": "la-contraseña-del-certificado",
-  "UrlBaseDgii": ""
+  "PasswordCertificado": "la-contraseña-del-certificado"
 }
 ```
 
 `RutaCertificado` puede ser relativa (a la carpeta de ejecución de la Api,
 normalmente `Api/`) o absoluta.
+
+## URLs de los servicios de DGII
+
+Las URLs del ambiente de pruebas "TesteCF" ya vienen por defecto en
+`FacturacionElectronicaOpciones` (no hace falta configurarlas para probar
+contra TesteCF). Para producción, DGII entrega un set de URLs equivalente
+— sobreescríbelas en `appsettings.Production.json` (o el mecanismo de config
+que uses en el servidor), agregando esta misma sección `FacturacionElectronica`
+con `UrlSemilla`, `UrlValidacionCertificado`, `UrlRecepcionEcf` y
+`UrlConsultaTrackId`. Nunca cambies el valor por defecto en el código para
+apuntar a producción — eso se decide por ambiente, vía configuración.
 
 ## Producción
 

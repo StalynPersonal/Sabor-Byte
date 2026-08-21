@@ -19,7 +19,7 @@ public static class DependencyInjection
 
         services.Configure<FacturacionElectronicaOpciones>(configuration.GetSection("FacturacionElectronica"));
         services.AddScoped(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<FacturacionElectronicaOpciones>>().Value);
-        services.AddScoped<IServicioFacturacionElectronica, ServicioFacturacionElectronicaDgii>();
+        services.AddHttpClient<IServicioFacturacionElectronica, ServicioFacturacionElectronicaDgii>();
         services.AddScoped<IFacturacionElectronicaGateway, FacturacionElectronicaGateway>();
 
         services.AddScoped<IPasswordHasher, PasswordHasherAdaptador>();

@@ -29,6 +29,11 @@ public class Factura
     public EstadoDgii EstadoDgii { get; set; } = EstadoDgii.NoAplica;
     public DateTime FechaEmision { get; set; } = DateTime.UtcNow;
 
+    // Solo se llenan cuando EcfActivo=true para la sucursal (e-CF real, no NCF tradicional).
+    public string? XmlFirmadoDgii { get; set; }
+    public string? CodigoSeguridadDgii { get; set; }
+    public string? TrackIdDgii { get; set; }
+
     public Guid CreadoPorUsuarioId { get; set; }
 
     public ICollection<FacturaDetalle> Detalle { get; set; } = [];

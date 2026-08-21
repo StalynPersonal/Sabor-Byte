@@ -7,6 +7,7 @@ public class ResultadoEmisionEcf
     public string? TrackId { get; set; }
     public string? EstadoDgii { get; set; }
     public string? MensajeDgii { get; set; }
+    public string? CodigoSeguridadDgii { get; set; }
 }
 
 // Adaptador entre el dominio de Sabor Byte (Factura/FacturaDetalle) y la librería

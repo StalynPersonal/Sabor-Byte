@@ -70,10 +70,22 @@ public class FacturacionElectronicaGateway(
             return new ResultadoEmisionEcf { Exitoso = false, ErroresValidacion = [ex.Message] };
         }
 
+        factura.XmlFirmadoDgii = xmlFirmado;
+        factura.CodigoSeguridadDgii = servicioEcf.GenerarCodigoSeguridad(xmlFirmado);
+
         try
         {
             var resultado = await servicioEcf.EnviarADgiiAsync(xmlFirmado, ct);
-            factura.EstadoDgii = resultado.Estado == "Aceptado" ? EstadoDgii.Aceptado : EstadoDgii.Rechazado;
+            factura.TrackIdDgii = resultado.TrackId;
+            // El acuse de recibo (ARECF) solo confirma que DGII recibió el envío — el
+            // estado final (Aceptado/Rechazado/Condicional) se obtiene después vía
+            // ConsultarEstadoAsync con el TrackId, no en esta misma respuesta.
+            factura.EstadoDgii = resultado.Estado switch
+            {
+                "Aceptado" => EstadoDgii.Aceptado,
+                "EnProceso" => EstadoDgii.Pendiente,
+                _ => EstadoDgii.Rechazado
+            };
             await db.SaveChangesAsync(ct);
 
             return new ResultadoEmisionEcf
@@ -81,14 +93,15 @@ public class FacturacionElectronicaGateway(
                 Exitoso = true,
                 TrackId = resultado.TrackId,
                 EstadoDgii = resultado.Estado,
-                MensajeDgii = resultado.Mensaje
+                MensajeDgii = resultado.Mensaje,
+                CodigoSeguridadDgii = factura.CodigoSeguridadDgii
             };
         }
-        catch (NotImplementedException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            // El envío real a DGII aún no está implementado (ver ServicioFacturacionElectronicaDgii).
-            // El comprobante ya quedó validado, generado y firmado — se marca en contingencia
-            // para reintentar el envío más adelante, sin bloquear la venta.
+            // Sin conexión a DGII o el servicio no respondió a tiempo. El comprobante ya
+            // quedó validado, generado y firmado — se marca en contingencia para
+            // reintentar el envío más adelante (ver sección 4 del plan), sin bloquear la venta.
             factura.EstadoDgii = EstadoDgii.Contingencia;
             await db.SaveChangesAsync(ct);
 
@@ -96,7 +109,8 @@ public class FacturacionElectronicaGateway(
             {
                 Exitoso = true,
                 EstadoDgii = "Contingencia",
-                MensajeDgii = "Comprobante generado y firmado; envío a DGII pendiente de implementar."
+                MensajeDgii = $"Comprobante generado y firmado; no se pudo contactar a DGII: {ex.Message}",
+                CodigoSeguridadDgii = factura.CodigoSeguridadDgii
             };
         }
     }

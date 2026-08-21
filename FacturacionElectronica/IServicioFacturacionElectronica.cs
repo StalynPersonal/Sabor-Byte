@@ -18,7 +18,10 @@ public interface IServicioFacturacionElectronica
     // Solo e-CF 32 (Consumo) implementado por ahora — ver GeneradorXmlEcf32.
     string GenerarComprobanteXml(ComprobanteDto comprobante);
 
-    string GenerarCodigoSeguridad(ComprobanteDto comprobante);
+    // Recibe el XML YA FIRMADO (no el comprobante sin firmar): el código de seguridad
+    // no es un hash propio calculado sobre el comprobante, es literalmente derivado del
+    // SignatureValue de la firma digital — ver GeneradorCodigoSeguridad.
+    string GenerarCodigoSeguridad(string comprobanteFirmado);
 
     Task<string> FirmarComprobanteAsync(ComprobanteDto comprobante, CancellationToken ct = default);
 

@@ -72,6 +72,6 @@ public class GeneradorXmlEcf32Tests
         comprobante.TipoNcf = "31";
 
         Assert.Throws<NotSupportedException>(() =>
-            new ServicioFacturacionElectronicaDgii(new FacturacionElectronicaOpciones()).GenerarComprobanteXml(comprobante));
+            new ServicioFacturacionElectronicaDgii(new FacturacionElectronicaOpciones(), new HttpClient()).GenerarComprobanteXml(comprobante));
     }
 }

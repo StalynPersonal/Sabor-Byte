@@ -1,42 +1,40 @@
-using FacturacionElectronicaDGII.Modelos;
 using Xunit;
 
 namespace FacturacionElectronicaDGII.Tests;
 
 public class GeneradorCodigoSeguridadTests
 {
+    private const string XmlFirmadoDeEjemplo = """
+        <ECF>
+          <Encabezado><Version>1.0</Version></Encabezado>
+          <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+            <SignedInfo></SignedInfo>
+            <SignatureValue>XOfODhqOHZ5MVmtaBd8+h5WI8wnKa54oqTso1l1Rok9bALfKRZm4ali1OTCzepF</SignatureValue>
+          </Signature>
+        </ECF>
+        """;
+
     [Fact]
     public void Generar_DevuelveSeisCaracteres()
     {
-        var comprobante = new ComprobanteDto
-        {
-            TipoNcf = "32",
-            NumeroNcf = "E320000000123",
-            FechaEmision = DateTime.UtcNow,
-            Emisor = new EmisorDto { Rnc = "130123456", RazonSocial = "Sabor Byte SRL" },
-            Total = 590m
-        };
-
-        var codigo = GeneradorCodigoSeguridad.Generar(comprobante);
+        var codigo = GeneradorCodigoSeguridad.Generar(XmlFirmadoDeEjemplo);
 
         Assert.Equal(6, codigo.Length);
     }
 
     [Fact]
-    public void Generar_EsDeterministaParaElMismoComprobante()
+    public void Generar_TomaLosPrimerosSeisCaracteresDelSignatureValue()
     {
-        var comprobante = new ComprobanteDto
-        {
-            TipoNcf = "32",
-            NumeroNcf = "E320000000123",
-            FechaEmision = new DateTime(2026, 8, 21),
-            Emisor = new EmisorDto { Rnc = "130123456", RazonSocial = "Sabor Byte SRL" },
-            Total = 590m
-        };
+        var codigo = GeneradorCodigoSeguridad.Generar(XmlFirmadoDeEjemplo);
 
-        var codigo1 = GeneradorCodigoSeguridad.Generar(comprobante);
-        var codigo2 = GeneradorCodigoSeguridad.Generar(comprobante);
+        Assert.Equal("XOfODh", codigo);
+    }
 
-        Assert.Equal(codigo1, codigo2);
+    [Fact]
+    public void Generar_SinSignatureValue_Falla()
+    {
+        const string xmlSinFirmar = "<ECF><Encabezado><Version>1.0</Version></Encabezado></ECF>";
+
+        Assert.Throws<InvalidOperationException>(() => GeneradorCodigoSeguridad.Generar(xmlSinFirmar));
     }
 }
