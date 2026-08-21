@@ -5,7 +5,7 @@ using SaborByte.Dominio.Caja;
 
 namespace SaborByte.Aplicacion.Caja;
 
-public class CajaAppService(IAppDbContext db)
+public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
 {
     public async Task<List<CajaResumenDto>> ListarCajasAsync(Guid sucursalId, CancellationToken ct = default) =>
         await db.Cajas
@@ -100,5 +100,8 @@ public class CajaAppService(IAppDbContext db)
         turno.FechaHoraCierre = DateTime.UtcNow;
 
         await db.SaveChangesAsync(ct);
+
+        var caja = await db.Cajas.FirstOrDefaultAsync(c => c.Id == turno.CajaId, ct);
+        await auditoria.RegistrarAsync(caja?.SucursalId, usuarioId, "CierreCaja", "TurnoCaja", turno.Id, ct: ct);
     }
 }

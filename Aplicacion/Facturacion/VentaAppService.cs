@@ -6,7 +6,11 @@ using SaborByte.Dominio.Facturacion;
 
 namespace SaborByte.Aplicacion.Facturacion;
 
-public class VentaAppService(IAppDbContext db, Inventario.InventarioAppService inventario)
+public class VentaAppService(
+    IAppDbContext db,
+    Inventario.InventarioAppService inventario,
+    Identidad.AutorizacionAppService autorizacion,
+    IAuditoriaService auditoria)
 {
     private const decimal TasaItbis = 0.18m;
 
@@ -15,6 +19,17 @@ public class VentaAppService(IAppDbContext db, Inventario.InventarioAppService i
     {
         if (request.Items.Count == 0)
             throw new InvalidOperationException("La venta debe tener al menos un producto.");
+
+        // Descuentos solo con autorización de Supervisor/Admin (sección 7 del plan).
+        if (request.Items.Any(i => i.Descuento > 0))
+        {
+            if (request.CodigoAutorizacionDescuento is null)
+                throw new InvalidOperationException("El descuento requiere autorización de un Supervisor o Administrador.");
+
+            await autorizacion.ValidarYConsumirAsync(request.CodigoAutorizacionDescuento.Value, "Descuento", ct);
+            await auditoria.RegistrarAsync(sucursalId, usuarioId, "Descuento", "Factura",
+                detalle: $"Monto descuento: {request.Items.Sum(i => i.Descuento):0.00}", ct: ct);
+        }
 
         var turno = await db.TurnosCaja.FirstOrDefaultAsync(t => t.Id == request.TurnoCajaId, ct)
             ?? throw new InvalidOperationException("El turno de caja no existe.");

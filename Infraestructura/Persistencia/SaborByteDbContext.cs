@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Clientes;
+using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
@@ -50,6 +51,9 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<PagoCxC> PagosCxC => Set<PagoCxC>();
     public DbSet<CuentaPorPagar> CuentasPorPagar => Set<CuentaPorPagar>();
     public DbSet<PagoCxP> PagosCxP => Set<PagoCxP>();
+
+    public DbSet<AutorizacionSupervisor> AutorizacionesSupervisor => Set<AutorizacionSupervisor>();
+    public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -282,6 +286,20 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.ToTable("PagosCxP", "cxccxp");
             b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
             b.Property(x => x.FormaPago).HasMaxLength(30).IsRequired();
+        });
+
+        modelBuilder.Entity<AutorizacionSupervisor>(b =>
+        {
+            b.ToTable("AutorizacionesSupervisor", "identidad");
+            b.Property(x => x.Accion).HasMaxLength(50).IsRequired();
+        });
+
+        modelBuilder.Entity<LogAuditoria>(b =>
+        {
+            b.ToTable("LogsAuditoria", "comun");
+            b.Property(x => x.Accion).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Entidad).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Detalle).HasMaxLength(1000);
         });
     }
 }

@@ -6,7 +6,11 @@ using SaborByte.Dominio.Pedidos;
 
 namespace SaborByte.Aplicacion.Pedidos;
 
-public class ComandaAppService(IAppDbContext db, Inventario.InventarioAppService inventario, INotificadorComandas notificador)
+public class ComandaAppService(
+    IAppDbContext db,
+    Inventario.InventarioAppService inventario,
+    INotificadorComandas notificador,
+    IAuditoriaService auditoria)
 {
     public async Task<ComandaDto> CrearComandaAsync(
         Guid sucursalId, Guid? usuarioMeseroId, CrearComandaRequestDto request, CancellationToken ct = default)
@@ -142,6 +146,8 @@ public class ComandaAppService(IAppDbContext db, Inventario.InventarioAppService
 
         await db.SaveChangesAsync(ct);
         await notificador.ComandaCanceladaAsync(sucursalId, item.ComandaId, item.Id);
+        await auditoria.RegistrarAsync(sucursalId, usuarioId, "CancelacionItemComanda", "ComandaItem", item.Id,
+            $"Motivo: {request.Motivo}; Rol: {request.Rol}; InventarioRevertido: {inventarioRevertido}", ct);
     }
 
     private static void ValidarTransicion(EstadoItemComanda actual, EstadoItemComanda nuevo)

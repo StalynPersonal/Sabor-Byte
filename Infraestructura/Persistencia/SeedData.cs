@@ -35,6 +35,18 @@ public static class SeedData
         db.UsuarioRoles.Add(new UsuarioRol { Usuario = admin, Rol = rolAdmin });
         db.UsuarioSucursales.Add(new UsuarioSucursal { Usuario = admin, SucursalId = sucursal.Id });
 
+        var rolSupervisor = roles.First(r => r.Nombre == "Supervisor");
+        var supervisor = new Usuario
+        {
+            NombreUsuario = "supervisor",
+            Nombre = "Supervisor de Turno",
+            HashPassword = passwordHasher.Hash("Supervisor#2026"),
+            Email = "supervisor@saborbyte.local"
+        };
+        db.Usuarios.Add(supervisor);
+        db.UsuarioRoles.Add(new UsuarioRol { Usuario = supervisor, Rol = rolSupervisor });
+        db.UsuarioSucursales.Add(new UsuarioSucursal { Usuario = supervisor, SucursalId = sucursal.Id });
+
         db.Cajas.Add(new Dominio.Caja.Caja
         {
             SucursalId = sucursal.Id,

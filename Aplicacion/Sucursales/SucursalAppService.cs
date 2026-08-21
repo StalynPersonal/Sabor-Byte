@@ -4,7 +4,7 @@ using SaborByte.Aplicacion.Sucursales.Dtos;
 
 namespace SaborByte.Aplicacion.Sucursales;
 
-public class SucursalAppService(IAppDbContext db)
+public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria)
 {
     public async Task<SucursalDto> ObtenerAsync(Guid sucursalId, CancellationToken ct = default)
     {
@@ -30,7 +30,7 @@ public class SucursalAppService(IAppDbContext db)
         };
     }
 
-    public async Task ActualizarAsync(Guid sucursalId, ActualizarSucursalRequestDto request, CancellationToken ct = default)
+    public async Task ActualizarAsync(Guid sucursalId, Guid usuarioId, ActualizarSucursalRequestDto request, CancellationToken ct = default)
     {
         var sucursal = await db.Sucursales.FirstOrDefaultAsync(s => s.Id == sucursalId, ct)
             ?? throw new InvalidOperationException("La sucursal no existe.");
@@ -53,5 +53,6 @@ public class SucursalAppService(IAppDbContext db)
             sucursal.SmtpPassword = request.SmtpPassword;
 
         await db.SaveChangesAsync(ct);
+        await auditoria.RegistrarAsync(sucursalId, usuarioId, "CambioConfiguracion", "Sucursal", sucursalId, ct: ct);
     }
 }

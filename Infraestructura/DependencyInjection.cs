@@ -37,6 +37,8 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Identidad.UsuarioAppService>();
         services.AddScoped<Aplicacion.Sucursales.SucursalAppService>();
         services.AddScoped<IEmailSender, Email.SmtpEmailSender>();
+        services.AddScoped<IAuditoriaService, Auditoria.AuditoriaService>();
+        services.AddScoped<Aplicacion.Identidad.AutorizacionAppService>();
 
         return services;
     }

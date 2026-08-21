@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Clientes;
+using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
@@ -50,6 +51,9 @@ public interface IAppDbContext
     DbSet<PagoCxC> PagosCxC { get; }
     DbSet<CuentaPorPagar> CuentasPorPagar { get; }
     DbSet<PagoCxP> PagosCxP { get; }
+
+    DbSet<AutorizacionSupervisor> AutorizacionesSupervisor { get; }
+    DbSet<LogAuditoria> LogsAuditoria { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

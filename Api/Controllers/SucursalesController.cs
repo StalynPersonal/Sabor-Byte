@@ -36,7 +36,7 @@ public class SucursalesController(SucursalAppService sucursales) : ControllerBas
 
         try
         {
-            await sucursales.ActualizarAsync(sucursalId, request, ct);
+            await sucursales.ActualizarAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

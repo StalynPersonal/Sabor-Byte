@@ -21,6 +21,10 @@ public class CrearVentaRequestDto
     // el monto fijo tiene prioridad. El reparto entre meseros queda fuera de v1.
     public decimal? PorcentajePropina { get; set; }
     public decimal? MontoPropinaFijo { get; set; }
+
+    // Obligatorio si algún item trae Descuento > 0 (ver sección 7 del plan:
+    // los descuentos solo los autoriza un Supervisor/Admin).
+    public Guid? CodigoAutorizacionDescuento { get; set; }
 }
 
 public class VentaResultadoDto
