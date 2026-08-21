@@ -12,3 +12,17 @@ public class ProductoResumenDto
     public bool AplicaItbis { get; set; }
     public TipoProducto TipoProducto { get; set; }
 }
+
+public class ComponenteComboRequestDto
+{
+    public Guid ProductoIncluidoId { get; set; }
+    public decimal Cantidad { get; set; } = 1;
+}
+
+public class CrearComboRequestDto
+{
+    public required string Nombre { get; set; }
+    public decimal Precio { get; set; }
+    public Guid? CategoriaId { get; set; }
+    public List<ComponenteComboRequestDto> Componentes { get; set; } = [];
+}

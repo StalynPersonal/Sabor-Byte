@@ -26,6 +26,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<Categoria> Categorias => Set<Categoria>();
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<ProductoIngrediente> ProductoIngredientes => Set<ProductoIngrediente>();
+    public DbSet<ComboItem> ComboItems => Set<ComboItem>();
 
     public DbSet<Dominio.Caja.Caja> Cajas => Set<Dominio.Caja.Caja>();
     public DbSet<Dominio.Caja.TurnoCaja> TurnosCaja => Set<Dominio.Caja.TurnoCaja>();
@@ -135,6 +136,16 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.HasOne(x => x.Producto).WithMany(p => p.Receta).HasForeignKey(x => x.ProductoId)
                 .OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.Insumo).WithMany().HasForeignKey(x => x.InsumoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ComboItem>(b =>
+        {
+            b.ToTable("ComboItems", "catalogo");
+            b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
+            b.HasOne(x => x.Combo).WithMany(p => p.ComponentesCombo).HasForeignKey(x => x.ComboId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.ProductoIncluido).WithMany().HasForeignKey(x => x.ProductoIncluidoId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

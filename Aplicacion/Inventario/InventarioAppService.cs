@@ -6,8 +6,10 @@ namespace SaborByte.Aplicacion.Inventario;
 
 public class InventarioAppService(IAppDbContext db)
 {
-    // Recorre la receta (BOM) de un producto vendible y descuenta cada insumo del kardex.
-    // ingredientesExcluidosIds: ingredientes que el cliente pidió sin (ej. "sin tomate").
+    // Recorre la receta efectiva de un producto vendible (BOM directo, o si es un
+    // combo, la unión de las recetas de sus componentes) y descuenta cada insumo
+    // del kardex. ingredientesExcluidosIds: ingredientes que el cliente pidió sin
+    // (ej. "sin tomate") — solo aplica al BOM directo, no al interior de un combo.
     public async Task DescontarPorVentaAsync(
         Guid sucursalId,
         Guid productoVendibleId,
@@ -17,16 +19,13 @@ public class InventarioAppService(IAppDbContext db)
         Guid? usuarioId,
         CancellationToken ct = default)
     {
-        var receta = await db.ProductoIngredientes
-            .Where(pi => pi.ProductoId == productoVendibleId && !ingredientesExcluidosIds.Contains(pi.InsumoId))
-            .ToListAsync(ct);
+        var receta = await ObtenerRecetaEfectivaAsync(productoVendibleId, cantidadVendida, ingredientesExcluidosIds, ct);
 
-        foreach (var linea in receta)
+        foreach (var (insumoId, cantidad) in receta)
         {
-            var cantidadADescontar = linea.CantidadUsada * cantidadVendida;
             await RegistrarMovimientoAsync(
-                sucursalId, linea.InsumoId, TipoMovimientoInventario.ConsumoVenta,
-                -cantidadADescontar, referenciaId, usuarioId, ct);
+                sucursalId, insumoId, TipoMovimientoInventario.ConsumoVenta,
+                -cantidad, referenciaId, usuarioId, ct);
         }
     }
 
@@ -39,17 +38,43 @@ public class InventarioAppService(IAppDbContext db)
         Guid? usuarioId,
         CancellationToken ct = default)
     {
+        var receta = await ObtenerRecetaEfectivaAsync(productoVendibleId, cantidadCancelada, ingredientesExcluidosIds, ct);
+
+        foreach (var (insumoId, cantidad) in receta)
+        {
+            await RegistrarMovimientoAsync(
+                sucursalId, insumoId, TipoMovimientoInventario.ReversoCancelacion,
+                cantidad, referenciaId, usuarioId, ct);
+        }
+    }
+
+    private async Task<List<(Guid InsumoId, decimal Cantidad)>> ObtenerRecetaEfectivaAsync(
+        Guid productoId, decimal cantidadVendida, IReadOnlyCollection<Guid> ingredientesExcluidosIds, CancellationToken ct)
+    {
+        var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == productoId, ct);
+
+        if (producto is { EsCombo: true })
+        {
+            var componentes = await db.ComboItems
+                .Where(c => c.ComboId == productoId)
+                .ToListAsync(ct);
+
+            var resultado = new List<(Guid, decimal)>();
+            foreach (var componente in componentes)
+            {
+                // Los componentes de un combo no llevan exclusión de ingredientes propia en v1.
+                var subReceta = await ObtenerRecetaEfectivaAsync(
+                    componente.ProductoIncluidoId, componente.Cantidad * cantidadVendida, [], ct);
+                resultado.AddRange(subReceta);
+            }
+            return resultado;
+        }
+
         var receta = await db.ProductoIngredientes
-            .Where(pi => pi.ProductoId == productoVendibleId && !ingredientesExcluidosIds.Contains(pi.InsumoId))
+            .Where(pi => pi.ProductoId == productoId && !ingredientesExcluidosIds.Contains(pi.InsumoId))
             .ToListAsync(ct);
 
-        foreach (var linea in receta)
-        {
-            var cantidadARevertir = linea.CantidadUsada * cantidadCancelada;
-            await RegistrarMovimientoAsync(
-                sucursalId, linea.InsumoId, TipoMovimientoInventario.ReversoCancelacion,
-                cantidadARevertir, referenciaId, usuarioId, ct);
-        }
+        return receta.Select(pi => (pi.InsumoId, pi.CantidadUsada * cantidadVendida)).ToList();
     }
 
     private async Task RegistrarMovimientoAsync(

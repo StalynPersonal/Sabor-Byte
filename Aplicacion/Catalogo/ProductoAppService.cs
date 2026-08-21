@@ -37,4 +37,48 @@ public class ProductoAppService(IAppDbContext db)
             })
             .ToListAsync(ct);
     }
+
+    // Crea un producto Vendible marcado como combo, con sus componentes (otros
+    // productos Vendibles). El descuento de inventario se resuelve expandiendo cada
+    // componente a su propia receta (ver InventarioAppService.ObtenerRecetaEfectivaAsync).
+    public async Task<Guid> CrearComboAsync(Guid sucursalId, CrearComboRequestDto request, CancellationToken ct = default)
+    {
+        if (request.Componentes.Count == 0)
+            throw new InvalidOperationException("El combo debe tener al menos un componente.");
+
+        var componenteIds = request.Componentes.Select(c => c.ProductoIncluidoId).ToList();
+        var existentes = await db.Productos
+            .Where(p => componenteIds.Contains(p.Id) && p.TipoProducto == TipoProducto.Vendible)
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+
+        var faltante = componenteIds.Except(existentes).FirstOrDefault();
+        if (faltante != Guid.Empty)
+            throw new InvalidOperationException($"El producto {faltante} no existe o no es vendible.");
+
+        var combo = new Producto
+        {
+            SucursalId = sucursalId,
+            Nombre = request.Nombre,
+            Precio = request.Precio,
+            CategoriaId = request.CategoriaId,
+            TipoProducto = TipoProducto.Vendible,
+            EsCombo = true
+        };
+
+        foreach (var componente in request.Componentes)
+        {
+            combo.ComponentesCombo.Add(new ComboItem
+            {
+                ComboId = combo.Id,
+                ProductoIncluidoId = componente.ProductoIncluidoId,
+                Cantidad = componente.Cantidad
+            });
+        }
+
+        db.Productos.Add(combo);
+        await db.SaveChangesAsync(ct);
+
+        return combo.Id;
+    }
 }

@@ -21,6 +21,12 @@ public class Producto : EntidadBase
     public TipoProducto TipoProducto { get; set; }
     public string UnidadMedida { get; set; } = "Unidad";
 
+    // Combo: producto Vendible cuyo "contenido" son otros productos Vendibles (ver
+    // ComboItem) en vez de una receta de insumos. Precio suele ser menor a la suma
+    // de sus componentes vendidos por separado.
+    public bool EsCombo { get; set; }
+    public ICollection<ComboItem> ComponentesCombo { get; set; } = [];
+
     // Solo aplica a productos de tipo Insumo, controlan alertas de inventario.
     public decimal? StockMinimo { get; set; }
     public decimal? StockMaximo { get; set; }
