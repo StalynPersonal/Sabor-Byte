@@ -15,6 +15,7 @@ public class Producto : EntidadBase
     public string? ImagenUrl { get; set; }
     public string? CodigoBarra { get; set; }
     public decimal Precio { get; set; }
+    public decimal? CostoUnitario { get; set; } // para reportes de rentabilidad; opcional
     public Guid? CategoriaId { get; set; }
     public bool Activo { get; set; } = true;
     public bool AplicaItbis { get; set; } = true;

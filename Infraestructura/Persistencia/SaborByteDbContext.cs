@@ -123,6 +123,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.ToTable("Productos", "catalogo");
             b.Property(x => x.Nombre).HasMaxLength(200).IsRequired();
             b.Property(x => x.Precio).HasColumnType("decimal(18,2)");
+            b.Property(x => x.CostoUnitario).HasColumnType("decimal(18,2)");
             b.Property(x => x.StockMinimo).HasColumnType("decimal(18,3)");
             b.Property(x => x.StockMaximo).HasColumnType("decimal(18,3)");
             b.Property(x => x.StockActual).HasColumnType("decimal(18,3)");

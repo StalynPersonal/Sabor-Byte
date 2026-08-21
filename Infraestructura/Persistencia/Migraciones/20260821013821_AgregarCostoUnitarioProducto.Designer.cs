@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SaborByte.Infraestructura.Persistencia;
 
@@ -11,9 +12,11 @@ using SaborByte.Infraestructura.Persistencia;
 namespace SaborByte.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(SaborByteDbContext))]
-    partial class SaborByteDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821013821_AgregarCostoUnitarioProducto")]
+    partial class AgregarCostoUnitarioProducto
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

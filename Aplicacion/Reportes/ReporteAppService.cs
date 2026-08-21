@@ -51,4 +51,62 @@ public class ReporteAppService(IAppDbContext db)
             TotalConsolidado = porSucursal.Sum(p => p.TotalVendido)
         };
     }
+
+    public async Task<List<VentaPorProductoDto>> VentasPorProductoAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var agregados = await db.FacturaDetalles
+            .Where(d => d.Factura!.SucursalId == sucursalId &&
+                        d.Factura.FechaEmision >= rango.Desde && d.Factura.FechaEmision <= rango.Hasta)
+            .GroupBy(d => new { d.ProductoId, d.NombreProducto })
+            .Select(g => new
+            {
+                g.Key.ProductoId,
+                g.Key.NombreProducto,
+                Cantidad = g.Sum(d => d.Cantidad),
+                Total = g.Sum(d => d.Total)
+            })
+            .OrderByDescending(x => x.Total)
+            .ToListAsync(ct);
+
+        var productoIds = agregados.Select(a => a.ProductoId).ToList();
+        var costos = await db.Productos
+            .Where(p => productoIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.CostoUnitario, ct);
+
+        return agregados.Select(a =>
+        {
+            var costoUnitario = costos.GetValueOrDefault(a.ProductoId);
+            return new VentaPorProductoDto
+            {
+                ProductoId = a.ProductoId,
+                NombreProducto = a.NombreProducto,
+                CantidadVendida = a.Cantidad,
+                TotalVendido = a.Total,
+                UtilidadEstimada = costoUnitario.HasValue ? a.Total - (costoUnitario.Value * a.Cantidad) : null
+            };
+        }).ToList();
+    }
+
+    // "Hora pico": cantidad de facturas y total vendido agrupado por hora del día,
+    // para identificar los momentos de mayor demanda.
+    public async Task<List<VentaPorHoraDto>> VentasPorHoraAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var facturas = await db.Facturas
+            .Where(f => f.SucursalId == sucursalId && f.FechaEmision >= rango.Desde && f.FechaEmision <= rango.Hasta)
+            .Select(f => new { f.FechaEmision, f.Total })
+            .ToListAsync(ct);
+
+        return facturas
+            .GroupBy(f => f.FechaEmision.Hour)
+            .Select(g => new VentaPorHoraDto
+            {
+                Hora = g.Key,
+                CantidadFacturas = g.Count(),
+                TotalVendido = g.Sum(f => f.Total)
+            })
+            .OrderBy(v => v.Hora)
+            .ToList();
+    }
 }
