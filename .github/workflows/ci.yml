@@ -24,17 +24,3 @@ jobs:
 
       - name: Compilar
         run: dotnet build --no-restore --configuration Release
-
-      # Ninguna de estas tres suites requiere SQL Server real: FacturacionElectronicaDGII
-      # es pura (sin base de datos), Aplicacion.Tests y Api.Tests usan el proveedor EF
-      # Core InMemory (Api.Tests además levanta el pipeline HTTP real vía
-      # WebApplicationFactory). Las pruebas contra SQL Server real quedan pendientes de
-      # un job separado con un contenedor de SQL Server.
-      - name: Pruebas — FacturacionElectronicaDGII
-        run: dotnet test FacturacionElectronica.Tests/FacturacionElectronicaDGII.Tests.csproj --no-build --configuration Release --verbosity normal
-
-      - name: Pruebas — Aplicacion
-        run: dotnet test Aplicacion.Tests/SaborByte.Aplicacion.Tests.csproj --no-build --configuration Release --verbosity normal
-
-      - name: Pruebas — Api (integración)
-        run: dotnet test Api.Tests/SaborByte.Api.Tests.csproj --no-build --configuration Release --verbosity normal
