@@ -1,0 +1,50 @@
+@page "/login"
+@using SaborByte.Web.Api
+@inject SaborByteApiClient ApiClient
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Mesero — Iniciar sesión</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Class="pa-8" Elevation="3">
+        <MudText Typo="Typo.h5" Class="mb-4">Sabor Byte — Mesero</MudText>
+
+        <MudTextField T="string" Label="Usuario" @bind-Value="_nombreUsuario" Class="mb-3" />
+        <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_password" Class="mb-3" />
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+        }
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                   Disabled="_cargando" OnClick="EntrarAsync">
+            @(_cargando ? "Entrando..." : "Entrar")
+        </MudButton>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _nombreUsuario = string.Empty;
+    private string _password = string.Empty;
+    private string? _error;
+    private bool _cargando;
+
+    private async Task EntrarAsync()
+    {
+        _error = null;
+        _cargando = true;
+
+        var resultado = await ApiClient.LoginAsync(_nombreUsuario, _password);
+
+        _cargando = false;
+
+        if (resultado is null)
+        {
+            _error = "Usuario o contraseña incorrectos.";
+            return;
+        }
+
+        Navegacion.NavigateTo("/");
+    }
+}

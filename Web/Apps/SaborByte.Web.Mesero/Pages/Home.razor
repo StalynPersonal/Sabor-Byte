@@ -1,6 +1,140 @@
 @page "/"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
 
 <PageTitle>Sabor Byte — Mesero</PageTitle>
 
-<MudText Typo="Typo.h4">Sabor Byte — Mesero</MudText>
-<MudText Typo="Typo.body1" Class="mt-2">Toma de pedidos en mesa (módulo opcional).</MudText>
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="8">
+            <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
+                           @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
+                           OnDebounceIntervalElapsed="BuscarAsync" Class="mb-4" />
+
+            <MudGrid>
+                @foreach (var producto in _productos)
+                {
+                    <MudItem xs="4" sm="3">
+                        <MudCard Class="cursor-pointer" @onclick="() => AgregarAlPedido(producto)">
+                            <MudCardContent>
+                                <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
+                                <MudText Typo="Typo.body2">RD$ @producto.Precio.ToString("0.00")</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+
+        <MudItem xs="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">Pedido</MudText>
+
+                <MudTextField T="string" Label="Mesa (opcional)" @bind-Value="_numeroMesa" Class="mb-3" />
+
+                @foreach (var linea in _pedido)
+                {
+                    <div class="d-flex justify-space-between align-center mb-1">
+                        <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
+                        <MudTextField T="string" Label="Notas" @bind-Value="linea.Notas" Margin="Margin.Dense" />
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                }
+
+                @if (!string.IsNullOrEmpty(_mensajeExito))
+                {
+                    <MudAlert Severity="Severity.Success" Class="my-2">@_mensajeExito</MudAlert>
+                }
+
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                           Disabled="_pedido.Count == 0" OnClick="EnviarACocinaAsync" Class="mt-2">
+                    Enviar a cocina
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private string _textoBusqueda = string.Empty;
+    private List<ProductoResumenDto> _productos = [];
+    private readonly List<LineaPedido> _pedido = [];
+    private string _numeroMesa = string.Empty;
+    private string? _error;
+    private string? _mensajeExito;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await BuscarAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _productos = await ApiClient.BuscarProductosAsync(sucursalId, _textoBusqueda);
+    }
+
+    private void AgregarAlPedido(ProductoResumenDto producto)
+    {
+        var existente = _pedido.FirstOrDefault(l => l.ProductoId == producto.Id);
+        if (existente is not null)
+            existente.Cantidad++;
+        else
+            _pedido.Add(new LineaPedido { ProductoId = producto.Id, Nombre = producto.Nombre, Cantidad = 1 });
+    }
+
+    private async Task EnviarACocinaAsync()
+    {
+        _error = null;
+        _mensajeExito = null;
+
+        var request = new CrearComandaRequestDto
+        {
+            Items = _pedido.Select(l => new ItemComandaRequestDto
+            {
+                ProductoId = l.ProductoId,
+                Cantidad = l.Cantidad,
+                Notas = l.Notas
+            }).ToList()
+        };
+
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var (exito, comanda, error) = await ApiClient.CrearComandaAsync(sucursalId, request);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _mensajeExito = $"Comanda #{comanda!.NumeroComanda} enviada a cocina.";
+        _pedido.Clear();
+        _numeroMesa = string.Empty;
+    }
+
+    private class LineaPedido
+    {
+        public Guid ProductoId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public int Cantidad { get; set; }
+        public string? Notas { get; set; }
+    }
+}

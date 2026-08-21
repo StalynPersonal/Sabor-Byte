@@ -4,6 +4,7 @@ using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
+using SaborByte.Dominio.Pedidos;
 using SaborByte.Dominio.Sucursales;
 
 namespace SaborByte.Infraestructura.Persistencia;
@@ -33,6 +34,12 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<FacturaDetalle> FacturaDetalles => Set<FacturaDetalle>();
 
     public DbSet<MovimientoInventario> MovimientosInventario => Set<MovimientoInventario>();
+
+    public DbSet<Mesa> Mesas => Set<Mesa>();
+    public DbSet<Comanda> Comandas => Set<Comanda>();
+    public DbSet<ComandaItem> ComandaItems => Set<ComandaItem>();
+    public DbSet<ComandaItemIngrediente> ComandaItemIngredientes => Set<ComandaItemIngrediente>();
+    public DbSet<ComandaCancelacion> ComandaCancelaciones => Set<ComandaCancelacion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -182,6 +189,42 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
             b.Property(x => x.CostoUnitario).HasColumnType("decimal(18,2)");
             b.Property(x => x.SaldoResultante).HasColumnType("decimal(18,3)");
+        });
+
+        modelBuilder.Entity<Mesa>(b =>
+        {
+            b.ToTable("Mesas", "pedidos");
+            b.Property(x => x.Numero).HasMaxLength(20).IsRequired();
+            b.Property(x => x.Salon).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Comanda>(b =>
+        {
+            b.ToTable("Comandas", "pedidos");
+            b.Property(x => x.Id).ValueGeneratedNever(); // el GUID lo genera el cliente
+            b.Property(x => x.NumeroComanda).UseIdentityColumn();
+            b.HasIndex(x => new { x.SucursalId, x.NumeroComanda }).IsUnique();
+        });
+
+        modelBuilder.Entity<ComandaItem>(b =>
+        {
+            b.ToTable("ComandaItems", "pedidos");
+            b.Property(x => x.NombreProducto).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
+            b.Property(x => x.PrecioUnitario).HasColumnType("decimal(18,2)");
+            b.HasOne(x => x.Comanda).WithMany(c => c.Items).HasForeignKey(x => x.ComandaId);
+        });
+
+        modelBuilder.Entity<ComandaItemIngrediente>(b =>
+        {
+            b.ToTable("ComandaItemIngredientes", "pedidos");
+            b.HasOne<ComandaItem>().WithMany(i => i.IngredientesExcluidos).HasForeignKey(x => x.ComandaItemId);
+        });
+
+        modelBuilder.Entity<ComandaCancelacion>(b =>
+        {
+            b.ToTable("ComandaCancelaciones", "pedidos");
+            b.Property(x => x.Motivo).HasMaxLength(500).IsRequired();
         });
     }
 }

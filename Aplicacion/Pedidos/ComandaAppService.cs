@@ -1,0 +1,182 @@
+using Microsoft.EntityFrameworkCore;
+using SaborByte.Aplicacion.Interfaces;
+using SaborByte.Aplicacion.Pedidos.Dtos;
+using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.Pedidos;
+
+namespace SaborByte.Aplicacion.Pedidos;
+
+public class ComandaAppService(IAppDbContext db, Inventario.InventarioAppService inventario, INotificadorComandas notificador)
+{
+    public async Task<ComandaDto> CrearComandaAsync(
+        Guid sucursalId, Guid? usuarioMeseroId, CrearComandaRequestDto request, CancellationToken ct = default)
+    {
+        if (request.Items.Count == 0)
+            throw new InvalidOperationException("La comanda debe tener al menos un producto.");
+
+        var productoIds = request.Items.Select(i => i.ProductoId).ToList();
+        var productos = await db.Productos
+            .Where(p => productoIds.Contains(p.Id) && p.TipoProducto == TipoProducto.Vendible)
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        var comanda = new Comanda
+        {
+            SucursalId = sucursalId,
+            MesaId = request.MesaId,
+            MeseroId = request.MeseroId ?? usuarioMeseroId
+        };
+
+        foreach (var item in request.Items)
+        {
+            if (!productos.TryGetValue(item.ProductoId, out var producto))
+                throw new InvalidOperationException($"El producto {item.ProductoId} no existe o no es vendible.");
+
+            var comandaItem = new ComandaItem
+            {
+                ComandaId = comanda.Id,
+                ProductoId = producto.Id,
+                NombreProducto = producto.Nombre,
+                Cantidad = item.Cantidad,
+                PrecioUnitario = producto.Precio,
+                Notas = item.Notas
+            };
+
+            foreach (var ingredienteId in item.IngredientesExcluidosIds)
+                comandaItem.IngredientesExcluidos.Add(new ComandaItemIngrediente { IngredienteId = ingredienteId });
+
+            comanda.Items.Add(comandaItem);
+        }
+
+        comanda.Estado = EstadoComanda.EnviadaCocina;
+        db.Comandas.Add(comanda);
+        await db.SaveChangesAsync(ct); // asigna NumeroComanda (identity)
+
+        // Descontar inventario al enviar a cocina (ver sección 5 del plan).
+        foreach (var item in comanda.Items)
+        {
+            await inventario.DescontarPorVentaAsync(
+                sucursalId, item.ProductoId, item.Cantidad, item.Id,
+                item.IngredientesExcluidos.Select(i => i.IngredienteId).ToList(),
+                usuarioMeseroId, ct);
+            item.InventarioDescontado = true;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        var dto = MapearComanda(comanda);
+        await notificador.ComandaCreadaAsync(sucursalId, dto);
+        return dto;
+    }
+
+    public async Task<List<ComandaDto>> ObtenerAbiertasAsync(Guid sucursalId, CancellationToken ct = default)
+    {
+        var comandas = await db.Comandas
+            .Include(c => c.Items).ThenInclude(i => i.IngredientesExcluidos)
+            .Where(c => c.SucursalId == sucursalId &&
+                        (c.Estado == EstadoComanda.Abierta || c.Estado == EstadoComanda.EnviadaCocina))
+            .OrderBy(c => c.CreadoEn)
+            .ToListAsync(ct);
+
+        return comandas.Select(MapearComanda).ToList();
+    }
+
+    public async Task<ComandaItemDto> CambiarEstadoItemAsync(
+        Guid sucursalId, Guid comandaItemId, EstadoItemComanda nuevoEstado, CancellationToken ct = default)
+    {
+        var item = await db.ComandaItems
+            .Include(i => i.IngredientesExcluidos)
+            .Include(i => i.Comanda)
+            .FirstOrDefaultAsync(i => i.Id == comandaItemId, ct)
+            ?? throw new InvalidOperationException("El ítem de comanda no existe.");
+
+        ValidarTransicion(item.Estado, nuevoEstado);
+        item.Estado = nuevoEstado;
+        await db.SaveChangesAsync(ct);
+
+        var dto = MapearItem(item);
+        await notificador.ItemComandaActualizadoAsync(sucursalId, item.ComandaId, dto);
+
+        var todosListos = await db.ComandaItems
+            .Where(i => i.ComandaId == item.ComandaId)
+            .AllAsync(i => i.Estado == EstadoItemComanda.Listo || i.Estado == EstadoItemComanda.Entregado ||
+                           i.Estado == EstadoItemComanda.Cancelado, ct);
+
+        if (todosListos)
+            await notificador.ComandaListaParaEntregaAsync(sucursalId, item.ComandaId);
+
+        return dto;
+    }
+
+    public async Task CancelarItemAsync(
+        Guid sucursalId, Guid comandaItemId, Guid usuarioId, CancelarItemRequestDto request, CancellationToken ct = default)
+    {
+        var item = await db.ComandaItems
+            .Include(i => i.IngredientesExcluidos)
+            .FirstOrDefaultAsync(i => i.Id == comandaItemId, ct)
+            ?? throw new InvalidOperationException("El ítem de comanda no existe.");
+
+        if (item.Estado == EstadoItemComanda.Entregado)
+            throw new InvalidOperationException("No se puede cancelar un ítem ya entregado.");
+
+        item.Estado = EstadoItemComanda.Cancelado;
+
+        var inventarioRevertido = false;
+        if (item.InventarioDescontado)
+        {
+            await inventario.RevertirPorCancelacionAsync(
+                sucursalId, item.ProductoId, item.Cantidad, item.Id,
+                item.IngredientesExcluidos.Select(i => i.IngredienteId).ToList(),
+                usuarioId, ct);
+            inventarioRevertido = true;
+        }
+
+        db.ComandaCancelaciones.Add(new Dominio.Pedidos.ComandaCancelacion
+        {
+            ComandaId = item.ComandaId,
+            ComandaItemId = item.Id,
+            CanceladoPorUsuarioId = usuarioId,
+            RolQueCancelo = request.Rol,
+            Motivo = request.Motivo,
+            InventarioRevertido = inventarioRevertido
+        });
+
+        await db.SaveChangesAsync(ct);
+        await notificador.ComandaCanceladaAsync(sucursalId, item.ComandaId, item.Id);
+    }
+
+    private static void ValidarTransicion(EstadoItemComanda actual, EstadoItemComanda nuevo)
+    {
+        var permitido = (actual, nuevo) switch
+        {
+            (EstadoItemComanda.Pendiente, EstadoItemComanda.EnPreparacion) => true,
+            (EstadoItemComanda.EnPreparacion, EstadoItemComanda.Listo) => true,
+            (EstadoItemComanda.Listo, EstadoItemComanda.Entregado) => true,
+            _ => false
+        };
+
+        if (!permitido)
+            throw new InvalidOperationException($"No se puede pasar un ítem de '{actual}' a '{nuevo}'.");
+    }
+
+    private static ComandaDto MapearComanda(Comanda c) => new()
+    {
+        Id = c.Id,
+        NumeroComanda = c.NumeroComanda,
+        MesaId = c.MesaId,
+        MeseroId = c.MeseroId,
+        Estado = c.Estado,
+        CreadoEn = c.CreadoEn,
+        Items = c.Items.Select(MapearItem).ToList()
+    };
+
+    private static ComandaItemDto MapearItem(ComandaItem i) => new()
+    {
+        Id = i.Id,
+        ProductoId = i.ProductoId,
+        NombreProducto = i.NombreProducto,
+        Cantidad = i.Cantidad,
+        Estado = i.Estado,
+        Notas = i.Notas,
+        IngredientesExcluidosIds = i.IngredientesExcluidos.Select(e => e.IngredienteId).ToList()
+    };
+}

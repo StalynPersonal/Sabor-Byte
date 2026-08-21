@@ -15,6 +15,7 @@ public class Factura
     public Guid SucursalId { get; set; }
     public Guid CajaTurnoId { get; set; }
     public Guid? ClienteId { get; set; }
+    public Guid? ComandaId { get; set; }
 
     public string? NumeroNcf { get; set; }
     public string? TipoComprobante { get; set; }

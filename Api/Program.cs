@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SaborByte.Api.Hubs;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Infraestructura;
 using SaborByte.Infraestructura.Persistencia;
@@ -35,9 +36,26 @@ builder.Services
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+
+        // SignalR (WebSockets) no puede mandar el header Authorization en el handshake
+        // del navegador; el cliente manda el JWT como query string "access_token".
+        opciones.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = contexto =>
+            {
+                var token = contexto.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && contexto.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    contexto.Token = token;
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddSignalR();
+builder.Services.AddScoped<INotificadorComandas, NotificadorComandasSignalR>();
 
 // Las 4 apps Blazor viven en orígenes/puertos distintos al de la Api; se autentican
 // con JWT (no cookies), por lo que permitir cualquier origen aquí no compromete CSRF.
@@ -101,5 +119,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ComandaHub>("/hubs/comandas");
 
 app.Run();

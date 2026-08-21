@@ -79,6 +79,46 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return (true, await respuesta.Content.ReadFromJsonAsync<VentaResultadoDto>(), null);
     }
 
+    public async Task<List<ComandaDto>> ObtenerComandasAbiertasAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<ComandaDto>>($"api/comandas?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, ComandaDto? Comanda, string? Error)> CrearComandaAsync(
+        Guid sucursalId, CrearComandaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/comandas?sucursalId={sucursalId}", request);
+
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        return (true, await respuesta.Content.ReadFromJsonAsync<ComandaDto>(), null);
+    }
+
+    public async Task<(bool Exito, string? Error)> CambiarEstadoItemAsync(
+        Guid sucursalId, Guid comandaItemId, EstadoItemComanda nuevoEstado)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync(
+            $"api/comandas/items/{comandaItemId}/estado?sucursalId={sucursalId}",
+            new CambiarEstadoItemRequestDto { NuevoEstado = nuevoEstado });
+
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> CancelarItemAsync(
+        Guid sucursalId, Guid comandaItemId, string motivo, RolQueCancelo rol)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync(
+            $"api/comandas/items/{comandaItemId}/cancelar?sucursalId={sucursalId}",
+            new CancelarItemRequestDto { Motivo = motivo, Rol = rol });
+
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     private static async Task<string?> LeerMensajeErrorAsync(HttpResponseMessage respuesta)
     {
         try

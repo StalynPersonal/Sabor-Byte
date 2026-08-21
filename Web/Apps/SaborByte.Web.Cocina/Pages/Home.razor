@@ -1,6 +1,128 @@
 @page "/"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@implements IAsyncDisposable
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject ConexionComandas Conexion
+@inject NavigationManager Navegacion
 
 <PageTitle>Sabor Byte — Cocina</PageTitle>
 
-<MudText Typo="Typo.h4">Sabor Byte — Cocina</MudText>
-<MudText Typo="Typo.body1" Class="mt-2">KDS — pantalla de comandas (módulo opcional).</MudText>
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudGrid>
+        @foreach (var comanda in _comandas.OrderBy(c => c.CreadoEn))
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-4" Elevation="4">
+                    <MudText Typo="Typo.h6">Comanda #@comanda.NumeroComanda</MudText>
+                    <MudText Typo="Typo.caption" Class="mb-2">@comanda.CreadoEn.ToLocalTime().ToString("HH:mm")</MudText>
+
+                    @foreach (var item in comanda.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
+                    {
+                        <MudPaper Class="pa-2 mb-2" Outlined="true">
+                            <MudText Typo="Typo.subtitle2">@item.Cantidad x @item.NombreProducto</MudText>
+                            @if (!string.IsNullOrEmpty(item.Notas))
+                            {
+                                <MudText Typo="Typo.caption">Nota: @item.Notas</MudText>
+                            }
+                            <MudText Typo="Typo.caption" Class="d-block mb-1">Estado: @item.Estado</MudText>
+
+                            <MudButtonGroup Variant="Variant.Filled" Size="Size.Small">
+                                @if (item.Estado == EstadoItemComanda.Pendiente)
+                                {
+                                    <MudButton Color="Color.Warning" OnClick="() => CambiarEstadoAsync(item, EstadoItemComanda.EnPreparacion)">
+                                        Preparar
+                                    </MudButton>
+                                }
+                                @if (item.Estado == EstadoItemComanda.EnPreparacion)
+                                {
+                                    <MudButton Color="Color.Success" OnClick="() => CambiarEstadoAsync(item, EstadoItemComanda.Listo)">
+                                        Listo
+                                    </MudButton>
+                                }
+                                @if (item.Estado != EstadoItemComanda.Listo && item.Estado != EstadoItemComanda.Entregado)
+                                {
+                                    <MudButton Color="Color.Error" OnClick="() => CancelarAsync(item)">
+                                        Cancelar
+                                    </MudButton>
+                                }
+                            </MudButtonGroup>
+                        </MudPaper>
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<ComandaDto> _comandas = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _comandas = await ApiClient.ObtenerComandasAbiertasAsync(sucursalId);
+
+        Conexion.ComandaCreada += OnComandaCreada;
+        Conexion.ItemActualizado += OnItemActualizado;
+        Conexion.ComandaCancelada += OnComandaCancelada;
+        await Conexion.ConectarAsync();
+    }
+
+    private void OnComandaCreada(ComandaDto comanda)
+    {
+        _comandas.Add(comanda);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnItemActualizado(Guid comandaId, ComandaItemDto item)
+    {
+        var comanda = _comandas.FirstOrDefault(c => c.Id == comandaId);
+        var existente = comanda?.Items.FirstOrDefault(i => i.Id == item.Id);
+        if (existente is not null)
+        {
+            comanda!.Items[comanda.Items.IndexOf(existente)] = item;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnComandaCancelada(Guid comandaId, Guid? itemId)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CambiarEstadoAsync(ComandaItemDto item, EstadoItemComanda nuevoEstado)
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        await ApiClient.CambiarEstadoItemAsync(sucursalId, item.Id, nuevoEstado);
+        item.Estado = nuevoEstado; // optimista; el evento SignalR reconfirma
+    }
+
+    private async Task CancelarAsync(ComandaItemDto item)
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        await ApiClient.CancelarItemAsync(sucursalId, item.Id, "Cancelado desde cocina", RolQueCancelo.Cocina);
+        item.Estado = EstadoItemComanda.Cancelado;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Conexion.ComandaCreada -= OnComandaCreada;
+        Conexion.ItemActualizado -= OnItemActualizado;
+        Conexion.ComandaCancelada -= OnComandaCancelada;
+        await Task.CompletedTask;
+    }
+}

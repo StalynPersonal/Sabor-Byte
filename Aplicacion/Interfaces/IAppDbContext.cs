@@ -4,6 +4,7 @@ using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
+using SaborByte.Dominio.Pedidos;
 using SaborByte.Dominio.Sucursales;
 
 namespace SaborByte.Aplicacion.Interfaces;
@@ -33,6 +34,12 @@ public interface IAppDbContext
     DbSet<FacturaDetalle> FacturaDetalles { get; }
 
     DbSet<MovimientoInventario> MovimientosInventario { get; }
+
+    DbSet<Mesa> Mesas { get; }
+    DbSet<Comanda> Comandas { get; }
+    DbSet<ComandaItem> ComandaItems { get; }
+    DbSet<ComandaItemIngrediente> ComandaItemIngredientes { get; }
+    DbSet<ComandaCancelacion> ComandaCancelaciones { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Inventario.InventarioAppService>();
         services.AddScoped<Aplicacion.Facturacion.VentaAppService>();
         services.AddScoped<Aplicacion.Caja.CajaAppService>();
+        services.AddScoped<Aplicacion.Pedidos.ComandaAppService>();
 
         return services;
     }
