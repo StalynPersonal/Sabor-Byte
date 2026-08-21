@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/node_modules/
+.git/
+.github/
+xsd/
+Api/certificados/
+Api/appsettings.Development.json
+Api/appsettings.Testing.json
+*.Tests/

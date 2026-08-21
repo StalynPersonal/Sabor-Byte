@@ -1,0 +1,70 @@
+# Levanta todo el stack localmente para probar (no pensado para producción tal cual).
+# Uso: docker compose up --build
+#
+# Las contraseñas de abajo son solo para este entorno local descartable — nunca las
+# reutilices en un ambiente real. En producción, ver la sección "Hosting" del plan
+# (Azure App Service + Azure SQL + Azure SignalR + Azure Static Web Apps).
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "SaborByte#Local2026"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+
+  api:
+    build:
+      context: .
+      dockerfile: Api/Dockerfile
+    depends_on:
+      - sqlserver
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__SaborByteDb: "Server=sqlserver;Database=SaborByteDb;User Id=sa;Password=SaborByte#Local2026;TrustServerCertificate=True;"
+      Jwt__Key: "CAMBIAR-ESTA-CLAVE-DE-DESARROLLO-POR-UNA-DE-AL-MENOS-32-CARACTERES"
+      Jwt__Issuer: "SaborByte.Api"
+      Jwt__Audience: "SaborByte.Clientes"
+    ports:
+      - "5080:8080"
+
+  central:
+    build:
+      context: ./Web
+      dockerfile: Apps/SaborByte.Web.Central/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "5081:8080"
+
+  caja:
+    build:
+      context: ./Web
+      dockerfile: Apps/SaborByte.Web.Caja/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "5082:8080"
+
+  cocina:
+    build:
+      context: ./Web
+      dockerfile: Apps/SaborByte.Web.Cocina/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "5083:8080"
+
+  mesero:
+    build:
+      context: ./Web
+      dockerfile: Apps/SaborByte.Web.Mesero/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "5084:8080"
+
+volumes:
+  sqlserver-data:
