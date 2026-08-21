@@ -25,8 +25,12 @@ jobs:
       - name: Compilar
         run: dotnet build --no-restore --configuration Release
 
-      # Solo corren las pruebas que no requieren SQL Server real (la librería de
-      # facturación electrónica). Las pruebas de integración contra la base de
-      # datos quedan pendientes de un job separado con un contenedor de SQL Server.
+      # Estas dos suites no requieren SQL Server real: FacturacionElectronicaDGII es
+      # pura (sin base de datos), y Aplicacion.Tests usa el proveedor EF Core InMemory.
+      # Las pruebas de integración contra SQL Server real quedan pendientes de un job
+      # separado con un contenedor de SQL Server.
       - name: Pruebas — FacturacionElectronicaDGII
         run: dotnet test FacturacionElectronica.Tests/FacturacionElectronicaDGII.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Pruebas — Aplicacion
+        run: dotnet test Aplicacion.Tests/SaborByte.Aplicacion.Tests.csproj --no-build --configuration Release --verbosity normal

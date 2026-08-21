@@ -2,6 +2,9 @@
   <Folder Name="/Api/">
     <Project Path="Api/SaborByte.Api.csproj" />
   </Folder>
+  <Folder Name="/Aplicacion.Tests/">
+    <Project Path="Aplicacion.Tests/SaborByte.Aplicacion.Tests.csproj" />
+  </Folder>
   <Folder Name="/Aplicacion/">
     <Project Path="Aplicacion/SaborByte.Aplicacion.csproj" />
   </Folder>
