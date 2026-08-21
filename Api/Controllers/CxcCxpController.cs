@@ -27,11 +27,13 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
     }
 
     [HttpPost("porcobrar/{cuentaId:guid}/pagos")]
-    public async Task<IActionResult> PagarPorCobrar(Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct)
+    public async Task<IActionResult> PagarPorCobrar([FromQuery] Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+
         try
         {
-            await cxcCxp.RegistrarPagoCxCAsync(cuentaId, request, ct);
+            await cxcCxp.RegistrarPagoCxCAsync(sucursalId, cuentaId, request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -56,11 +58,13 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
     }
 
     [HttpPost("porpagar/{cuentaId:guid}/pagos")]
-    public async Task<IActionResult> PagarPorPagar(Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct)
+    public async Task<IActionResult> PagarPorPagar([FromQuery] Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+
         try
         {
-            await cxcCxp.RegistrarPagoCxPAsync(cuentaId, request, ct);
+            await cxcCxp.RegistrarPagoCxPAsync(sucursalId, cuentaId, request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

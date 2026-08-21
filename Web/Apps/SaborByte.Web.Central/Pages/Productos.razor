@@ -144,7 +144,8 @@ else
 
     private async Task EditarProducto(Guid id)
     {
-        var producto = await ApiClient.ObtenerProductoAsync(id);
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var producto = await ApiClient.ObtenerProductoAsync(sucursalId, id);
         if (producto is null)
             return;
 
@@ -175,7 +176,7 @@ else
 
         var (exito, error) = _productoId is null
             ? await ApiClient.CrearProductoAsync(sucursalId, _form)
-            : await ApiClient.ActualizarProductoAsync(_productoId.Value, _form);
+            : await ApiClient.ActualizarProductoAsync(sucursalId, _productoId.Value, _form);
 
         if (!exito)
         {
@@ -189,7 +190,8 @@ else
 
     private async Task DesactivarAsync(Guid id)
     {
-        await ApiClient.DesactivarProductoAsync(id);
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        await ApiClient.DesactivarProductoAsync(sucursalId, id);
         await CargarAsync();
     }
 }

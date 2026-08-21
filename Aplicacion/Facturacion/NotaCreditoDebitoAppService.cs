@@ -49,9 +49,9 @@ public class NotaCreditoDebitoAppService(IAppDbContext db, IAuditoriaService aud
         };
     }
 
-    public async Task<List<NotaCreditoDebitoDto>> ListarPorFacturaAsync(Guid facturaId, CancellationToken ct = default) =>
+    public async Task<List<NotaCreditoDebitoDto>> ListarPorFacturaAsync(Guid sucursalId, Guid facturaId, CancellationToken ct = default) =>
         await db.NotasCreditoDebito
-            .Where(n => n.FacturaOriginalId == facturaId)
+            .Where(n => n.FacturaOriginalId == facturaId && n.SucursalId == sucursalId)
             .OrderByDescending(n => n.FechaEmision)
             .Select(n => new NotaCreditoDebitoDto
             {

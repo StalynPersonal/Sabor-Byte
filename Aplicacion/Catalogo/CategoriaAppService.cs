@@ -22,9 +22,9 @@ public class CategoriaAppService(IAppDbContext db)
         return categoria.Id;
     }
 
-    public async Task ActualizarAsync(Guid categoriaId, GuardarCategoriaRequestDto request, CancellationToken ct = default)
+    public async Task ActualizarAsync(Guid sucursalId, Guid categoriaId, GuardarCategoriaRequestDto request, CancellationToken ct = default)
     {
-        var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Id == categoriaId, ct)
+        var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Id == categoriaId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La categoría no existe.");
 
         categoria.Nombre = request.Nombre;

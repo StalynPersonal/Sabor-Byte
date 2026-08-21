@@ -51,9 +51,9 @@ public class ProductoAppService(IAppDbContext db)
             .ToListAsync(ct);
     }
 
-    public async Task<ProductoDetalleDto> ObtenerAsync(Guid productoId, CancellationToken ct = default)
+    public async Task<ProductoDetalleDto> ObtenerAsync(Guid sucursalId, Guid productoId, CancellationToken ct = default)
     {
-        var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == productoId, ct)
+        var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == productoId && p.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El producto no existe.");
 
         return MapearDetalle(producto);
@@ -99,11 +99,11 @@ public class ProductoAppService(IAppDbContext db)
         return producto.Id;
     }
 
-    public async Task ActualizarAsync(Guid productoId, GuardarProductoRequestDto request, CancellationToken ct = default)
+    public async Task ActualizarAsync(Guid sucursalId, Guid productoId, GuardarProductoRequestDto request, CancellationToken ct = default)
     {
         var producto = await db.Productos
             .Include(p => p.Receta)
-            .FirstOrDefaultAsync(p => p.Id == productoId, ct)
+            .FirstOrDefaultAsync(p => p.Id == productoId && p.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El producto no existe.");
 
         producto.Nombre = request.Nombre;
@@ -140,9 +140,9 @@ public class ProductoAppService(IAppDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task DesactivarAsync(Guid productoId, CancellationToken ct = default)
+    public async Task DesactivarAsync(Guid sucursalId, Guid productoId, CancellationToken ct = default)
     {
-        var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == productoId, ct)
+        var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == productoId && p.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El producto no existe.");
 
         producto.Activo = false;

@@ -41,9 +41,9 @@ public class CxcCxpAppService(IAppDbContext db)
             })
             .ToListAsync(ct);
 
-    public async Task RegistrarPagoCxCAsync(Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct = default)
+    public async Task RegistrarPagoCxCAsync(Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct = default)
     {
-        var cuenta = await db.CuentasPorCobrar.FirstOrDefaultAsync(c => c.Id == cuentaId, ct)
+        var cuenta = await db.CuentasPorCobrar.FirstOrDefaultAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La cuenta por cobrar no existe.");
 
         if (request.Monto <= 0 || request.Monto > cuenta.SaldoPendiente)
@@ -92,9 +92,9 @@ public class CxcCxpAppService(IAppDbContext db)
             })
             .ToListAsync(ct);
 
-    public async Task RegistrarPagoCxPAsync(Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct = default)
+    public async Task RegistrarPagoCxPAsync(Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct = default)
     {
-        var cuenta = await db.CuentasPorPagar.FirstOrDefaultAsync(c => c.Id == cuentaId, ct)
+        var cuenta = await db.CuentasPorPagar.FirstOrDefaultAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La cuenta por pagar no existe.");
 
         if (request.Monto <= 0 || request.Monto > cuenta.SaldoPendiente)

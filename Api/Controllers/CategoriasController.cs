@@ -33,11 +33,14 @@ public class CategoriasController(CategoriaAppService categorias) : ControllerBa
 
     [HttpPut("{categoriaId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Actualizar(Guid categoriaId, GuardarCategoriaRequestDto request, CancellationToken ct)
+    public async Task<IActionResult> Actualizar([FromQuery] Guid sucursalId, Guid categoriaId, GuardarCategoriaRequestDto request, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
         try
         {
-            await categorias.ActualizarAsync(categoriaId, request, ct);
+            await categorias.ActualizarAsync(sucursalId, categoriaId, request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

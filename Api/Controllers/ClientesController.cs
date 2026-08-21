@@ -31,11 +31,14 @@ public class ClientesController(ClienteAppService clientes) : ControllerBase
     }
 
     [HttpPut("{clienteId:guid}")]
-    public async Task<IActionResult> Actualizar(Guid clienteId, GuardarClienteRequestDto request, CancellationToken ct)
+    public async Task<IActionResult> Actualizar([FromQuery] Guid sucursalId, Guid clienteId, GuardarClienteRequestDto request, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
         try
         {
-            await clientes.ActualizarAsync(clienteId, request, ct);
+            await clientes.ActualizarAsync(sucursalId, clienteId, request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -45,11 +48,14 @@ public class ClientesController(ClienteAppService clientes) : ControllerBase
     }
 
     [HttpDelete("{clienteId:guid}")]
-    public async Task<IActionResult> Desactivar(Guid clienteId, CancellationToken ct)
+    public async Task<IActionResult> Desactivar([FromQuery] Guid sucursalId, Guid clienteId, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
         try
         {
-            await clientes.DesactivarAsync(clienteId, ct);
+            await clientes.DesactivarAsync(sucursalId, clienteId, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

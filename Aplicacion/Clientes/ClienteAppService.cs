@@ -53,9 +53,9 @@ public class ClienteAppService(IAppDbContext db)
         return cliente.Id;
     }
 
-    public async Task ActualizarAsync(Guid clienteId, GuardarClienteRequestDto request, CancellationToken ct = default)
+    public async Task ActualizarAsync(Guid sucursalId, Guid clienteId, GuardarClienteRequestDto request, CancellationToken ct = default)
     {
-        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Id == clienteId, ct)
+        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Id == clienteId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El cliente no existe.");
 
         cliente.NombreORazonSocial = request.NombreORazonSocial;
@@ -68,9 +68,9 @@ public class ClienteAppService(IAppDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task DesactivarAsync(Guid clienteId, CancellationToken ct = default)
+    public async Task DesactivarAsync(Guid sucursalId, Guid clienteId, CancellationToken ct = default)
     {
-        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Id == clienteId, ct)
+        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Id == clienteId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El cliente no existe.");
 
         cliente.Activo = false;

@@ -13,10 +13,14 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             .Select(c => new CajaResumenDto { Id = c.Id, Numero = c.Numero, Activa = c.Activa })
             .ToListAsync(ct);
 
-    public async Task<Guid> AbrirTurnoAsync(Guid usuarioId, AbrirTurnoRequestDto request, CancellationToken ct = default)
+    public async Task<Guid> AbrirTurnoAsync(
+        Guid usuarioId, IReadOnlyCollection<Guid> sucursalesPermitidas, AbrirTurnoRequestDto request, CancellationToken ct = default)
     {
         var caja = await db.Cajas.FirstOrDefaultAsync(c => c.Id == request.CajaId, ct)
             ?? throw new InvalidOperationException("La caja no existe.");
+
+        if (!sucursalesPermitidas.Contains(caja.SucursalId))
+            throw new InvalidOperationException("La caja no existe.");
 
         if (!caja.Activa)
             throw new InvalidOperationException("La caja está inactiva.");
@@ -49,10 +53,10 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         return turno.Id;
     }
 
-    public async Task<ResumenTurnoDto> ObtenerResumenAsync(Guid turnoCajaId, CancellationToken ct = default)
+    public async Task<ResumenTurnoDto> ObtenerResumenAsync(
+        Guid turnoCajaId, IReadOnlyCollection<Guid> sucursalesPermitidas, CancellationToken ct = default)
     {
-        var turno = await db.TurnosCaja.FirstOrDefaultAsync(t => t.Id == turnoCajaId, ct)
-            ?? throw new InvalidOperationException("El turno no existe.");
+        var turno = await ObtenerTurnoDeSucursalPermitidaAsync(turnoCajaId, sucursalesPermitidas, ct);
 
         var totalesEsperados = await db.MovimientosCaja
             .Where(m => m.TurnoCajaId == turnoCajaId && m.Tipo == TipoMovimientoCaja.Venta)
@@ -75,10 +79,10 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         };
     }
 
-    public async Task CerrarTurnoAsync(Guid usuarioId, CerrarTurnoRequestDto request, CancellationToken ct = default)
+    public async Task CerrarTurnoAsync(
+        Guid usuarioId, IReadOnlyCollection<Guid> sucursalesPermitidas, CerrarTurnoRequestDto request, CancellationToken ct = default)
     {
-        var turno = await db.TurnosCaja.FirstOrDefaultAsync(t => t.Id == request.TurnoCajaId, ct)
-            ?? throw new InvalidOperationException("El turno no existe.");
+        var turno = await ObtenerTurnoDeSucursalPermitidaAsync(request.TurnoCajaId, sucursalesPermitidas, ct);
 
         if (turno.Estado != EstadoTurnoCaja.Abierto)
             throw new InvalidOperationException("El turno ya está cerrado.");
@@ -103,5 +107,20 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
 
         var caja = await db.Cajas.FirstOrDefaultAsync(c => c.Id == turno.CajaId, ct);
         await auditoria.RegistrarAsync(caja?.SucursalId, usuarioId, "CierreCaja", "TurnoCaja", turno.Id, ct: ct);
+    }
+
+    // Evita IDOR: sin esto, cualquier usuario autenticado podía leer/cerrar el turno
+    // de una caja de OTRA sucursal con solo conocer su GUID.
+    private async Task<TurnoCaja> ObtenerTurnoDeSucursalPermitidaAsync(
+        Guid turnoCajaId, IReadOnlyCollection<Guid> sucursalesPermitidas, CancellationToken ct)
+    {
+        var turno = await (
+            from t in db.TurnosCaja
+            join c in db.Cajas on t.CajaId equals c.Id
+            where t.Id == turnoCajaId && sucursalesPermitidas.Contains(c.SucursalId)
+            select t
+        ).FirstOrDefaultAsync(ct);
+
+        return turno ?? throw new InvalidOperationException("El turno no existe.");
     }
 }

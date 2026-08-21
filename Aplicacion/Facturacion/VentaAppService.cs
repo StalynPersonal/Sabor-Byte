@@ -31,15 +31,21 @@ public class VentaAppService(
                 detalle: $"Monto descuento: {request.Items.Sum(i => i.Descuento):0.00}", ct: ct);
         }
 
-        var turno = await db.TurnosCaja.FirstOrDefaultAsync(t => t.Id == request.TurnoCajaId, ct)
-            ?? throw new InvalidOperationException("El turno de caja no existe.");
+        // Evita IDOR: sin el join con Cajas, un usuario con acceso a su propia sucursal
+        // podía facturar contra el turno de OTRA sucursal con solo conocer su GUID.
+        var turno = await (
+            from t in db.TurnosCaja
+            join c in db.Cajas on t.CajaId equals c.Id
+            where t.Id == request.TurnoCajaId && c.SucursalId == sucursalId
+            select t
+        ).FirstOrDefaultAsync(ct) ?? throw new InvalidOperationException("El turno de caja no existe.");
 
         if (turno.Estado != EstadoTurnoCaja.Abierto)
             throw new InvalidOperationException("No se puede facturar sobre un turno de caja cerrado.");
 
         var productoIds = request.Items.Select(i => i.ProductoId).ToList();
         var productos = await db.Productos
-            .Where(p => productoIds.Contains(p.Id))
+            .Where(p => productoIds.Contains(p.Id) && p.SucursalId == sucursalId)
             .ToDictionaryAsync(p => p.Id, ct);
 
         var factura = new Factura

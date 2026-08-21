@@ -140,10 +140,10 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
             $"api/productos/todos?sucursalId={sucursalId}&incluirInactivos={incluirInactivos}") ?? [];
     }
 
-    public async Task<ProductoDetalleDto?> ObtenerProductoAsync(Guid productoId)
+    public async Task<ProductoDetalleDto?> ObtenerProductoAsync(Guid sucursalId, Guid productoId)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<ProductoDetalleDto>($"api/productos/{productoId}");
+        return await http.GetFromJsonAsync<ProductoDetalleDto>($"api/productos/{productoId}?sucursalId={sucursalId}");
     }
 
     public async Task<(bool Exito, string? Error)> CrearProductoAsync(Guid sucursalId, GuardarProductoRequestDto request)
@@ -153,17 +153,17 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<(bool Exito, string? Error)> ActualizarProductoAsync(Guid productoId, GuardarProductoRequestDto request)
+    public async Task<(bool Exito, string? Error)> ActualizarProductoAsync(Guid sucursalId, Guid productoId, GuardarProductoRequestDto request)
     {
         AdjuntarToken();
-        var respuesta = await http.PutAsJsonAsync($"api/productos/{productoId}", request);
+        var respuesta = await http.PutAsJsonAsync($"api/productos/{productoId}?sucursalId={sucursalId}", request);
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<(bool Exito, string? Error)> DesactivarProductoAsync(Guid productoId)
+    public async Task<(bool Exito, string? Error)> DesactivarProductoAsync(Guid sucursalId, Guid productoId)
     {
         AdjuntarToken();
-        var respuesta = await http.DeleteAsync($"api/productos/{productoId}");
+        var respuesta = await http.DeleteAsync($"api/productos/{productoId}?sucursalId={sucursalId}");
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 

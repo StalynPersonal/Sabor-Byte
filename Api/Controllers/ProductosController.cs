@@ -31,11 +31,14 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
     }
 
     [HttpGet("{productoId:guid}")]
-    public async Task<IActionResult> Obtener(Guid productoId, CancellationToken ct)
+    public async Task<IActionResult> Obtener([FromQuery] Guid sucursalId, Guid productoId, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
         try
         {
-            return Ok(await productos.ObtenerAsync(productoId, ct));
+            return Ok(await productos.ObtenerAsync(sucursalId, productoId, ct));
         }
         catch (InvalidOperationException ex)
         {
@@ -56,11 +59,14 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
 
     [HttpPut("{productoId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Actualizar(Guid productoId, GuardarProductoRequestDto request, CancellationToken ct)
+    public async Task<IActionResult> Actualizar([FromQuery] Guid sucursalId, Guid productoId, GuardarProductoRequestDto request, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
         try
         {
-            await productos.ActualizarAsync(productoId, request, ct);
+            await productos.ActualizarAsync(sucursalId, productoId, request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -71,11 +77,14 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
 
     [HttpDelete("{productoId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Desactivar(Guid productoId, CancellationToken ct)
+    public async Task<IActionResult> Desactivar([FromQuery] Guid sucursalId, Guid productoId, CancellationToken ct)
     {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
         try
         {
-            await productos.DesactivarAsync(productoId, ct);
+            await productos.DesactivarAsync(sucursalId, productoId, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

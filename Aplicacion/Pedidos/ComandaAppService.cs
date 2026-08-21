@@ -87,10 +87,14 @@ public class ComandaAppService(
     public async Task<ComandaItemDto> CambiarEstadoItemAsync(
         Guid sucursalId, Guid comandaItemId, EstadoItemComanda nuevoEstado, CancellationToken ct = default)
     {
+        // Evita IDOR: sucursalId viene del query string del cliente; sin este filtro,
+        // un usuario con acceso legítimo a SU sucursal podía pasar el sucursalId de esa
+        // sucursal (que sí supera TieneAccesoASucursal) junto al comandaItemId de OTRA
+        // sucursal, y modificar/cancelar comandas ajenas.
         var item = await db.ComandaItems
             .Include(i => i.IngredientesExcluidos)
             .Include(i => i.Comanda)
-            .FirstOrDefaultAsync(i => i.Id == comandaItemId, ct)
+            .FirstOrDefaultAsync(i => i.Id == comandaItemId && i.Comanda!.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El ítem de comanda no existe.");
 
         ValidarTransicion(item.Estado, nuevoEstado);
@@ -114,9 +118,11 @@ public class ComandaAppService(
     public async Task CancelarItemAsync(
         Guid sucursalId, Guid comandaItemId, Guid usuarioId, CancelarItemRequestDto request, CancellationToken ct = default)
     {
+        // Mismo control anti-IDOR que CambiarEstadoItemAsync (ver comentario ahí).
         var item = await db.ComandaItems
             .Include(i => i.IngredientesExcluidos)
-            .FirstOrDefaultAsync(i => i.Id == comandaItemId, ct)
+            .Include(i => i.Comanda)
+            .FirstOrDefaultAsync(i => i.Id == comandaItemId && i.Comanda!.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El ítem de comanda no existe.");
 
         if (item.Estado == EstadoItemComanda.Entregado)

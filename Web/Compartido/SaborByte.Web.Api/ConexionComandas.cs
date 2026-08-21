@@ -23,7 +23,7 @@ public class ConexionComandas(SesionCliente sesion, string apiBaseUrl) : IAsyncD
         _conexion = new HubConnectionBuilder()
             .WithUrl($"{apiBaseUrl}hubs/comandas", opciones =>
             {
-                opciones.AccessTokenProvider = () => Task.FromResult(sesion.Token);
+                opciones.AccessTokenProvider = () => Task.FromResult<string?>(sesion.Token);
             })
             .WithAutomaticReconnect()
             .Build();

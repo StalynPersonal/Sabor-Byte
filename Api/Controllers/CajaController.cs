@@ -28,7 +28,8 @@ public class CajaController(CajaAppService cajaAppService) : ControllerBase
 
         try
         {
-            var turnoId = await cajaAppService.AbrirTurnoAsync(User.ObtenerUsuarioId(), request, ct);
+            var turnoId = await cajaAppService.AbrirTurnoAsync(
+                User.ObtenerUsuarioId(), User.ObtenerSucursalesPermitidas(), request, ct);
             return Ok(new { turnoCajaId = turnoId });
         }
         catch (InvalidOperationException ex)
@@ -42,7 +43,7 @@ public class CajaController(CajaAppService cajaAppService) : ControllerBase
     {
         try
         {
-            return Ok(await cajaAppService.ObtenerResumenAsync(turnoCajaId, ct));
+            return Ok(await cajaAppService.ObtenerResumenAsync(turnoCajaId, User.ObtenerSucursalesPermitidas(), ct));
         }
         catch (InvalidOperationException ex)
         {
@@ -55,7 +56,7 @@ public class CajaController(CajaAppService cajaAppService) : ControllerBase
     {
         try
         {
-            await cajaAppService.CerrarTurnoAsync(User.ObtenerUsuarioId(), request, ct);
+            await cajaAppService.CerrarTurnoAsync(User.ObtenerUsuarioId(), User.ObtenerSucursalesPermitidas(), request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
