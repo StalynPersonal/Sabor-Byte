@@ -51,6 +51,20 @@ public class GuardarProductoRequestDto
     public List<IngredienteRequestDto> Receta { get; set; } = [];
 }
 
+public class ComponenteComboRequestDto
+{
+    public Guid ProductoIncluidoId { get; set; }
+    public decimal Cantidad { get; set; } = 1;
+}
+
+public class CrearComboRequestDto
+{
+    public string Nombre { get; set; } = string.Empty;
+    public decimal Precio { get; set; }
+    public Guid? CategoriaId { get; set; }
+    public List<ComponenteComboRequestDto> Componentes { get; set; } = [];
+}
+
 public class CategoriaDto
 {
     public Guid Id { get; set; }
