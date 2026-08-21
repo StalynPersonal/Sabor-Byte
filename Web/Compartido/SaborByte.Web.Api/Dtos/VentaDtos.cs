@@ -26,6 +26,7 @@ public class CrearVentaRequestDto
     public List<ItemVentaDto> Items { get; set; } = [];
     public decimal? PorcentajePropina { get; set; }
     public decimal? MontoPropinaFijo { get; set; }
+    public Guid? CodigoAutorizacionDescuento { get; set; }
 }
 
 public class VentaResultadoDto

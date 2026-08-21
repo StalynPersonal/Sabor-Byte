@@ -119,6 +119,20 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<(bool Exito, Guid? Codigo, string? Error)> SolicitarAutorizacionAsync(
+        string nombreUsuario, string password, string accion)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/autorizaciones",
+            new SolicitarAutorizacionRequestDto { NombreUsuario = nombreUsuario, Password = password, Accion = accion });
+
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        var resultado = await respuesta.Content.ReadFromJsonAsync<SolicitarAutorizacionResponseDto>();
+        return (true, resultado?.CodigoAutorizacion, null);
+    }
+
     public async Task<List<ProductoDetalleDto>> ListarProductosAsync(Guid sucursalId, bool incluirInactivos = false)
     {
         AdjuntarToken();

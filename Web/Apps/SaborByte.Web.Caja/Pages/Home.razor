@@ -37,6 +37,57 @@ else if (_turnoCajaId is null)
         </MudPaper>
     </MudContainer>
 }
+else if (_cerrando)
+{
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+        <MudPaper Class="pa-6">
+            <MudText Typo="Typo.h5" Class="mb-4">Cierre de turno — conteo de efectivo</MudText>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Esperado por forma de pago (según ventas del turno)</MudText>
+            @foreach (var total in _resumenCierre?.Totales ?? [])
+            {
+                <div class="d-flex justify-space-between">
+                    <MudText Typo="Typo.body2">@total.FormaPago</MudText>
+                    <MudText Typo="Typo.body2">RD$ @total.Esperado.ToString("0.00")</MudText>
+                </div>
+            }
+
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Efectivo — desglose de billetes y monedas</MudText>
+
+            <MudGrid>
+                @foreach (var denom in _denominacionesEfectivo)
+                {
+                    <MudItem xs="4" sm="3">
+                        <MudNumericField T="int" Label="@($"RD$ {denom}")" @bind-Value="_cantidadesPorDenominacion[denom]" Min="0" />
+                    </MudItem>
+                }
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle1" Class="mt-3">
+                Total efectivo contado: RD$ @TotalEfectivoContado.ToString("0.00")
+            </MudText>
+
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Otras formas de pago — monto contado/reportado</MudText>
+            <MudNumericField T="decimal" Label="Tarjeta" @bind-Value="_montoTarjetaContado" Class="mb-2" />
+            <MudNumericField T="decimal" Label="Transferencia" @bind-Value="_montoTransferenciaContado" Class="mb-2" />
+            <MudNumericField T="decimal" Label="Depósito" @bind-Value="_montoDepositoContado" Class="mb-2" />
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+            }
+
+            <div class="d-flex gap-2 mt-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarCierreAsync">
+                    Confirmar cierre
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="() => _cerrando = false">Cancelar</MudButton>
+            </div>
+        </MudPaper>
+    </MudContainer>
+}
 else
 {
     <MudGrid>
@@ -81,6 +132,19 @@ else
                     <MudSelectItem Value="15m">15%</MudSelectItem>
                 </MudSelect>
 
+                @if (_descuentoAutorizado)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="my-2">
+                        Descuento autorizado (RD$ @_montoDescuento.ToString("0.00"))
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" FullWidth="true" Class="my-2" OnClick="() => _mostrarDialogoDescuento = true">
+                        Aplicar descuento (requiere supervisor)
+                    </MudButton>
+                }
+
                 <MudText Typo="Typo.subtitle1">Total: RD$ @TotalConPropina.ToString("0.00")</MudText>
 
                 <MudSelect T="FormaPago" Label="Forma de pago" @bind-Value="_formaPago" Class="my-3">
@@ -99,12 +163,34 @@ else
                            Disabled="_carrito.Count == 0" OnClick="FacturarAsync" Class="mb-2">
                     Facturar
                 </MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="AbrirCierreAsync">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="IniciarCierreAsync">
                     Cerrar turno
                 </MudButton>
             </MudPaper>
         </MudItem>
     </MudGrid>
+
+    @if (_mostrarDialogoDescuento)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999" @onclick="() => _mostrarDialogoDescuento = false">
+            <MudPaper Class="pa-6" @onclick:stopPropagation="true" Style="width:400px">
+                <MudText Typo="Typo.h6" Class="mb-3">Autorización de supervisor</MudText>
+                <MudTextField T="string" Label="Usuario supervisor" @bind-Value="_supervisorUsuario" Class="mb-2" />
+                <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_supervisorPassword" Class="mb-2" />
+                <MudNumericField T="decimal" Label="Monto del descuento" @bind-Value="_montoDescuento" Class="mb-2" />
+
+                @if (!string.IsNullOrEmpty(_errorAutorizacion))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-2">@_errorAutorizacion</MudAlert>
+                }
+
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SolicitarAutorizacionAsync">Autorizar</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoDescuento = false">Cancelar</MudButton>
+                </div>
+            </MudPaper>
+        </MudOverlay>
+    }
 }
 
 @code {
@@ -120,10 +206,29 @@ else
     private FormaPago _formaPago = FormaPago.Efectivo;
     private decimal _porcentajePropina;
 
+    private bool _mostrarDialogoDescuento;
+    private string _supervisorUsuario = string.Empty;
+    private string _supervisorPassword = string.Empty;
+    private decimal _montoDescuento;
+    private bool _descuentoAutorizado;
+    private Guid? _codigoAutorizacionDescuento;
+    private string? _errorAutorizacion;
+
+    private bool _cerrando;
+    private ResumenTurnoDto? _resumenCierre;
+    private readonly int[] _denominacionesEfectivo = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
+    private readonly Dictionary<int, int> _cantidadesPorDenominacion = [];
+    private decimal _montoTarjetaContado;
+    private decimal _montoTransferenciaContado;
+    private decimal _montoDepositoContado;
+
     private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
     // Aproximación en pantalla (con ITBIS incluido de forma simplificada); el total real, con ITBIS
     // exacto por línea y la propina aplicada sobre el total con impuestos, lo calcula el backend.
-    private decimal TotalConPropina => TotalCarrito * 1.18m * (1 + _porcentajePropina / 100m);
+    private decimal TotalConPropina =>
+        ((TotalCarrito * 1.18m) - (_descuentoAutorizado ? _montoDescuento : 0)) * (1 + _porcentajePropina / 100m);
+
+    private decimal TotalEfectivoContado => _denominacionesEfectivo.Sum(d => d * (_cantidadesPorDenominacion.GetValueOrDefault(d)));
 
     protected override async Task OnInitializedAsync()
     {
@@ -132,6 +237,9 @@ else
             Navegacion.NavigateTo("/login");
             return;
         }
+
+        foreach (var d in _denominacionesEfectivo)
+            _cantidadesPorDenominacion[d] = 0;
 
         var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
         _cajas = await ApiClient.ListarCajasAsync(sucursalId);
@@ -179,6 +287,23 @@ else
         }
     }
 
+    private async Task SolicitarAutorizacionAsync()
+    {
+        _errorAutorizacion = null;
+        var (exito, codigo, error) = await ApiClient.SolicitarAutorizacionAsync(_supervisorUsuario, _supervisorPassword, "Descuento");
+
+        if (!exito)
+        {
+            _errorAutorizacion = error;
+            return;
+        }
+
+        _codigoAutorizacionDescuento = codigo;
+        _descuentoAutorizado = true;
+        _mostrarDialogoDescuento = false;
+        _supervisorPassword = string.Empty;
+    }
+
     private async Task FacturarAsync()
     {
         _error = null;
@@ -187,8 +312,15 @@ else
         {
             TurnoCajaId = _turnoCajaId!.Value,
             FormaPago = _formaPago,
-            Items = _carrito.Select(l => new ItemVentaDto { ProductoId = l.ProductoId, Cantidad = l.Cantidad }).ToList(),
-            PorcentajePropina = _porcentajePropina > 0 ? _porcentajePropina : null
+            Items = _carrito.Select((l, indice) => new ItemVentaDto
+            {
+                ProductoId = l.ProductoId,
+                Cantidad = l.Cantidad,
+                // El descuento autorizado se aplica a la primera línea; simple y suficiente para v1.
+                Descuento = indice == 0 ? (_descuentoAutorizado ? _montoDescuento : 0) : 0
+            }).ToList(),
+            PorcentajePropina = _porcentajePropina > 0 ? _porcentajePropina : null,
+            CodigoAutorizacionDescuento = _codigoAutorizacionDescuento
         };
 
         var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
@@ -202,16 +334,51 @@ else
 
         _carrito.Clear();
         _porcentajePropina = 0;
+        _descuentoAutorizado = false;
+        _codigoAutorizacionDescuento = null;
+        _montoDescuento = 0;
     }
 
-    private async Task AbrirCierreAsync()
+    private async Task IniciarCierreAsync()
     {
-        // v1: cierre simplificado, sin desglose de denominaciones en la UI todavía.
-        var (exito, error) = await ApiClient.CerrarTurnoAsync(new CerrarTurnoRequestDto { TurnoCajaId = _turnoCajaId!.Value });
-        if (exito)
-            _turnoCajaId = null;
-        else
+        _resumenCierre = await ApiClient.ObtenerResumenTurnoAsync(_turnoCajaId!.Value);
+        _cerrando = true;
+    }
+
+    private async Task ConfirmarCierreAsync()
+    {
+        _error = null;
+
+        var denominaciones = _denominacionesEfectivo
+            .Where(d => _cantidadesPorDenominacion.GetValueOrDefault(d) > 0)
+            .Select(d => new DenominacionCierreDto { FormaPago = FormaPago.Efectivo, Denominacion = d, Cantidad = _cantidadesPorDenominacion[d] })
+            .ToList();
+
+        if (_montoTarjetaContado > 0)
+            denominaciones.Add(new DenominacionCierreDto { FormaPago = FormaPago.Tarjeta, Denominacion = null, Cantidad = 1 * (int)_montoTarjetaContado });
+        if (_montoTransferenciaContado > 0)
+            denominaciones.Add(new DenominacionCierreDto { FormaPago = FormaPago.Transferencia, Denominacion = null, Cantidad = 1 * (int)_montoTransferenciaContado });
+        if (_montoDepositoContado > 0)
+            denominaciones.Add(new DenominacionCierreDto { FormaPago = FormaPago.Deposito, Denominacion = null, Cantidad = 1 * (int)_montoDepositoContado });
+
+        var (exito, error) = await ApiClient.CerrarTurnoAsync(new CerrarTurnoRequestDto
+        {
+            TurnoCajaId = _turnoCajaId!.Value,
+            Denominaciones = denominaciones
+        });
+
+        if (!exito)
+        {
             _error = error;
+            return;
+        }
+
+        _turnoCajaId = null;
+        _cerrando = false;
+        _resumenCierre = null;
+        foreach (var d in _denominacionesEfectivo)
+            _cantidadesPorDenominacion[d] = 0;
+        _montoTarjetaContado = _montoTransferenciaContado = _montoDepositoContado = 0;
     }
 
     private class LineaCarrito
