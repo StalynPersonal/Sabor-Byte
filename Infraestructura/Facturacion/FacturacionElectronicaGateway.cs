@@ -47,6 +47,7 @@ public class FacturacionElectronicaGateway(
                 Descripcion = d.NombreProducto,
                 Cantidad = d.Cantidad,
                 PrecioUnitario = d.PrecioUnitario,
+                TasaItbis = d.TasaItbis,
                 Impuesto = d.Itbis,
                 Total = d.Total
             }).ToList(),
@@ -73,10 +74,14 @@ public class FacturacionElectronicaGateway(
         factura.XmlFirmadoDgii = xmlFirmado;
         factura.CodigoSeguridadDgii = servicioEcf.GenerarCodigoSeguridad(xmlFirmado);
 
+        factura.FechaEnvioDgii = DateTime.UtcNow;
+
         try
         {
             var resultado = await servicioEcf.EnviarADgiiAsync(xmlFirmado, ct);
             factura.TrackIdDgii = resultado.TrackId;
+            factura.MensajeDgii = resultado.Mensaje;
+            factura.FechaRespuestaDgii = DateTime.UtcNow;
             // El acuse de recibo (ARECF) solo confirma que DGII recibió el envío — el
             // estado final (Aceptado/Rechazado/Condicional) se obtiene después vía
             // ConsultarEstadoAsync con el TrackId, no en esta misma respuesta.
@@ -102,14 +107,16 @@ public class FacturacionElectronicaGateway(
             // Sin conexión a DGII o el servicio no respondió a tiempo. El comprobante ya
             // quedó validado, generado y firmado — se marca en contingencia para
             // reintentar el envío más adelante (ver sección 4 del plan), sin bloquear la venta.
+            var mensaje = $"Comprobante generado y firmado; no se pudo contactar a DGII: {ex.Message}";
             factura.EstadoDgii = EstadoDgii.Contingencia;
+            factura.MensajeDgii = mensaje;
             await db.SaveChangesAsync(ct);
 
             return new ResultadoEmisionEcf
             {
                 Exitoso = true,
                 EstadoDgii = "Contingencia",
-                MensajeDgii = $"Comprobante generado y firmado; no se pudo contactar a DGII: {ex.Message}",
+                MensajeDgii = mensaje,
                 CodigoSeguridadDgii = factura.CodigoSeguridadDgii
             };
         }

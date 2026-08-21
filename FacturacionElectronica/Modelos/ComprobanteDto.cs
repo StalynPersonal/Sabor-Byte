@@ -37,6 +37,11 @@ public class LineaComprobanteDto
     public required string Descripcion { get; set; }
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+
+    // Tasa de ITBIS realmente aplicada a esta línea (0.18/0.16/0) — null = exenta (no
+    // aplica ITBIS). Determina el IndicadorFacturacion del XML (1/2/3/4), no solo si
+    // Impuesto es cero (una línea con tasa 0% "aplica" ITBIS distinto de una exenta).
+    public decimal? TasaItbis { get; set; }
     public decimal Impuesto { get; set; }
     public decimal Total { get; set; }
 }

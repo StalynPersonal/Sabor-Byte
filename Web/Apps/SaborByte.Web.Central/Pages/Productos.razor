@@ -70,6 +70,15 @@ else
                     <MudNumericField T="decimal?" Label="Costo unitario (opcional)" @bind-Value="_form.CostoUnitario" Class="mb-2" />
                     <MudCheckBox T="bool" @bind-Value="_form.AplicaItbis" Label="Aplica ITBIS" Class="mb-2" />
 
+                    @if (_form.AplicaItbis)
+                    {
+                        <MudSelect T="decimal" Label="Tasa de ITBIS" @bind-Value="_form.TasaItbis" Class="mb-2">
+                            <MudSelectItem Value="0.18m">18% (general)</MudSelectItem>
+                            <MudSelectItem Value="0.16m">16%</MudSelectItem>
+                            <MudSelectItem Value="0m">0% (tasa cero)</MudSelectItem>
+                        </MudSelect>
+                    }
+
                     @if (_form.TipoProducto == TipoProducto.Insumo)
                     {
                         <MudNumericField T="decimal?" Label="Stock mínimo (alerta)" @bind-Value="_form.StockMinimo" Class="mb-2" />
@@ -244,6 +253,7 @@ else
             Precio = producto.Precio,
             CostoUnitario = producto.CostoUnitario,
             AplicaItbis = producto.AplicaItbis,
+            TasaItbis = producto.TasaItbis,
             TipoProducto = producto.TipoProducto,
             UnidadMedida = producto.UnidadMedida,
             StockMinimo = producto.StockMinimo,

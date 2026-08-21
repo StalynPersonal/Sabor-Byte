@@ -50,7 +50,7 @@ public static class GeneradorXmlEcf32
             DetallesItems = dto.Detalle.Select((linea, indice) => new Item
             {
                 NumeroLinea = indice + 1,
-                IndicadorFacturacion = linea.Impuesto > 0 ? 1 : 4, // 1 = ITBIS 18%, 4 = Exento
+                IndicadorFacturacion = DeterminarIndicadorFacturacion(linea.TasaItbis),
                 NombreItem = linea.Descripcion,
                 IndicadorBienoServicio = 2,
                 CantidadItem = linea.Cantidad,
@@ -79,4 +79,17 @@ public static class GeneradorXmlEcf32
 
         return Encoding.UTF8.GetString(stream.ToArray());
     }
+
+    // Catálogo DGII: 1 ITBIS1 18%, 2 ITBIS2 16%, 3 ITBIS3 0%, 4 Exento.
+    // TasaItbis null = el producto no aplica ITBIS (Exento); un valor (incluyendo 0)
+    // significa que sí aplica, a esa tasa.
+    private static int DeterminarIndicadorFacturacion(decimal? tasaItbis) => tasaItbis switch
+    {
+        null => 4,
+        0.18m => 1,
+        0.16m => 2,
+        0m => 3,
+        _ => throw new NotSupportedException(
+            $"Tasa de ITBIS no soportada por el catálogo DGII (IndicadorFacturacion): {tasaItbis:P0}. Use 18%, 16% o 0%.")
+    };
 }

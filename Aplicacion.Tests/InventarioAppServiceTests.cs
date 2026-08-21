@@ -1,4 +1,5 @@
 using SaborByte.Aplicacion.Inventario;
+using SaborByte.Aplicacion.Inventario.Dtos;
 using SaborByte.Dominio.Catalogo;
 using SaborByte.Infraestructura.Persistencia;
 using Xunit;
@@ -81,5 +82,95 @@ public class InventarioAppServiceTests
 
         await servicio.RevertirPorCancelacionAsync(_sucursalId, producto.Id, 4, referencia, [], null);
         Assert.Equal(10m, (await _db.Productos.FindAsync(insumo.Id))!.StockActual);
+    }
+
+    [Fact]
+    public async Task RegistrarEntrada_SumaAlStockYActualizaCostoUnitario()
+    {
+        var insumo = new Producto { SucursalId = _sucursalId, Nombre = "Pollo", TipoProducto = TipoProducto.Insumo, StockActual = 10, CostoUnitario = 50m };
+        _db.Productos.Add(insumo);
+        await _db.SaveChangesAsync();
+
+        var servicio = new InventarioAppService(_db);
+        var usuarioId = Guid.NewGuid();
+        await servicio.RegistrarEntradaAsync(_sucursalId, usuarioId, new RegistrarEntradaRequestDto
+        {
+            ProductoId = insumo.Id,
+            Cantidad = 25,
+            CostoUnitario = 55m,
+            Nota = "Compra a proveedor X"
+        });
+
+        var actualizado = await _db.Productos.FindAsync(insumo.Id);
+        Assert.Equal(35m, actualizado!.StockActual); // 10 + 25
+        Assert.Equal(55m, actualizado.CostoUnitario); // costo de referencia actualizado
+
+        var movimiento = Assert.Single(_db.MovimientosInventario);
+        Assert.Equal(Dominio.Inventario.TipoMovimientoInventario.Entrada, movimiento.Tipo);
+        Assert.Equal(25m, movimiento.Cantidad);
+        Assert.Equal(35m, movimiento.SaldoResultante);
+    }
+
+    [Fact]
+    public async Task RegistrarEntrada_CantidadNegativaOCero_Rechaza()
+    {
+        var insumo = new Producto { SucursalId = _sucursalId, Nombre = "Pollo", TipoProducto = TipoProducto.Insumo, StockActual = 10 };
+        _db.Productos.Add(insumo);
+        await _db.SaveChangesAsync();
+
+        var servicio = new InventarioAppService(_db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.RegistrarEntradaAsync(
+            _sucursalId, Guid.NewGuid(), new RegistrarEntradaRequestDto { ProductoId = insumo.Id, Cantidad = 0 }));
+    }
+
+    [Fact]
+    public async Task RegistrarEntrada_SobreProductoVendible_Rechaza()
+    {
+        var vendible = new Producto { SucursalId = _sucursalId, Nombre = "Hamburguesa", TipoProducto = TipoProducto.Vendible };
+        _db.Productos.Add(vendible);
+        await _db.SaveChangesAsync();
+
+        var servicio = new InventarioAppService(_db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.RegistrarEntradaAsync(
+            _sucursalId, Guid.NewGuid(), new RegistrarEntradaRequestDto { ProductoId = vendible.Id, Cantidad = 5 }));
+    }
+
+    [Fact]
+    public async Task RegistrarAjuste_CorrigeElStockAlNuevoValorYRegistraElDelta()
+    {
+        var insumo = new Producto { SucursalId = _sucursalId, Nombre = "Queso", TipoProducto = TipoProducto.Insumo, StockActual = 20 };
+        _db.Productos.Add(insumo);
+        await _db.SaveChangesAsync();
+
+        var servicio = new InventarioAppService(_db);
+        await servicio.RegistrarAjusteAsync(_sucursalId, Guid.NewGuid(), new RegistrarAjusteRequestDto
+        {
+            ProductoId = insumo.Id,
+            NuevoStock = 15, // conteo físico dio menos que el sistema (merma)
+            Motivo = "Conteo físico mensual"
+        });
+
+        var actualizado = await _db.Productos.FindAsync(insumo.Id);
+        Assert.Equal(15m, actualizado!.StockActual);
+
+        var movimiento = Assert.Single(_db.MovimientosInventario);
+        Assert.Equal(Dominio.Inventario.TipoMovimientoInventario.Ajuste, movimiento.Tipo);
+        Assert.Equal(-5m, movimiento.Cantidad); // delta: 15 - 20
+    }
+
+    [Fact]
+    public async Task RegistrarAjuste_MismoValor_Rechaza()
+    {
+        var insumo = new Producto { SucursalId = _sucursalId, Nombre = "Queso", TipoProducto = TipoProducto.Insumo, StockActual = 20 };
+        _db.Productos.Add(insumo);
+        await _db.SaveChangesAsync();
+
+        var servicio = new InventarioAppService(_db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => servicio.RegistrarAjusteAsync(
+            _sucursalId, Guid.NewGuid(),
+            new RegistrarAjusteRequestDto { ProductoId = insumo.Id, NuevoStock = 20, Motivo = "Sin cambios" }));
     }
 }

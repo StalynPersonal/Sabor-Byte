@@ -19,6 +19,12 @@ public class Producto : EntidadBase
     public Guid? CategoriaId { get; set; }
     public bool Activo { get; set; } = true;
     public bool AplicaItbis { get; set; } = true;
+
+    // Tasa aplicada cuando AplicaItbis=true: 0.18 (18%, general), 0.16 (16%, algunos
+    // bienes) o 0 (0%, ej. exportaciones — distinto de AplicaItbis=false/Exento).
+    // Ver Informe Técnico e-CF, catálogo IndicadorFacturacion.
+    public decimal TasaItbis { get; set; } = 0.18m;
+
     public TipoProducto TipoProducto { get; set; }
     public string UnidadMedida { get; set; } = "Unidad";
 

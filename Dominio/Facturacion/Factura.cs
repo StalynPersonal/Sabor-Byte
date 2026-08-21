@@ -34,6 +34,13 @@ public class Factura
     public string? CodigoSeguridadDgii { get; set; }
     public string? TrackIdDgii { get; set; }
 
+    // Última respuesta de DGII (acuse de recibo o consulta de estado) — sin esto, un
+    // rechazo solo se veía una vez en pantalla al momento de facturar y se perdía para
+    // siempre si nadie lo leía a tiempo (ver ComprobanteEcf en el plan, sección 2).
+    public string? MensajeDgii { get; set; }
+    public DateTime? FechaEnvioDgii { get; set; }
+    public DateTime? FechaRespuestaDgii { get; set; }
+
     public Guid CreadoPorUsuarioId { get; set; }
 
     public ICollection<FacturaDetalle> Detalle { get; set; } = [];

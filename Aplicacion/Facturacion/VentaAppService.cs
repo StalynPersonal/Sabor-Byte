@@ -15,8 +15,6 @@ public class VentaAppService(
     IAuditoriaService auditoria,
     INotificadorComandas notificadorComandas)
 {
-    private const decimal TasaItbis = 0.18m;
-
     public async Task<VentaResultadoDto> CrearVentaAsync(
         Guid sucursalId, Guid usuarioId, CrearVentaRequestDto request, CancellationToken ct = default)
     {
@@ -98,7 +96,10 @@ public class VentaAppService(
                 throw new InvalidOperationException($"El producto {item.ProductoId} no existe.");
 
             var totalLinea = (producto.Precio * item.Cantidad) - item.Descuento;
-            var itbisLinea = producto.AplicaItbis ? Math.Round(totalLinea * TasaItbis, 2) : 0m;
+            // Tasa por producto, no fija (sección 9 del plan): AplicaItbis=false = exento
+            // (sin tasa); AplicaItbis=true usa Producto.TasaItbis (18%/16%/0%).
+            var tasaAplicada = producto.AplicaItbis ? producto.TasaItbis : (decimal?)null;
+            var itbisLinea = tasaAplicada is decimal tasa ? Math.Round(totalLinea * tasa, 2) : 0m;
 
             subtotal += producto.Precio * item.Cantidad;
             descuentoTotal += item.Descuento;
@@ -112,6 +113,7 @@ public class VentaAppService(
                 Cantidad = item.Cantidad,
                 PrecioUnitario = producto.Precio,
                 Descuento = item.Descuento,
+                TasaItbis = tasaAplicada,
                 Itbis = itbisLinea,
                 Total = totalLinea + itbisLinea
             });

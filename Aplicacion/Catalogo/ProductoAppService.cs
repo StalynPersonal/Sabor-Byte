@@ -72,6 +72,7 @@ public class ProductoAppService(IAppDbContext db)
             CostoUnitario = request.CostoUnitario,
             CategoriaId = request.CategoriaId,
             AplicaItbis = request.AplicaItbis,
+            TasaItbis = request.TasaItbis,
             TipoProducto = request.TipoProducto,
             UnidadMedida = request.UnidadMedida,
             StockMinimo = request.StockMinimo,
@@ -114,6 +115,7 @@ public class ProductoAppService(IAppDbContext db)
         producto.CostoUnitario = request.CostoUnitario;
         producto.CategoriaId = request.CategoriaId;
         producto.AplicaItbis = request.AplicaItbis;
+        producto.TasaItbis = request.TasaItbis;
         producto.UnidadMedida = request.UnidadMedida;
         producto.StockMinimo = request.StockMinimo;
         producto.StockMaximo = request.StockMaximo;
@@ -205,6 +207,7 @@ public class ProductoAppService(IAppDbContext db)
         CategoriaId = p.CategoriaId,
         Activo = p.Activo,
         AplicaItbis = p.AplicaItbis,
+        TasaItbis = p.TasaItbis,
         TipoProducto = p.TipoProducto,
         UnidadMedida = p.UnidadMedida,
         StockMinimo = p.StockMinimo,

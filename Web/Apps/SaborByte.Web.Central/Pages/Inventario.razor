@@ -1,0 +1,187 @@
+@page "/inventario"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — Inventario</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="@(_mostrarFormulario ? 7 : 12)">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h5">Inventario (insumos)</MudText>
+                <div class="d-flex gap-2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="() => AbrirFormulario(esAjuste: true)">
+                        Registrar ajuste
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => AbrirFormulario(esAjuste: false)">
+                        Registrar entrada
+                    </MudButton>
+                </div>
+            </div>
+
+            <MudTable Items="_insumos" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Insumo</MudTh>
+                    <MudTh>Stock actual</MudTh>
+                    <MudTh>Stock mínimo</MudTh>
+                    <MudTh>Costo unitario</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Nombre</MudTd>
+                    <MudTd Style="@(EsStockBajo(context) ? "color:var(--mud-palette-error); font-weight:bold" : "")">
+                        @context.StockActual.ToString("0.###") @context.UnidadMedida
+                    </MudTd>
+                    <MudTd>@(context.StockMinimo?.ToString("0.###") ?? "-")</MudTd>
+                    <MudTd>@(context.CostoUnitario is decimal c ? $"RD$ {c:0.00}" : "-")</MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            <MudText Typo="Typo.h6" Class="mt-6 mb-2">Movimientos recientes</MudText>
+            <MudTable Items="_movimientos" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>Insumo</MudTh>
+                    <MudTh>Tipo</MudTh>
+                    <MudTh>Cantidad</MudTh>
+                    <MudTh>Saldo</MudTh>
+                    <MudTh>Nota</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.FechaHora.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+                    <MudTd>@context.NombreProducto</MudTd>
+                    <MudTd>@context.Tipo</MudTd>
+                    <MudTd Style="@(context.Cantidad < 0 ? "color:var(--mud-palette-error)" : "color:var(--mud-palette-success)")">
+                        @(context.Cantidad > 0 ? "+" : "")@context.Cantidad.ToString("0.###")
+                    </MudTd>
+                    <MudTd>@context.SaldoResultante.ToString("0.###")</MudTd>
+                    <MudTd>@context.Nota</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+
+        @if (_mostrarFormulario)
+        {
+            <MudItem xs="12" md="5">
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">@(_esAjuste ? "Registrar ajuste de inventario" : "Registrar entrada de inventario")</MudText>
+
+                    <MudSelect T="Guid" Label="Insumo" @bind-Value="_productoIdSeleccionado" Class="mb-2">
+                        @foreach (var insumo in _insumos)
+                        {
+                            <MudSelectItem Value="@insumo.Id">@insumo.Nombre (stock: @insumo.StockActual.ToString("0.###"))</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    @if (_esAjuste)
+                    {
+                        <MudNumericField T="decimal" Label="Nuevo stock (conteo real)" @bind-Value="_nuevoStock" Class="mb-2" />
+                        <MudTextField T="string" Label="Motivo" @bind-Value="_motivo" Class="mb-2" />
+                    }
+                    else
+                    {
+                        <MudNumericField T="decimal" Label="Cantidad recibida" @bind-Value="_cantidad" Min="0" Class="mb-2" />
+                        <MudNumericField T="decimal?" Label="Costo unitario (opcional)" @bind-Value="_costoUnitario" Class="mb-2" />
+                        <MudTextField T="string" Label="Nota (ej. proveedor, factura)" @bind-Value="_nota" Class="mb-2" />
+                    }
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                    }
+
+                    <div class="d-flex gap-2 mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+                        <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarFormulario = false">Cancelar</MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<ProductoDetalleDto> _insumos = [];
+    private List<MovimientoInventarioDto> _movimientos = [];
+
+    private bool _mostrarFormulario;
+    private bool _esAjuste;
+    private Guid _productoIdSeleccionado;
+    private decimal _cantidad;
+    private decimal? _costoUnitario;
+    private decimal _nuevoStock;
+    private string _motivo = string.Empty;
+    private string _nota = string.Empty;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var productos = await ApiClient.ListarProductosAsync(sucursalId);
+        _insumos = productos.Where(p => p.TipoProducto == TipoProducto.Insumo).OrderBy(p => p.Nombre).ToList();
+        _movimientos = await ApiClient.ListarMovimientosInventarioAsync(sucursalId);
+    }
+
+    private static bool EsStockBajo(ProductoDetalleDto p) => p.StockMinimo is decimal min && p.StockActual < min;
+
+    private void AbrirFormulario(bool esAjuste)
+    {
+        _esAjuste = esAjuste;
+        _productoIdSeleccionado = _insumos.Count > 0 ? _insumos[0].Id : Guid.Empty;
+        _cantidad = 0;
+        _costoUnitario = null;
+        _nuevoStock = 0;
+        _motivo = string.Empty;
+        _nota = string.Empty;
+        _error = null;
+        _mostrarFormulario = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _error = null;
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+
+        var (exito, error) = _esAjuste
+            ? await ApiClient.RegistrarAjusteInventarioAsync(sucursalId, new RegistrarAjusteRequestDto
+            {
+                ProductoId = _productoIdSeleccionado,
+                NuevoStock = _nuevoStock,
+                Motivo = _motivo
+            })
+            : await ApiClient.RegistrarEntradaInventarioAsync(sucursalId, new RegistrarEntradaRequestDto
+            {
+                ProductoId = _productoIdSeleccionado,
+                Cantidad = _cantidad,
+                CostoUnitario = _costoUnitario,
+                Nota = _nota
+            });
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _mostrarFormulario = false;
+        await CargarAsync();
+    }
+}

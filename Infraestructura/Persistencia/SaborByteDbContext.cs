@@ -124,6 +124,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Nombre).HasMaxLength(200).IsRequired();
             b.Property(x => x.Precio).HasColumnType("decimal(18,2)");
             b.Property(x => x.CostoUnitario).HasColumnType("decimal(18,2)");
+            b.Property(x => x.TasaItbis).HasColumnType("decimal(5,4)").HasDefaultValue(0.18m);
             b.Property(x => x.StockMinimo).HasColumnType("decimal(18,3)");
             b.Property(x => x.StockMaximo).HasColumnType("decimal(18,3)");
             b.Property(x => x.StockActual).HasColumnType("decimal(18,3)");
@@ -210,6 +211,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.XmlFirmadoDgii).HasColumnType("nvarchar(max)");
             b.Property(x => x.CodigoSeguridadDgii).HasMaxLength(6);
             b.Property(x => x.TrackIdDgii).HasMaxLength(100);
+            b.Property(x => x.MensajeDgii).HasColumnType("nvarchar(max)");
         });
 
         modelBuilder.Entity<FacturaDetalle>(b =>
@@ -219,6 +221,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
             b.Property(x => x.PrecioUnitario).HasColumnType("decimal(18,2)");
             b.Property(x => x.Descuento).HasColumnType("decimal(18,2)");
+            b.Property(x => x.TasaItbis).HasColumnType("decimal(5,4)");
             b.Property(x => x.Itbis).HasColumnType("decimal(18,2)");
             b.Property(x => x.Total).HasColumnType("decimal(18,2)");
             b.HasOne(x => x.Factura).WithMany(f => f.Detalle).HasForeignKey(x => x.FacturaId);

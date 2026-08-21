@@ -39,6 +39,7 @@ public class ProductoDetalleDto
     public Guid? CategoriaId { get; set; }
     public bool Activo { get; set; }
     public bool AplicaItbis { get; set; }
+    public decimal TasaItbis { get; set; }
     public TipoProducto TipoProducto { get; set; }
     public string UnidadMedida { get; set; } = "Unidad";
     public decimal? StockMinimo { get; set; }
@@ -57,6 +58,7 @@ public class GuardarProductoRequestDto
     public decimal? CostoUnitario { get; set; }
     public Guid? CategoriaId { get; set; }
     public bool AplicaItbis { get; set; } = true;
+    public decimal TasaItbis { get; set; } = 0.18m;
     public TipoProducto TipoProducto { get; set; }
     public string UnidadMedida { get; set; } = "Unidad";
     public decimal? StockMinimo { get; set; }

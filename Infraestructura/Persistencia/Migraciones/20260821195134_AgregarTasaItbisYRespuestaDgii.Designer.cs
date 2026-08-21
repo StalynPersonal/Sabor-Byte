@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SaborByte.Infraestructura.Persistencia;
 
@@ -11,9 +12,11 @@ using SaborByte.Infraestructura.Persistencia;
 namespace SaborByte.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(SaborByteDbContext))]
-    partial class SaborByteDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821195134_AgregarTasaItbisYRespuestaDgii")]
+    partial class AgregarTasaItbisYRespuestaDgii
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -273,9 +276,7 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("TasaItbis")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(5,4)")
-                        .HasDefaultValue(0.18m);
+                        .HasColumnType("decimal(5,4)");
 
                     b.Property<int>("TipoProducto")
                         .HasColumnType("int");

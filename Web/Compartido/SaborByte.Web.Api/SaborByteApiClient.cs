@@ -178,6 +178,27 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
             $"api/productos/todos?sucursalId={sucursalId}&incluirInactivos={incluirInactivos}") ?? [];
     }
 
+    public async Task<List<MovimientoInventarioDto>> ListarMovimientosInventarioAsync(Guid sucursalId, Guid? productoId = null)
+    {
+        AdjuntarToken();
+        var url = $"api/inventario/movimientos?sucursalId={sucursalId}" + (productoId is null ? "" : $"&productoId={productoId}");
+        return await http.GetFromJsonAsync<List<MovimientoInventarioDto>>(url) ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> RegistrarEntradaInventarioAsync(Guid sucursalId, RegistrarEntradaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/inventario/entradas?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> RegistrarAjusteInventarioAsync(Guid sucursalId, RegistrarAjusteRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/inventario/ajustes?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<ProductoDetalleDto?> ObtenerProductoAsync(Guid sucursalId, Guid productoId)
     {
         AdjuntarToken();

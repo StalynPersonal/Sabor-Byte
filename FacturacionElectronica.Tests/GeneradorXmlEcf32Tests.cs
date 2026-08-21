@@ -16,7 +16,7 @@ public class GeneradorXmlEcf32Tests
         Comprador = new CompradorDto { RncOCedula = "40212345678", NombreORazonSocial = "Cliente de Prueba" },
         Detalle =
         [
-            new LineaComprobanteDto { Descripcion = "Hamburguesa Clasica", Cantidad = 2, PrecioUnitario = 250m, Impuesto = 90m, Total = 590m }
+            new LineaComprobanteDto { Descripcion = "Hamburguesa Clasica", Cantidad = 2, PrecioUnitario = 250m, TasaItbis = 0.18m, Impuesto = 90m, Total = 590m }
         ],
         Subtotal = 500m,
         MontoImpuestos = 90m,
@@ -63,6 +63,32 @@ public class GeneradorXmlEcf32Tests
         Assert.Single(items);
         Assert.Equal("Hamburguesa Clasica", items[0].Element("NombreItem")!.Value);
         Assert.Equal("1", items[0].Element("NumeroLinea")!.Value);
+    }
+
+    [Theory]
+    [InlineData(0.18, 1)] // ITBIS1 18%
+    [InlineData(0.16, 2)] // ITBIS2 16%
+    [InlineData(0.0, 3)]  // ITBIS3 0% (distinto de exento: sí "aplica", a tasa 0)
+    [InlineData(null, 4)] // Exento (no aplica ITBIS)
+    public void Generar_DeterminaIndicadorFacturacionSegunLaTasa(double? tasa, int indicadorEsperado)
+    {
+        var comprobante = ComprobanteDeEjemplo();
+        comprobante.Detalle[0].TasaItbis = tasa is null ? null : (decimal)tasa.Value;
+
+        var xml = GeneradorXmlEcf32.Generar(comprobante);
+        var doc = XDocument.Parse(xml);
+
+        var item = doc.Root!.Element("DetallesItems")!.Element("Item")!;
+        Assert.Equal(indicadorEsperado.ToString(), item.Element("IndicadorFacturacion")!.Value);
+    }
+
+    [Fact]
+    public void Generar_TasaNoSoportada_Rechaza()
+    {
+        var comprobante = ComprobanteDeEjemplo();
+        comprobante.Detalle[0].TasaItbis = 0.12m; // no está en el catálogo DGII (18/16/0)
+
+        Assert.Throws<NotSupportedException>(() => GeneradorXmlEcf32.Generar(comprobante));
     }
 
     [Fact]
