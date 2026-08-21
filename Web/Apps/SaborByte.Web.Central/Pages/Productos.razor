@@ -1,0 +1,195 @@
+@page "/productos"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — Productos</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="@(_editando ? 7 : 12)">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h5">Productos</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoProducto">
+                    Nuevo producto
+                </MudButton>
+            </div>
+
+            <MudTable Items="_productos" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Nombre</MudTh>
+                    <MudTh>Tipo</MudTh>
+                    <MudTh>Precio</MudTh>
+                    <MudTh>Stock</MudTh>
+                    <MudTh>Activo</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Nombre @(context.EsCombo ? "(combo)" : "")</MudTd>
+                    <MudTd>@(context.TipoProducto == TipoProducto.Insumo ? "Insumo" : "Vendible")</MudTd>
+                    <MudTd>RD$ @context.Precio.ToString("0.00")</MudTd>
+                    <MudTd>@(context.TipoProducto == TipoProducto.Insumo ? context.StockActual.ToString("0.###") : "-")</MudTd>
+                    <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+                    <MudTd>
+                        <MudButton Size="Size.Small" OnClick="() => EditarProducto(context.Id)">Editar</MudButton>
+                        <MudButton Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)">Desactivar</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+
+        @if (_editando)
+        {
+            <MudItem xs="12" md="5">
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">@(_productoId is null ? "Nuevo producto" : "Editar producto")</MudText>
+
+                    <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+                    <MudTextField T="string" Label="Descripción" @bind-Value="_form.Descripcion" Class="mb-2" />
+                    <MudTextField T="string" Label="Código de barra" @bind-Value="_form.CodigoBarra" Class="mb-2" />
+                    <MudTextField T="string" Label="URL de imagen" @bind-Value="_form.ImagenUrl" Class="mb-2" />
+
+                    <MudSelect T="TipoProducto" Label="Tipo" @bind-Value="_form.TipoProducto" Class="mb-2" Disabled="_productoId is not null">
+                        <MudSelectItem Value="TipoProducto.Vendible">Vendible</MudSelectItem>
+                        <MudSelectItem Value="TipoProducto.Insumo">Insumo</MudSelectItem>
+                    </MudSelect>
+
+                    <MudNumericField T="decimal" Label="Precio" @bind-Value="_form.Precio" Class="mb-2" />
+                    <MudNumericField T="decimal?" Label="Costo unitario (opcional)" @bind-Value="_form.CostoUnitario" Class="mb-2" />
+                    <MudCheckBox T="bool" @bind-Value="_form.AplicaItbis" Label="Aplica ITBIS" Class="mb-2" />
+
+                    @if (_form.TipoProducto == TipoProducto.Insumo)
+                    {
+                        <MudNumericField T="decimal?" Label="Stock mínimo (alerta)" @bind-Value="_form.StockMinimo" Class="mb-2" />
+                        <MudNumericField T="decimal?" Label="Stock máximo" @bind-Value="_form.StockMaximo" Class="mb-2" />
+                    }
+
+                    @if (_form.TipoProducto == TipoProducto.Vendible)
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Receta (ingredientes)</MudText>
+                        @foreach (var linea in _form.Receta)
+                        {
+                            <div class="d-flex align-center gap-2 mb-2">
+                                <MudSelect T="Guid" Label="Insumo" @bind-Value="linea.InsumoId" Style="flex:2">
+                                    @foreach (var insumo in _insumos)
+                                    {
+                                        <MudSelectItem Value="@insumo.Id">@insumo.Nombre</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudNumericField T="decimal" Label="Cantidad" @bind-Value="linea.CantidadUsada" Style="flex:1" />
+                                <MudCheckBox T="bool" @bind-Value="linea.Opcional" Label="Opcional" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => _form.Receta.Remove(linea)" />
+                            </div>
+                        }
+                        <MudButton Size="Size.Small" OnClick="() => _form.Receta.Add(new IngredienteRequestDto())">
+                            + Agregar ingrediente
+                        </MudButton>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                    }
+
+                    <div class="d-flex gap-2 mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+                        <MudButton Variant="Variant.Outlined" OnClick="() => _editando = false">Cancelar</MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<ProductoDetalleDto> _productos = [];
+    private List<ProductoDetalleDto> _insumos = [];
+    private bool _editando;
+    private Guid? _productoId;
+    private GuardarProductoRequestDto _form = new();
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _productos = await ApiClient.ListarProductosAsync(sucursalId);
+        _insumos = _productos.Where(p => p.TipoProducto == TipoProducto.Insumo).ToList();
+    }
+
+    private void NuevoProducto()
+    {
+        _productoId = null;
+        _form = new GuardarProductoRequestDto { TipoProducto = TipoProducto.Vendible };
+        _error = null;
+        _editando = true;
+    }
+
+    private async Task EditarProducto(Guid id)
+    {
+        var producto = await ApiClient.ObtenerProductoAsync(id);
+        if (producto is null)
+            return;
+
+        _productoId = id;
+        _form = new GuardarProductoRequestDto
+        {
+            Nombre = producto.Nombre,
+            Descripcion = producto.Descripcion,
+            CodigoBarra = producto.CodigoBarra,
+            ImagenUrl = producto.ImagenUrl,
+            Precio = producto.Precio,
+            CostoUnitario = producto.CostoUnitario,
+            AplicaItbis = producto.AplicaItbis,
+            TipoProducto = producto.TipoProducto,
+            UnidadMedida = producto.UnidadMedida,
+            StockMinimo = producto.StockMinimo,
+            StockMaximo = producto.StockMaximo,
+            CategoriaId = producto.CategoriaId
+        };
+        _error = null;
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _error = null;
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+
+        var (exito, error) = _productoId is null
+            ? await ApiClient.CrearProductoAsync(sucursalId, _form)
+            : await ApiClient.ActualizarProductoAsync(_productoId.Value, _form);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _editando = false;
+        await CargarAsync();
+    }
+
+    private async Task DesactivarAsync(Guid id)
+    {
+        await ApiClient.DesactivarProductoAsync(id);
+        await CargarAsync();
+    }
+}

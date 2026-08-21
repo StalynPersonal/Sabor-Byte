@@ -119,6 +119,53 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<List<ProductoDetalleDto>> ListarProductosAsync(Guid sucursalId, bool incluirInactivos = false)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<ProductoDetalleDto>>(
+            $"api/productos/todos?sucursalId={sucursalId}&incluirInactivos={incluirInactivos}") ?? [];
+    }
+
+    public async Task<ProductoDetalleDto?> ObtenerProductoAsync(Guid productoId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<ProductoDetalleDto>($"api/productos/{productoId}");
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearProductoAsync(Guid sucursalId, GuardarProductoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/productos?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarProductoAsync(Guid productoId, GuardarProductoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/productos/{productoId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> DesactivarProductoAsync(Guid productoId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.DeleteAsync($"api/productos/{productoId}");
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<CategoriaDto>> ListarCategoriasAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<CategoriaDto>>($"api/categorias?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearCategoriaAsync(Guid sucursalId, GuardarCategoriaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/categorias?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     private static async Task<string?> LeerMensajeErrorAsync(HttpResponseMessage respuesta)
     {
         try

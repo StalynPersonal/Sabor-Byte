@@ -27,6 +27,7 @@ public static class DependencyInjection
 
         services.AddScoped<Aplicacion.Identidad.AutenticacionAppService>();
         services.AddScoped<Aplicacion.Catalogo.ProductoAppService>();
+        services.AddScoped<Aplicacion.Catalogo.CategoriaAppService>();
         services.AddScoped<Aplicacion.Inventario.InventarioAppService>();
         services.AddScoped<Aplicacion.Facturacion.VentaAppService>();
         services.AddScoped<Aplicacion.Facturacion.NotaCreditoDebitoAppService>();
