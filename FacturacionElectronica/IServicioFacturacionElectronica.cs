@@ -15,6 +15,9 @@ public interface IServicioFacturacionElectronica
 {
     ResultadoValidacion ValidarComprobante(ComprobanteDto comprobante);
 
+    // Solo e-CF 32 (Consumo) implementado por ahora — ver GeneradorXmlEcf32.
+    string GenerarComprobanteXml(ComprobanteDto comprobante);
+
     string GenerarCodigoSeguridad(ComprobanteDto comprobante);
 
     Task<string> FirmarComprobanteAsync(ComprobanteDto comprobante, CancellationToken ct = default);

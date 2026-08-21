@@ -17,6 +17,8 @@ public static class DependencyInjection
             opciones.UseSqlServer(configuration.GetConnectionString("SaborByteDb")));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<SaborByteDbContext>());
 
+        services.Configure<FacturacionElectronicaOpciones>(configuration.GetSection("FacturacionElectronica"));
+        services.AddScoped(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<FacturacionElectronicaOpciones>>().Value);
         services.AddScoped<IServicioFacturacionElectronica, ServicioFacturacionElectronicaDgii>();
         services.AddScoped<IFacturacionElectronicaGateway, FacturacionElectronicaGateway>();
 

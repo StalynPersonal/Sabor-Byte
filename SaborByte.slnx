@@ -8,6 +8,9 @@
   <Folder Name="/Dominio/">
     <Project Path="Dominio/SaborByte.Dominio.csproj" />
   </Folder>
+  <Folder Name="/FacturacionElectronica.Tests/">
+    <Project Path="FacturacionElectronica.Tests/FacturacionElectronicaDGII.Tests.csproj" />
+  </Folder>
   <Folder Name="/FacturacionElectronica/">
     <Project Path="FacturacionElectronica/FacturacionElectronicaDGII.csproj" />
   </Folder>
