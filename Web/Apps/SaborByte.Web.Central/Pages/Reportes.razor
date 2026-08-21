@@ -1,0 +1,152 @@
+@page "/reportes"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — Reportes</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Reportes</MudText>
+        <div class="d-flex gap-2 align-center">
+            <MudDatePicker Label="Desde" @bind-Date="_desde" Class="mr-2" Style="width:160px" />
+            <MudDatePicker Label="Hasta" @bind-Date="_hasta" Style="width:160px" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarAsync">Aplicar</MudButton>
+        </div>
+    </div>
+
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.caption">Total vendido (sucursal)</MudText>
+                <MudText Typo="Typo.h4">RD$ @_totalVendido.ToString("N2")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.caption">Facturas emitidas</MudText>
+                <MudText Typo="Typo.h4">@_cantidadFacturas</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.caption">Ticket promedio</MudText>
+                <MudText Typo="Typo.h4">RD$ @_ticketPromedio.ToString("N2")</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">Top productos vendidos</MudText>
+                @if (_ventasPorProducto.Count == 0)
+                {
+                    <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+                }
+                else
+                {
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="_serieProductos" XAxisLabels="_etiquetasProductos"
+                              Width="100%" Height="300px" />
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">Ventas por hora del día</MudText>
+                @if (_ventasPorHora.Count == 0)
+                {
+                    <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+                }
+                else
+                {
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="_serieHoras" XAxisLabels="_etiquetasHoras"
+                              Width="100%" Height="300px" />
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Class="pa-4 mt-4">
+        <MudText Typo="Typo.h6" Class="mb-2">Detalle por producto</MudText>
+        <MudTable Items="_ventasPorProducto" Hover="true" Dense="true" T="VentaPorProductoDto">
+            <HeaderContent>
+                <MudTh>Producto</MudTh>
+                <MudTh>Cantidad vendida</MudTh>
+                <MudTh>Total vendido</MudTh>
+                <MudTh>Utilidad estimada</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="p">
+                <MudTd>@p.NombreProducto</MudTd>
+                <MudTd>@p.CantidadVendida.ToString("0.##")</MudTd>
+                <MudTd>RD$ @p.TotalVendido.ToString("0.00")</MudTd>
+                <MudTd>@(p.UtilidadEstimada.HasValue ? $"RD$ {p.UtilidadEstimada:0.00}" : "—")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    private DateTime? _desde = DateTime.Today.AddDays(-30);
+    private DateTime? _hasta = DateTime.Today;
+
+    private decimal _totalVendido;
+    private int _cantidadFacturas;
+    private decimal _ticketPromedio;
+
+    private List<VentaPorProductoDto> _ventasPorProducto = [];
+    private List<VentaPorHoraDto> _ventasPorHora = [];
+
+    private List<ChartSeries<double>> _serieProductos = [];
+    private string[] _etiquetasProductos = [];
+    private List<ChartSeries<double>> _serieHoras = [];
+    private string[] _etiquetasHoras = [];
+
+    private Guid SucursalId => Sesion.SucursalesPermitidas.FirstOrDefault();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        var rango = new RangoFechasRequestDto
+        {
+            Desde = _desde ?? DateTime.Today.AddDays(-30),
+            Hasta = (_hasta ?? DateTime.Today).AddDays(1).AddSeconds(-1)
+        };
+
+        var porSucursal = await ApiClient.VentasPorSucursalAsync([SucursalId], rango.Desde, rango.Hasta);
+        var propia = porSucursal.PorSucursal.FirstOrDefault(p => p.SucursalId == SucursalId);
+        _totalVendido = propia?.TotalVendido ?? 0m;
+        _cantidadFacturas = propia?.CantidadFacturas ?? 0;
+        _ticketPromedio = propia?.TicketPromedio ?? 0m;
+
+        _ventasPorProducto = await ApiClient.VentasPorProductoAsync(SucursalId, rango);
+        _ventasPorHora = await ApiClient.VentasPorHoraAsync(SucursalId, rango);
+
+        // Top 10 por total vendido, para que el grafico de barras no se sature.
+        var top = _ventasPorProducto.Take(10).ToList();
+        _etiquetasProductos = top.Select(p => p.NombreProducto).ToArray();
+        _serieProductos = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = top.Select(p => (double)p.TotalVendido).ToArray() }];
+
+        var horas = _ventasPorHora.OrderBy(h => h.Hora).ToList();
+        _etiquetasHoras = horas.Select(h => $"{h.Hora}:00").ToArray();
+        _serieHoras = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = horas.Select(h => (double)h.TotalVendido).ToArray() }];
+    }
+}

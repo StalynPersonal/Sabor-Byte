@@ -289,6 +289,28 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<ReporteVentasConsolidadoDto> VentasPorSucursalAsync(List<Guid> sucursalesIds, DateTime desde, DateTime hasta)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/reportes/ventas-por-sucursal",
+            new ReporteVentasRequestDto { SucursalesIds = sucursalesIds, Desde = desde, Hasta = hasta });
+        return await respuesta.Content.ReadFromJsonAsync<ReporteVentasConsolidadoDto>() ?? new ReporteVentasConsolidadoDto();
+    }
+
+    public async Task<List<VentaPorProductoDto>> VentasPorProductoAsync(Guid sucursalId, RangoFechasRequestDto rango)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/reportes/ventas-por-producto?sucursalId={sucursalId}", rango);
+        return await respuesta.Content.ReadFromJsonAsync<List<VentaPorProductoDto>>() ?? [];
+    }
+
+    public async Task<List<VentaPorHoraDto>> VentasPorHoraAsync(Guid sucursalId, RangoFechasRequestDto rango)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/reportes/ventas-por-hora?sucursalId={sucursalId}", rango);
+        return await respuesta.Content.ReadFromJsonAsync<List<VentaPorHoraDto>>() ?? [];
+    }
+
     public async Task<List<UsuarioDto>> ListarUsuariosAsync()
     {
         AdjuntarToken();
