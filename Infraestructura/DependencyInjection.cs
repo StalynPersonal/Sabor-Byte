@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Catalogo.ProductoAppService>();
         services.AddScoped<Aplicacion.Inventario.InventarioAppService>();
         services.AddScoped<Aplicacion.Facturacion.VentaAppService>();
+        services.AddScoped<Aplicacion.Facturacion.NotaCreditoDebitoAppService>();
         services.AddScoped<Aplicacion.Caja.CajaAppService>();
         services.AddScoped<Aplicacion.Pedidos.ComandaAppService>();
         services.AddScoped<Aplicacion.Clientes.ClienteAppService>();

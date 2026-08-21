@@ -35,6 +35,7 @@ public interface IAppDbContext
     DbSet<SecuenciaNcf> SecuenciasNcf { get; }
     DbSet<Factura> Facturas { get; }
     DbSet<FacturaDetalle> FacturaDetalles { get; }
+    DbSet<NotaCreditoDebito> NotasCreditoDebito { get; }
 
     DbSet<MovimientoInventario> MovimientosInventario { get; }
 

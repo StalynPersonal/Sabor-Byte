@@ -35,6 +35,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<SecuenciaNcf> SecuenciasNcf => Set<SecuenciaNcf>();
     public DbSet<Factura> Facturas => Set<Factura>();
     public DbSet<FacturaDetalle> FacturaDetalles => Set<FacturaDetalle>();
+    public DbSet<NotaCreditoDebito> NotasCreditoDebito => Set<NotaCreditoDebito>();
 
     public DbSet<MovimientoInventario> MovimientosInventario => Set<MovimientoInventario>();
 
@@ -135,6 +136,15 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
                 .OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.Insumo).WithMany().HasForeignKey(x => x.InsumoId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<NotaCreditoDebito>(b =>
+        {
+            b.ToTable("NotasCreditoDebito", "facturacion");
+            b.Property(x => x.Motivo).HasMaxLength(500).IsRequired();
+            b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
+            b.Property(x => x.NumeroNcf).HasMaxLength(20);
+            b.Property(x => x.TipoComprobante).HasMaxLength(10);
         });
 
         modelBuilder.Entity<Dominio.Caja.Caja>(b =>
