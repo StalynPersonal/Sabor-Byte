@@ -4,8 +4,9 @@ namespace FacturacionElectronicaDGII.Modelos;
 // Cualquier sistema que integre esta librería solo necesita mapear sus datos a este DTO.
 public class ComprobanteDto
 {
-    public required string TipoNcf { get; set; } // ej. E31, E32, E33...
-    public required string NumeroNcf { get; set; }
+    // Tipo de e-CF SIN la serie "E" (esa va en NumeroNcf/eNCF) — ej. "31", "32", "33"...
+    public required string TipoNcf { get; set; }
+    public required string NumeroNcf { get; set; } // eNCF completo, ej. "E320001170280"
     public DateTime FechaEmision { get; set; }
     public DateTime? FechaVencimientoSecuencia { get; set; }
 

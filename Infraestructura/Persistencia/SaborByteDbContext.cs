@@ -172,6 +172,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
         {
             b.ToTable("SecuenciasNcf", "facturacion");
             b.Property(x => x.TipoComprobante).HasMaxLength(10).IsRequired();
+            b.Property(x => x.Serie).HasMaxLength(5).IsRequired();
         });
 
         modelBuilder.Entity<Factura>(b =>

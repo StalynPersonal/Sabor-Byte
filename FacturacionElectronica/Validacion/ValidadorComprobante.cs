@@ -9,14 +9,16 @@ public static partial class ValidadorComprobante
 {
     private static readonly Regex PatronRncOCedula = RegexRncOCedula();
 
-    // Tipos de NCF electrónico que requieren que el comprador tenga RNC/Cédula (crédito fiscal, gubernamental, etc.)
+    // Tipos de e-CF (TipoeCF, SIN el prefijo "E" — ese prefijo es parte del número de
+    // NCF, no del tipo; confirmado contra ejemplos reales de e-CF 31/32/34/44/45)
+    // que requieren que el comprador tenga RNC/Cédula (crédito fiscal, gubernamental, etc.)
     private static readonly HashSet<string> TiposQueRequierenComprador = new(StringComparer.OrdinalIgnoreCase)
     {
-        "E31", // Crédito Fiscal
-        "E41", // Compras
-        "E43", // Gastos Menores (referencial)
-        "E44", // Regímenes Especiales
-        "E45"  // Gubernamental
+        "31", // Crédito Fiscal
+        "41", // Compras
+        "43", // Gastos Menores (referencial)
+        "44", // Regímenes Especiales
+        "45"  // Gubernamental
     };
 
     public static ResultadoValidacion Validar(ComprobanteDto comprobante)
@@ -113,6 +115,21 @@ public static partial class ValidadorComprobante
             if (linea.PrecioUnitario < 0)
                 r.AgregarError($"La línea '{linea.Descripcion}' no puede tener un precio unitario negativo.");
         }
+
+        ValidarMaximoDeLineas(c, r);
+    }
+
+    // Límites según "Formato Comprobante Fiscal Electrónico (e-CF) V1.0" (DGII):
+    // 100 líneas por defecto; para e-CF 32 (Consumo), hasta 1,000 si el total es
+    // ≥ RD$250,000, o hasta 10,000 si es menor a RD$250,000.
+    private static void ValidarMaximoDeLineas(ComprobanteDto c, ResultadoValidacion r)
+    {
+        var maximo = c.TipoNcf == "32"
+            ? (c.Total >= 250_000m ? 1000 : 10_000)
+            : 100;
+
+        if (c.Detalle.Count > maximo)
+            r.AgregarError($"El comprobante tiene {c.Detalle.Count} líneas, supera el máximo permitido ({maximo}).");
     }
 
     [GeneratedRegex(@"^\d{9}$|^\d{11}$")]

@@ -4,15 +4,17 @@ using System.Xml;
 
 namespace FacturacionElectronicaDGII.Firma;
 
-// ADVERTENCIA: esto firma el XML con XML-DSig "enveloped signature" estándar de .NET
-// (System.Security.Cryptography.Xml), que es un punto de partida técnicamente correcto,
-// pero DGII exige específicamente XAdES-BES (ETSI TS 101 903), que añade propiedades
-// calificadoras (SigningTime, SigningCertificate, etc.) sobre el XML-DSig base. Antes
-// de certificar contra DGII, verificar si esta firma "plana" es aceptada o si hace
-// falta añadir el bloque <xades:QualifyingProperties> (no cubierto aquí porque su
-// estructura exacta no está en los XSD disponibles en este proyecto).
+// Firma XML-DSig "enveloped signature" verificada contra un e-CF 32 real y firmado
+// provisto por el usuario (carpeta /xsd): confirma que DGII acepta XML-DSig estándar
+// (NO exige el bloque XAdES con propiedades calificadoras) — SignatureMethod
+// rsa-sha256, DigestMethod sha256, CanonicalizationMethod C14N (no exclusivo),
+// Reference URI="" con transform enveloped-signature, y KeyInfo con el certificado
+// X.509 completo embebido. Esta implementación reproduce esa misma estructura.
 public static class FirmadorXml
 {
+    private const string SignatureMethodRsaSha256 = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    private const string DigestMethodSha256 = "http://www.w3.org/2001/04/xmlenc#sha256";
+
     public static string FirmarEnveloped(string xmlSinFirmar, X509Certificate2 certificado)
     {
         if (!certificado.HasPrivateKey)
@@ -25,8 +27,9 @@ public static class FirmadorXml
         {
             SigningKey = certificado.GetRSAPrivateKey()
         };
+        firmadoXml.SignedInfo!.SignatureMethod = SignatureMethodRsaSha256;
 
-        var referencia = new Reference { Uri = "" };
+        var referencia = new Reference { Uri = "", DigestMethod = DigestMethodSha256 };
         referencia.AddTransform(new XmlDsigEnvelopedSignatureTransform());
         referencia.AddTransform(new XmlDsigC14NTransform());
         firmadoXml.AddReference(referencia);

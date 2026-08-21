@@ -1,0 +1,111 @@
+﻿<ECF xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Encabezado>
+    <Version>1.0</Version>
+    <IdDoc>
+      <TipoeCF>44</TipoeCF>
+      <eNCF>E440000000213</eNCF>
+      <FechaVencimientoSecuencia>31-12-2025</FechaVencimientoSecuencia>
+      <TipoIngresos>01</TipoIngresos>
+      <TipoPago>1</TipoPago>
+    </IdDoc>
+    <Emisor>
+      <RNCEmisor>101013834</RNCEmisor>
+      <RazonSocialEmisor>ALMACENES UNIDOS S.A.S.</RazonSocialEmisor>
+      <DireccionEmisor>Av. Sarasota Esq. Calle Pedro Antonio Bobea, Santo Domingo </DireccionEmisor>
+      <CorreoEmisor>info@almacenesunidos.net</CorreoEmisor>
+      <NumeroFacturaInterna>029305268</NumeroFacturaInterna>
+      <FechaEmision>29-09-2024</FechaEmision>
+    </Emisor>
+    <Comprador>
+      <RNCComprador>534453611</RNCComprador>
+      <RazonSocialComprador>ARIANA NAZARIO</RazonSocialComprador>
+      <DireccionComprador>N/A</DireccionComprador>
+    </Comprador>
+    <Totales>
+      <MontoExento>683.05</MontoExento>
+      <MontoTotal>683.05</MontoTotal>
+    </Totales>
+  </Encabezado>
+  <DetallesItems>
+    <Item>
+      <NumeroLinea>1</NumeroLinea>
+      <TablaCodigosItem>
+        <CodigosItem>
+          <TipoCodigo>Interna</TipoCodigo>
+          <CodigoItem>PC015594</CodigoItem>
+        </CodigosItem>
+      </TablaCodigosItem>
+      <IndicadorFacturacion>4</IndicadorFacturacion>
+      <NombreItem>Takis Buckin Ranch 3.25 Oz</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>219.49</PrecioUnitarioItem>
+      <MontoItem>219.49</MontoItem>
+    </Item>
+    <Item>
+      <NumeroLinea>2</NumeroLinea>
+      <TablaCodigosItem>
+        <CodigosItem>
+          <TipoCodigo>Interna</TipoCodigo>
+          <CodigoItem>131091</CodigoItem>
+        </CodigosItem>
+      </TablaCodigosItem>
+      <IndicadorFacturacion>4</IndicadorFacturacion>
+      <NombreItem>Coca Cola 20 Oz</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>33.05</PrecioUnitarioItem>
+      <MontoItem>33.05</MontoItem>
+    </Item>
+    <Item>
+      <NumeroLinea>3</NumeroLinea>
+      <TablaCodigosItem>
+        <CodigosItem>
+          <TipoCodigo>Interna</TipoCodigo>
+          <CodigoItem>PC007489</CodigoItem>
+        </CodigosItem>
+      </TablaCodigosItem>
+      <IndicadorFacturacion>4</IndicadorFacturacion>
+      <NombreItem>Terra Sweetd y Beets 12/6 Oz</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>304.24</PrecioUnitarioItem>
+      <MontoItem>304.24</MontoItem>
+    </Item>
+    <Item>
+      <NumeroLinea>4</NumeroLinea>
+      <TablaCodigosItem>
+        <CodigosItem>
+          <TipoCodigo>Interna</TipoCodigo>
+          <CodigoItem>300541</CodigoItem>
+        </CodigosItem>
+      </TablaCodigosItem>
+      <IndicadorFacturacion>4</IndicadorFacturacion>
+      <NombreItem>Caf Jugo Licuado De Fresa</NombreItem>
+      <IndicadorBienoServicio>1</IndicadorBienoServicio>
+      <CantidadItem>1.00</CantidadItem>
+      <PrecioUnitarioItem>126.27</PrecioUnitarioItem>
+      <MontoItem>126.27</MontoItem>
+    </Item>
+  </DetallesItems>
+  <FechaHoraFirma>29-09-2024 14:32:52</FechaHoraFirma>
+  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+    <SignedInfo>
+      <CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" />
+      <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" />
+      <Reference URI="">
+        <Transforms>
+          <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" />
+        </Transforms>
+        <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" />
+        <DigestValue>xhp3zuUrJvyOVMt/Z338B/xKTsgJehGRKv8kSzR6qvA=</DigestValue>
+      </Reference>
+    </SignedInfo>
+    <SignatureValue>gNedpNQZ1gWTUYPrLRiZZ0l9qNM5gkUwJxI/e1hDqoteOcD5cvtSNFt98IAZy3ZvCqGzAZvRunrcIZqkqVi6SpdzkhKvHk6bbno/d0QAihBiDTFBmreWAYXyAjZe0276BZ+/H6+4wNF9nJPE4DfaPjz7CqBNBpkWM4N8Oem+M1xcMhR+IqQLiC7qXYlo7TosFDgYDEZdNzIieu19RRIHuDAy6ZSYnYj8yxnKe567+2laOBZ6mUWVS0qE8CDPVq7Nbyl3EZSlJGkzhHpqEpfz/SX+pYI4GdomPLdt8udCN8OVwWywYClrBox5VbNODjWIsBC/hplAfcJ39iMjInFAhg==</SignatureValue>
+    <KeyInfo>
+      <X509Data>
+        <X509Certificate>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</X509Certificate>
+      </X509Data>
+    </KeyInfo>
+  </Signature>
+</ECF>
