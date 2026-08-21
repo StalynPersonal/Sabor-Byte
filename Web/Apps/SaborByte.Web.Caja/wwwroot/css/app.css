@@ -2,6 +2,32 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+/* Boleta v1: window.print() con CSS a medida del rollo térmico (ver plan, sección 9).
+   .solo-imprimir permanece oculta en pantalla y es lo único visible al imprimir. */
+.solo-imprimir {
+    display: none;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .solo-imprimir, .solo-imprimir * {
+        visibility: visible;
+    }
+
+    .solo-imprimir {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 80mm;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+    }
+}
+
 h1:focus {
     outline: none;
 }

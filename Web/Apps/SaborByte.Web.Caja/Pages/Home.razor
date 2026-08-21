@@ -4,6 +4,7 @@
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
+@inject IJSRuntime JS
 
 <PageTitle>Sabor Byte — Caja</PageTitle>
 
@@ -193,6 +194,39 @@ else
     }
 }
 
+@if (_ultimaVenta is not null)
+{
+    <div class="solo-imprimir">
+        <p style="text-align:center; margin:0">Sabor Byte</p>
+        <p style="text-align:center; margin:0">@_ultimaVenta.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+        @if (!string.IsNullOrEmpty(_ultimaVenta.NumeroNcf))
+        {
+            <p style="text-align:center; margin:0">NCF: @_ultimaVenta.NumeroNcf</p>
+        }
+        <hr />
+        @foreach (var linea in _lineasUltimaVenta)
+        {
+            <div style="display:flex; justify-content:space-between">
+                <span>@linea.Cantidad x @linea.Nombre</span>
+                <span>@((linea.Precio * linea.Cantidad).ToString("0.00"))</span>
+            </div>
+        }
+        <hr />
+        <div style="display:flex; justify-content:space-between"><span>Subtotal</span><span>@_ultimaVenta.Subtotal.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between"><span>ITBIS</span><span>@_ultimaVenta.Itbis.ToString("0.00")</span></div>
+        @if (_ultimaVenta.Descuento > 0)
+        {
+            <div style="display:flex; justify-content:space-between"><span>Descuento</span><span>-@_ultimaVenta.Descuento.ToString("0.00")</span></div>
+        }
+        @if (_ultimaVenta.Propina > 0)
+        {
+            <div style="display:flex; justify-content:space-between"><span>Propina</span><span>@_ultimaVenta.Propina.ToString("0.00")</span></div>
+        }
+        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_ultimaVenta.Total.ToString("0.00")</span></div>
+        <p style="text-align:center; margin-top:8px">¡Gracias por su compra!</p>
+    </div>
+}
+
 @code {
     private Guid? _turnoCajaId;
     private List<CajaResumenDto> _cajas = [];
@@ -213,6 +247,9 @@ else
     private bool _descuentoAutorizado;
     private Guid? _codigoAutorizacionDescuento;
     private string? _errorAutorizacion;
+
+    private VentaResultadoDto? _ultimaVenta;
+    private List<LineaCarrito> _lineasUltimaVenta = [];
 
     private bool _cerrando;
     private ResumenTurnoDto? _resumenCierre;
@@ -332,11 +369,17 @@ else
             return;
         }
 
+        _ultimaVenta = resultado;
+        _lineasUltimaVenta = [.. _carrito];
+
         _carrito.Clear();
         _porcentajePropina = 0;
         _descuentoAutorizado = false;
         _codigoAutorizacionDescuento = null;
         _montoDescuento = 0;
+
+        StateHasChanged();
+        await JS.InvokeVoidAsync("print");
     }
 
     private async Task IniciarCierreAsync()
