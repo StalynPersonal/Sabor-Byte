@@ -14,11 +14,14 @@ prueba completo paso a paso que cubre el sistema entero.
 El repo tiene SaborByte.slnx en la raiz (abrelo con Visual Studio,
 no hace falta "Open Folder"). Incluye los 10 proyectos necesarios
 para correr el sistema (Api + 4 apps + las librerias que las
-soportan) — los 3 proyectos de test (Aplicacion.Tests, Api.Tests,
-FacturacionElectronica.Tests) quedan fuera del .slnx a proposito,
-para no ensuciar el Explorador de soluciones; siguen en el repo,
-solo hay que abrirlos aparte o correrlos con "dotnet test" si hace
-falta.
+soportan).
+
+No hay proyectos de test en el repo (se eliminaron a proposito:
+Aplicacion.Tests, Api.Tests, FacturacionElectronica.Tests eran .NET;
+e2e/ y pruebas-carga/ eran herramientas Node.js/Playwright — ninguna
+se puede correr desde Visual Studio, y el stack de este proyecto es
+100% .NET). Todo el testing es manual, en la practica, con el flujo
+de esta guia.
 
 Ya viene configurado "varios proyectos de inicio" (via el archivo
 SaborByte.slnLaunch): con F5 deberian arrancar los 5 juntos, cada
