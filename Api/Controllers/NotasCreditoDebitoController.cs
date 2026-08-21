@@ -36,4 +36,13 @@ public class NotasCreditoDebitoController(NotaCreditoDebitoAppService notas) : C
 
         return Ok(await notas.ListarPorFacturaAsync(sucursalId, facturaId, ct));
     }
+
+    [HttpGet("facturas")]
+    public async Task<IActionResult> BuscarFacturas([FromQuery] Guid sucursalId, [FromQuery] string? texto, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await notas.BuscarFacturasAsync(sucursalId, texto, ct));
+    }
 }

@@ -1,0 +1,154 @@
+@page "/notascreditodebito"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — Notas de Crédito/Débito</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">Notas de Crédito / Débito</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="5">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">1. Buscar factura original</MudText>
+                <MudTextField T="string" Label="Buscar por NCF" @bind-Value="_textoBusqueda"
+                               Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="BuscarFacturasAsync" Class="mb-2" />
+
+                <MudTable Items="_facturas" Hover="true" Dense="true" T="FacturaResumenDto">
+                    <HeaderContent>
+                        <MudTh>NCF</MudTh>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Total</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="factura">
+                        <MudTd>@(factura.NumeroNcf ?? "(sin NCF)")</MudTd>
+                        <MudTd>@factura.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd>RD$ @factura.Total.ToString("0.00")</MudTd>
+                        <MudTd>
+                            <MudButton Size="Size.Small" OnClick="() => SeleccionarFacturaAsync(factura)">Seleccionar</MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="7">
+            @if (_facturaSeleccionada is not null)
+            {
+                <MudPaper Class="pa-4 mb-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">
+                        2. Factura seleccionada: @(_facturaSeleccionada.NumeroNcf ?? "(sin NCF)")
+                        — Total RD$ @_facturaSeleccionada.Total.ToString("0.00")
+                    </MudText>
+
+                    <MudSelect T="TipoNota" Label="Tipo de nota" @bind-Value="_form.Tipo" Class="mb-2">
+                        <MudSelectItem Value="TipoNota.Credito">Nota de Crédito (anula/ajusta a la baja)</MudSelectItem>
+                        <MudSelectItem Value="TipoNota.Debito">Nota de Débito (ajusta al alza)</MudSelectItem>
+                    </MudSelect>
+
+                    <MudNumericField T="decimal" Label="Monto" @bind-Value="_form.Monto" Class="mb-2" />
+                    <MudTextField T="string" Label="Motivo" @bind-Value="_form.Motivo" Lines="2" Class="mb-2" />
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                    }
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="EmitirNotaAsync">
+                        Emitir nota
+                    </MudButton>
+                </MudPaper>
+
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">Historial de esta factura</MudText>
+                    @foreach (var nota in _notas)
+                    {
+                        <div class="d-flex justify-space-between mb-1">
+                            <MudText Typo="Typo.body2">
+                                @(nota.Tipo == TipoNota.Credito ? "Crédito" : "Débito") — @(nota.NumeroNcf ?? "(sin NCF)")
+                                — @nota.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")
+                            </MudText>
+                            <MudText Typo="Typo.body2">RD$ @nota.Monto.ToString("0.00")</MudText>
+                        </div>
+                    }
+                    @if (_notas.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2">Sin notas emitidas todavía.</MudText>
+                    }
+                </MudPaper>
+            }
+            else
+            {
+                <MudText Typo="Typo.body1">Selecciona una factura de la izquierda para emitir o ver sus notas.</MudText>
+            }
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private string _textoBusqueda = string.Empty;
+    private List<FacturaResumenDto> _facturas = [];
+    private FacturaResumenDto? _facturaSeleccionada;
+    private List<NotaCreditoDebitoDto> _notas = [];
+    private CrearNotaRequestDto _form = new();
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await BuscarFacturasAsync();
+    }
+
+    private async Task BuscarFacturasAsync()
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _facturas = await ApiClient.BuscarFacturasAsync(sucursalId, _textoBusqueda);
+    }
+
+    private async Task SeleccionarFacturaAsync(FacturaResumenDto factura)
+    {
+        _facturaSeleccionada = factura;
+        _form = new CrearNotaRequestDto { FacturaOriginalId = factura.Id };
+        _error = null;
+        await CargarNotasAsync();
+    }
+
+    private async Task CargarNotasAsync()
+    {
+        if (_facturaSeleccionada is null)
+            return;
+
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _notas = await ApiClient.ListarNotasPorFacturaAsync(sucursalId, _facturaSeleccionada.Id);
+    }
+
+    private async Task EmitirNotaAsync()
+    {
+        _error = null;
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var (exito, error) = await ApiClient.CrearNotaAsync(sucursalId, _form);
+
+        if (!exito)
+        {
+            _error = error;
+            return;
+        }
+
+        _form = new CrearNotaRequestDto { FacturaOriginalId = _facturaSeleccionada!.Id };
+        await CargarNotasAsync();
+    }
+}

@@ -7,6 +7,22 @@ namespace SaborByte.Aplicacion.Facturacion;
 
 public class NotaCreditoDebitoAppService(IAppDbContext db, IAuditoriaService auditoria)
 {
+    // Búsqueda simple para poder elegir la factura original al emitir una nota
+    // (por NCF exacto o parcial; si no hay texto, trae las más recientes).
+    public async Task<List<FacturaResumenDto>> BuscarFacturasAsync(Guid sucursalId, string? texto, CancellationToken ct = default)
+    {
+        var query = db.Facturas.Where(f => f.SucursalId == sucursalId);
+
+        if (!string.IsNullOrWhiteSpace(texto))
+            query = query.Where(f => f.NumeroNcf != null && f.NumeroNcf.Contains(texto));
+
+        return await query
+            .OrderByDescending(f => f.FechaEmision)
+            .Take(30)
+            .Select(f => new FacturaResumenDto { Id = f.Id, NumeroNcf = f.NumeroNcf, Total = f.Total, FechaEmision = f.FechaEmision })
+            .ToListAsync(ct);
+    }
+
     public async Task<NotaCreditoDebitoDto> CrearAsync(
         Guid sucursalId, Guid usuarioId, CrearNotaRequestDto request, CancellationToken ct = default)
     {

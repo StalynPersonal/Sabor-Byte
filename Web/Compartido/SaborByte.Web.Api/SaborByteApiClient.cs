@@ -215,6 +215,27 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<List<FacturaResumenDto>> BuscarFacturasAsync(Guid sucursalId, string? texto = null)
+    {
+        AdjuntarToken();
+        var url = $"api/notascreditodebito/facturas?sucursalId={sucursalId}&texto={Uri.EscapeDataString(texto ?? string.Empty)}";
+        return await http.GetFromJsonAsync<List<FacturaResumenDto>>(url) ?? [];
+    }
+
+    public async Task<List<NotaCreditoDebitoDto>> ListarNotasPorFacturaAsync(Guid sucursalId, Guid facturaId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<NotaCreditoDebitoDto>>(
+            $"api/notascreditodebito/por-factura/{facturaId}?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearNotaAsync(Guid sucursalId, CrearNotaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/notascreditodebito?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<List<UsuarioDto>> ListarUsuariosAsync()
     {
         AdjuntarToken();
