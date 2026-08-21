@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.Clientes;
+using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
@@ -40,6 +42,14 @@ public interface IAppDbContext
     DbSet<ComandaItem> ComandaItems { get; }
     DbSet<ComandaItemIngrediente> ComandaItemIngredientes { get; }
     DbSet<ComandaCancelacion> ComandaCancelaciones { get; }
+
+    DbSet<Cliente> Clientes { get; }
+
+    DbSet<Proveedor> Proveedores { get; }
+    DbSet<CuentaPorCobrar> CuentasPorCobrar { get; }
+    DbSet<PagoCxC> PagosCxC { get; }
+    DbSet<CuentaPorPagar> CuentasPorPagar { get; }
+    DbSet<PagoCxP> PagosCxP { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

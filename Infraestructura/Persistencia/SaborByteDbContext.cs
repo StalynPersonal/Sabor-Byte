@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.Clientes;
+using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
@@ -40,6 +42,14 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<ComandaItem> ComandaItems => Set<ComandaItem>();
     public DbSet<ComandaItemIngrediente> ComandaItemIngredientes => Set<ComandaItemIngrediente>();
     public DbSet<ComandaCancelacion> ComandaCancelaciones => Set<ComandaCancelacion>();
+
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+
+    public DbSet<Proveedor> Proveedores => Set<Proveedor>();
+    public DbSet<CuentaPorCobrar> CuentasPorCobrar => Set<CuentaPorCobrar>();
+    public DbSet<PagoCxC> PagosCxC => Set<PagoCxC>();
+    public DbSet<CuentaPorPagar> CuentasPorPagar => Set<CuentaPorPagar>();
+    public DbSet<PagoCxP> PagosCxP => Set<PagoCxP>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -225,6 +235,52 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
         {
             b.ToTable("ComandaCancelaciones", "pedidos");
             b.Property(x => x.Motivo).HasMaxLength(500).IsRequired();
+        });
+
+        modelBuilder.Entity<Cliente>(b =>
+        {
+            b.ToTable("Clientes", "clientes");
+            b.Property(x => x.NombreORazonSocial).HasMaxLength(200).IsRequired();
+            b.Property(x => x.RncOCedula).HasMaxLength(20);
+            b.HasIndex(x => new { x.SucursalId, x.RncOCedula });
+        });
+
+        modelBuilder.Entity<Proveedor>(b =>
+        {
+            b.ToTable("Proveedores", "cxccxp");
+            b.Property(x => x.NombreORazonSocial).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Rnc).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<CuentaPorCobrar>(b =>
+        {
+            b.ToTable("CuentasPorCobrar", "cxccxp");
+            b.Property(x => x.MontoOriginal).HasColumnType("decimal(18,2)");
+            b.Property(x => x.SaldoPendiente).HasColumnType("decimal(18,2)");
+            b.HasMany(x => x.Pagos).WithOne(p => p.Cuenta).HasForeignKey(p => p.CuentaPorCobrarId);
+        });
+
+        modelBuilder.Entity<PagoCxC>(b =>
+        {
+            b.ToTable("PagosCxC", "cxccxp");
+            b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
+            b.Property(x => x.FormaPago).HasMaxLength(30).IsRequired();
+        });
+
+        modelBuilder.Entity<CuentaPorPagar>(b =>
+        {
+            b.ToTable("CuentasPorPagar", "cxccxp");
+            b.Property(x => x.DocumentoReferencia).HasMaxLength(50).IsRequired();
+            b.Property(x => x.MontoOriginal).HasColumnType("decimal(18,2)");
+            b.Property(x => x.SaldoPendiente).HasColumnType("decimal(18,2)");
+            b.HasMany(x => x.Pagos).WithOne(p => p.Cuenta).HasForeignKey(p => p.CuentaPorPagarId);
+        });
+
+        modelBuilder.Entity<PagoCxP>(b =>
+        {
+            b.ToTable("PagosCxP", "cxccxp");
+            b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
+            b.Property(x => x.FormaPago).HasMaxLength(30).IsRequired();
         });
     }
 }
