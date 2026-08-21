@@ -1,34 +1,54 @@
 @page "/login"
+@layout LoginLayout
 @using SaborByte.Web.Api
 @inject SaborByteApiClient ApiClient
 @inject NavigationManager Navegacion
 
 <PageTitle>Sabor Byte — Central — Iniciar sesión</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
-    <MudPaper Class="pa-8" Elevation="3">
-        <MudText Typo="Typo.h5" Class="mb-4">Sabor Byte — Central</MudText>
+<div class="pantalla-login">
+    <div class="panel-marca">
+        <div class="panel-marca__contenido">
+            <div class="panel-marca__logo">SB</div>
+            <h1 class="panel-marca__titulo">Sabor Byte</h1>
+            <p class="panel-marca__subtitulo">Central — catálogos, mesas, inventario y reportes de todas tus sucursales.</p>
+        </div>
+    </div>
 
-        <MudTextField T="string" Label="Usuario" @bind-Value="_nombreUsuario" Class="mb-3" />
-        <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_password" Class="mb-3" />
+    <div class="panel-formulario">
+        <div class="formulario-login">
+            <h2 class="formulario-login__titulo">Bienvenido de nuevo</h2>
+            <p class="formulario-login__ayuda">Ingresa tus credenciales para continuar.</p>
 
-        @if (!string.IsNullOrEmpty(_error))
-        {
-            <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
-        }
+            <MudTextField T="string" Label="Usuario" @bind-Value="_nombreUsuario" Variant="Variant.Filled"
+                           Class="mb-4" @onkeydown="OnKeyDown" />
+            <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_password"
+                           Variant="Variant.Filled" Class="mb-4" @onkeydown="OnKeyDown" />
 
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                   Disabled="_cargando" OnClick="EntrarAsync">
-            @(_cargando ? "Entrando..." : "Entrar")
-        </MudButton>
-    </MudPaper>
-</MudContainer>
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_error</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_cargando"
+                       OnClick="EntrarAsync" Class="formulario-login__boton">
+                @(_cargando ? "Entrando..." : "Entrar")
+            </MudButton>
+        </div>
+    </div>
+</div>
 
 @code {
     private string _nombreUsuario = string.Empty;
     private string _password = string.Empty;
     private string? _error;
     private bool _cargando;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await EntrarAsync();
+    }
 
     private async Task EntrarAsync()
     {

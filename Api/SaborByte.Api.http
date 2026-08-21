@@ -1,4 +1,4 @@
-@SaborByte.Api_HostAddress = http://localhost:5102
+@SaborByte.Api_HostAddress = http://localhost:5080
 
 GET {{SaborByte.Api_HostAddress}}/weatherforecast/
 Accept: application/json

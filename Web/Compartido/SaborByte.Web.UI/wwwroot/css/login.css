@@ -1,0 +1,123 @@
+/* Pantalla de login a pantalla completa, sin el chrome de la app (ver LoginLayout.razor
+   en cada app) — panel de marca a la izquierda, formulario a la derecha. */
+
+.pantalla-login {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.panel-marca {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem;
+    color: #fff;
+    background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.panel-marca::before {
+    content: "";
+    position: absolute;
+    inset: -25% -25% auto auto;
+    width: 65%;
+    height: 65%;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.panel-marca::after {
+    content: "";
+    position: absolute;
+    inset: auto auto -30% -15%;
+    width: 55%;
+    height: 55%;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.panel-marca__contenido {
+    position: relative;
+    z-index: 1;
+}
+
+.panel-marca__logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 2.5rem;
+}
+
+.panel-marca__titulo {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.2;
+}
+
+.panel-marca__subtitulo {
+    font-size: 1.05rem;
+    opacity: 0.85;
+    margin: 0;
+    max-width: 320px;
+    line-height: 1.5;
+}
+
+.panel-formulario {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    padding: 2rem;
+}
+
+.formulario-login {
+    width: 100%;
+    max-width: 360px;
+}
+
+.formulario-login__titulo {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    color: #1f2430;
+}
+
+.formulario-login__ayuda {
+    color: #6b7280;
+    margin: 0 0 2rem 0;
+}
+
+.formulario-login__boton {
+    height: 48px;
+    border-radius: 10px;
+    text-transform: none;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+    .pantalla-login {
+        grid-template-columns: 1fr;
+    }
+
+    .panel-marca {
+        padding: 2.5rem 2rem;
+        min-height: 200px;
+    }
+
+    .panel-marca__titulo {
+        font-size: 1.75rem;
+    }
+}
