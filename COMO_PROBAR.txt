@@ -8,7 +8,39 @@ prueba completo paso a paso que cubre el sistema entero.
 
 
 ------------------------------------------------------------------
-1) REQUISITOS
+0) SI USAS VISUAL STUDIO: levantar los 5 juntos con F5
+------------------------------------------------------------------
+
+El repo tiene SaborByte.slnx en la raiz (abrelo con Visual Studio,
+no hace falta "Open Folder"). Incluye los 10 proyectos necesarios
+para correr el sistema (Api + 4 apps + las librerias que las
+soportan) — los 3 proyectos de test (Aplicacion.Tests, Api.Tests,
+FacturacionElectronica.Tests) quedan fuera del .slnx a proposito,
+para no ensuciar el Explorador de soluciones; siguen en el repo,
+solo hay que abrirlos aparte o correrlos con "dotnet test" si hace
+falta.
+
+Ya viene configurado "varios proyectos de inicio" (via el archivo
+SaborByte.slnLaunch): con F5 deberian arrancar los 5 juntos, cada
+uno con su propia consola/navegador. Si Visual Studio no lo toma
+solo (varia segun la version), configuralo una vez a mano:
+  1. Click derecho sobre la solucion -> "Configurar proyectos de
+     inicio..." (o Debug -> "Configurar proyectos de inicio").
+  2. Elegir "Varios proyectos de inicio".
+  3. Poner "Iniciar" en: SaborByte.Api, SaborByte.Web.Central,
+     SaborByte.Web.Caja, SaborByte.Web.Cocina, SaborByte.Web.Mesero.
+  4. Guardar (elegir guardar en el archivo .slnLaunch, no en las
+     opciones de usuario, para que quede compartido en el repo).
+
+Con eso resuelto, puedes saltar directo a la seccion 4 (usuarios de
+prueba) y el flujo de prueba (seccion 5) — no hace falta lo de abajo.
+
+Si prefieres terminal (o Visual Studio no coopera), sigue con las
+secciones 1-3.
+
+
+------------------------------------------------------------------
+1) REQUISITOS (si vas por terminal, sin Visual Studio)
 ------------------------------------------------------------------
 
 - SQL Server corriendo en "localhost" (Trusted_Connection / Windows

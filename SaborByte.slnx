@@ -1,21 +1,12 @@
 <Solution>
-  <Folder Name="/Api.Tests/">
-    <Project Path="Api.Tests/SaborByte.Api.Tests.csproj" />
-  </Folder>
   <Folder Name="/Api/">
     <Project Path="Api/SaborByte.Api.csproj" />
-  </Folder>
-  <Folder Name="/Aplicacion.Tests/">
-    <Project Path="Aplicacion.Tests/SaborByte.Aplicacion.Tests.csproj" />
   </Folder>
   <Folder Name="/Aplicacion/">
     <Project Path="Aplicacion/SaborByte.Aplicacion.csproj" />
   </Folder>
   <Folder Name="/Dominio/">
     <Project Path="Dominio/SaborByte.Dominio.csproj" />
-  </Folder>
-  <Folder Name="/FacturacionElectronica.Tests/">
-    <Project Path="FacturacionElectronica.Tests/FacturacionElectronicaDGII.Tests.csproj" />
   </Folder>
   <Folder Name="/FacturacionElectronica/">
     <Project Path="FacturacionElectronica/FacturacionElectronicaDGII.csproj" />
