@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Api.Tests/">
+    <Project Path="Api.Tests/SaborByte.Api.Tests.csproj" />
+  </Folder>
   <Folder Name="/Api/">
     <Project Path="Api/SaborByte.Api.csproj" />
   </Folder>

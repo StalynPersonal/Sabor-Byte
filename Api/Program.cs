@@ -128,3 +128,8 @@ app.MapHub<ComandaHub>("/hubs/comandas");
 app.MapHealthChecks("/health");
 
 app.Run();
+
+// Necesario para que WebApplicationFactory<Program> (pruebas de integración) pueda
+// referenciar este ensamblado — con top-level statements la clase Program es interna
+// por defecto y no es visible fuera del proyecto sin esta declaración parcial.
+public partial class Program;

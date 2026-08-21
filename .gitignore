@@ -28,3 +28,7 @@ Thumbs.db
 # Env / secretos locales (no confundir con appsettings.Development.json, que sí se versiona a propósito)
 .env
 .env.local
+
+# Certificado digital DGII (e-CF) — nunca debe subirse al repositorio
+Api/certificados/*
+!Api/certificados/README.md
