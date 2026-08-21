@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-y-pruebas:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restaurar dependencias
+        run: dotnet restore
+
+      - name: Compilar
+        run: dotnet build --no-restore --configuration Release
+
+      # Solo corren las pruebas que no requieren SQL Server real (la librería de
+      # facturación electrónica). Las pruebas de integración contra la base de
+      # datos quedan pendientes de un job separado con un contenedor de SQL Server.
+      - name: Pruebas — FacturacionElectronicaDGII
+        run: dotnet test FacturacionElectronica.Tests/FacturacionElectronicaDGII.Tests.csproj --no-build --configuration Release --verbosity normal

@@ -59,4 +59,17 @@ El proyecto `/FacturacionElectronica` es una librería independiente y reutiliza
 
 ## Estado del proyecto
 
-En construcción — ver roadmap por fases en el documento de planificación.
+**Funcional de punta a punta** (probado contra SQL Server real):
+
+- ✅ Autenticación JWT con roles y sucursales asignadas por usuario.
+- ✅ Caja: apertura/cierre de turno (con validación de IP/hostname autorizado y turno único abierto), búsqueda de producto, venta con ITBIS/descuento/propina, NCF tradicional cuando aplica.
+- ✅ Comandas Mesero → Cocina → Caja en tiempo real vía SignalR, con cancelación y reverso automático de inventario.
+- ✅ Inventario por receta (BOM): descuenta insumos automáticamente al vender/enviar a cocina.
+- ✅ Clientes, Cuentas por Cobrar/Pagar.
+- ✅ Reportes de ventas consolidados multi-sucursal, gestión de usuarios (Admin), health checks en `/health`.
+- ✅ Autorización de supervisor para descuentos (código de un solo uso) + auditoría de acciones sensibles.
+- ✅ SMTP opcional por sucursal.
+- 🟡 e-CF/DGII: generación y firma XML del e-CF 32 basadas en los XSD oficiales, con pruebas automatizadas — **el envío real a los servicios web de DGII no está implementado** (no hay acceso verificado a esas URLs/contrato en este proyecto); las ventas quedan en estado "Contingencia" sin bloquear la operación.
+- ⬜ Pendiente: promociones/combos, reportes gerenciales avanzados, cobertura de pruebas más amplia (solo la librería de facturación electrónica tiene pruebas hoy), revisión de seguridad formal.
+
+Hay un pipeline de CI en GitHub Actions (`.github/workflows/ci.yml`) que compila el proyecto y corre las pruebas de `FacturacionElectronicaDGII.Tests` en cada push/PR a `main`.
