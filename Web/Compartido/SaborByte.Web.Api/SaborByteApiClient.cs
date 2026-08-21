@@ -236,6 +236,59 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<List<ProveedorDto>> ListarProveedoresAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<ProveedorDto>>($"api/cxccxp/proveedores?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearProveedorAsync(Guid sucursalId, GuardarProveedorRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cxccxp/proveedores?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<CuentaPorCobrarDto>> ListarPorCobrarAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<CuentaPorCobrarDto>>($"api/cxccxp/porcobrar?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearCuentaPorCobrarAsync(Guid sucursalId, CrearCuentaPorCobrarRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cxccxp/porcobrar?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> PagarCuentaPorCobrarAsync(Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cxccxp/porcobrar/{cuentaId}/pagos?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<CuentaPorPagarDto>> ListarPorPagarAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<CuentaPorPagarDto>>($"api/cxccxp/porpagar?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearCuentaPorPagarAsync(Guid sucursalId, CrearCuentaPorPagarRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cxccxp/porpagar?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> PagarCuentaPorPagarAsync(Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cxccxp/porpagar/{cuentaId}/pagos?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<List<UsuarioDto>> ListarUsuariosAsync()
     {
         AdjuntarToken();

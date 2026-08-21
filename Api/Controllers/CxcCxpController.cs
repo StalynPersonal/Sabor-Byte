@@ -11,6 +11,21 @@ namespace SaborByte.Api.Controllers;
 [Authorize]
 public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 {
+    [HttpGet("proveedores")]
+    public async Task<IActionResult> ListarProveedores([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+        return Ok(await cxcCxp.ListarProveedoresAsync(sucursalId, ct));
+    }
+
+    [HttpPost("proveedores")]
+    public async Task<IActionResult> CrearProveedor([FromQuery] Guid sucursalId, GuardarProveedorRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+        var id = await cxcCxp.CrearProveedorAsync(sucursalId, request, ct);
+        return Ok(new { id });
+    }
+
     [HttpGet("porcobrar")]
     public async Task<IActionResult> ListarPorCobrar([FromQuery] Guid sucursalId, CancellationToken ct)
     {

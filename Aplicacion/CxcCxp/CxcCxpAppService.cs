@@ -7,6 +7,30 @@ namespace SaborByte.Aplicacion.CxcCxp;
 
 public class CxcCxpAppService(IAppDbContext db)
 {
+    // --- Proveedores (necesarios para dar de alta una Cuenta por Pagar) ---
+
+    public async Task<List<ProveedorDto>> ListarProveedoresAsync(Guid sucursalId, CancellationToken ct = default) =>
+        await db.Proveedores
+            .Where(p => p.SucursalId == sucursalId && p.Activo)
+            .OrderBy(p => p.NombreORazonSocial)
+            .Select(p => new ProveedorDto { Id = p.Id, NombreORazonSocial = p.NombreORazonSocial, Rnc = p.Rnc, Telefono = p.Telefono, Activo = p.Activo })
+            .ToListAsync(ct);
+
+    public async Task<Guid> CrearProveedorAsync(Guid sucursalId, GuardarProveedorRequestDto request, CancellationToken ct = default)
+    {
+        var proveedor = new Proveedor
+        {
+            SucursalId = sucursalId,
+            NombreORazonSocial = request.NombreORazonSocial,
+            Rnc = request.Rnc,
+            Telefono = request.Telefono
+        };
+
+        db.Proveedores.Add(proveedor);
+        await db.SaveChangesAsync(ct);
+        return proveedor.Id;
+    }
+
     // --- Cuentas por Cobrar ---
 
     public async Task<Guid> CrearCuentaPorCobrarAsync(Guid sucursalId, CrearCuentaPorCobrarRequestDto request, CancellationToken ct = default)

@@ -1,0 +1,277 @@
+@page "/cxccxp"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Sabor Byte — Central — CxC / CxP</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">Cuentas por Cobrar / Cuentas por Pagar</MudText>
+
+    <MudTabs>
+        <MudTabPanel Text="Por Cobrar">
+            <MudGrid Class="mt-2">
+                <MudItem xs="12" md="7">
+                    <MudTable Items="_cuentasPorCobrar" Hover="true" Dense="true" T="CuentaPorCobrarDto">
+                        <HeaderContent>
+                            <MudTh>Vencimiento</MudTh>
+                            <MudTh>Monto original</MudTh>
+                            <MudTh>Saldo pendiente</MudTh>
+                            <MudTh>Estado</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="cuenta">
+                            <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                            <MudTd>RD$ @cuenta.MontoOriginal.ToString("0.00")</MudTd>
+                            <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
+                            <MudTd>@cuenta.Estado</MudTd>
+                            <MudTd>
+                                <MudButton Size="Size.Small" OnClick="() => AbrirPagoCxC(cuenta)">Registrar pago</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudItem>
+
+                <MudItem xs="12" md="5">
+                    <MudPaper Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Nueva cuenta por cobrar</MudText>
+
+                        <MudAutocomplete T="ClienteDto" Label="Cliente" Value="_clienteCxC" ValueChanged="c => _clienteCxC = c"
+                                          SearchFunc="BuscarClientesAsync" ToStringFunc="@(c => c?.NombreORazonSocial ?? string.Empty)" Class="mb-2" />
+
+                        <MudAutocomplete T="FacturaResumenDto" Label="Factura" Value="_facturaCxC" ValueChanged="f => _facturaCxC = f"
+                                          SearchFunc="BuscarFacturasAsync" ToStringFunc="@(f => f is null ? string.Empty : $"{f.NumeroNcf} - RD$ {f.Total:0.00}")" Class="mb-2" />
+
+                        <MudNumericField T="decimal" Label="Monto" @bind-Value="_formCxC.MontoOriginal" Class="mb-2" />
+                        <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimientoCxC" Class="mb-2" />
+
+                        @if (!string.IsNullOrEmpty(_errorCxC))
+                        {
+                            <MudAlert Severity="Severity.Error" Class="my-2">@_errorCxC</MudAlert>
+                        }
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxCAsync">Crear</MudButton>
+                    </MudPaper>
+
+                    @if (_cuentaPagoCxC is not null)
+                    {
+                        <MudPaper Class="pa-4 mt-4">
+                            <MudText Typo="Typo.h6" Class="mb-2">Registrar pago — saldo RD$ @_cuentaPagoCxC.SaldoPendiente.ToString("0.00")</MudText>
+                            <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxC.Monto" Class="mb-2" />
+                            <MudTextField T="string" Label="Forma de pago" @bind-Value="_formPagoCxC.FormaPago" Class="mb-2" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxCAsync">Confirmar pago</MudButton>
+                        </MudPaper>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Por Pagar">
+            <MudGrid Class="mt-2">
+                <MudItem xs="12" md="7">
+                    <MudTable Items="_cuentasPorPagar" Hover="true" Dense="true" T="CuentaPorPagarDto">
+                        <HeaderContent>
+                            <MudTh>Documento</MudTh>
+                            <MudTh>Vencimiento</MudTh>
+                            <MudTh>Saldo pendiente</MudTh>
+                            <MudTh>Estado</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="cuenta">
+                            <MudTd>@cuenta.DocumentoReferencia</MudTd>
+                            <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                            <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
+                            <MudTd>@cuenta.Estado</MudTd>
+                            <MudTd>
+                                <MudButton Size="Size.Small" OnClick="() => AbrirPagoCxP(cuenta)">Registrar pago</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudItem>
+
+                <MudItem xs="12" md="5">
+                    <MudPaper Class="pa-4 mb-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Nuevo proveedor</MudText>
+                        <MudTextField T="string" Label="Nombre" @bind-Value="_formProveedor.NombreORazonSocial" Class="mb-2" />
+                        <MudTextField T="string" Label="RNC" @bind-Value="_formProveedor.Rnc" Class="mb-2" />
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="CrearProveedorAsync">Agregar proveedor</MudButton>
+                    </MudPaper>
+
+                    <MudPaper Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Nueva cuenta por pagar</MudText>
+
+                        <MudSelect T="Guid" Label="Proveedor" @bind-Value="_formCxP.ProveedorId" Class="mb-2">
+                            @foreach (var proveedor in _proveedores)
+                            {
+                                <MudSelectItem Value="@proveedor.Id">@proveedor.NombreORazonSocial</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudTextField T="string" Label="Documento de referencia" @bind-Value="_formCxP.DocumentoReferencia" Class="mb-2" />
+                        <MudNumericField T="decimal" Label="Monto" @bind-Value="_formCxP.MontoOriginal" Class="mb-2" />
+                        <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimientoCxP" Class="mb-2" />
+
+                        @if (!string.IsNullOrEmpty(_errorCxP))
+                        {
+                            <MudAlert Severity="Severity.Error" Class="my-2">@_errorCxP</MudAlert>
+                        }
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxPAsync">Crear</MudButton>
+                    </MudPaper>
+
+                    @if (_cuentaPagoCxP is not null)
+                    {
+                        <MudPaper Class="pa-4 mt-4">
+                            <MudText Typo="Typo.h6" Class="mb-2">Registrar pago — saldo RD$ @_cuentaPagoCxP.SaldoPendiente.ToString("0.00")</MudText>
+                            <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxP.Monto" Class="mb-2" />
+                            <MudTextField T="string" Label="Forma de pago" @bind-Value="_formPagoCxP.FormaPago" Class="mb-2" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxPAsync">Confirmar pago</MudButton>
+                        </MudPaper>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@code {
+    private List<CuentaPorCobrarDto> _cuentasPorCobrar = [];
+    private List<CuentaPorPagarDto> _cuentasPorPagar = [];
+    private List<ProveedorDto> _proveedores = [];
+
+    private ClienteDto? _clienteCxC;
+    private FacturaResumenDto? _facturaCxC;
+    private CrearCuentaPorCobrarRequestDto _formCxC = new();
+    private DateTime? _fechaVencimientoCxC = DateTime.Today.AddDays(30);
+    private string? _errorCxC;
+    private CuentaPorCobrarDto? _cuentaPagoCxC;
+    private RegistrarPagoRequestDto _formPagoCxC = new();
+
+    private GuardarProveedorRequestDto _formProveedor = new();
+    private CrearCuentaPorPagarRequestDto _formCxP = new();
+    private DateTime? _fechaVencimientoCxP = DateTime.Today.AddDays(30);
+    private string? _errorCxP;
+    private CuentaPorPagarDto? _cuentaPagoCxP;
+    private RegistrarPagoRequestDto _formPagoCxP = new();
+
+    private Guid SucursalId => Sesion.SucursalesPermitidas.FirstOrDefault();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cuentasPorCobrar = await ApiClient.ListarPorCobrarAsync(SucursalId);
+        _cuentasPorPagar = await ApiClient.ListarPorPagarAsync(SucursalId);
+        _proveedores = await ApiClient.ListarProveedoresAsync(SucursalId);
+    }
+
+    private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct) =>
+        await ApiClient.BuscarClientesAsync(SucursalId, texto);
+
+    private async Task<IEnumerable<FacturaResumenDto>> BuscarFacturasAsync(string texto, CancellationToken ct) =>
+        await ApiClient.BuscarFacturasAsync(SucursalId, texto);
+
+    private async Task CrearCxCAsync()
+    {
+        _errorCxC = null;
+
+        if (_clienteCxC is null || _facturaCxC is null)
+        {
+            _errorCxC = "Selecciona un cliente y una factura.";
+            return;
+        }
+
+        _formCxC.ClienteId = _clienteCxC.Id;
+        _formCxC.FacturaId = _facturaCxC.Id;
+        _formCxC.FechaVencimiento = _fechaVencimientoCxC ?? DateTime.Today.AddDays(30);
+
+        var (exito, error) = await ApiClient.CrearCuentaPorCobrarAsync(SucursalId, _formCxC);
+        if (!exito)
+        {
+            _errorCxC = error;
+            return;
+        }
+
+        _formCxC = new CrearCuentaPorCobrarRequestDto();
+        _clienteCxC = null;
+        _facturaCxC = null;
+        await CargarAsync();
+    }
+
+    private void AbrirPagoCxC(CuentaPorCobrarDto cuenta)
+    {
+        _cuentaPagoCxC = cuenta;
+        _formPagoCxC = new RegistrarPagoRequestDto();
+    }
+
+    private async Task ConfirmarPagoCxCAsync()
+    {
+        if (_cuentaPagoCxC is null) return;
+        await ApiClient.PagarCuentaPorCobrarAsync(SucursalId, _cuentaPagoCxC.Id, _formPagoCxC);
+        _cuentaPagoCxC = null;
+        await CargarAsync();
+    }
+
+    private async Task CrearProveedorAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_formProveedor.NombreORazonSocial))
+            return;
+
+        await ApiClient.CrearProveedorAsync(SucursalId, _formProveedor);
+        _formProveedor = new GuardarProveedorRequestDto();
+        _proveedores = await ApiClient.ListarProveedoresAsync(SucursalId);
+    }
+
+    private async Task CrearCxPAsync()
+    {
+        _errorCxP = null;
+
+        if (_formCxP.ProveedorId == Guid.Empty)
+        {
+            _errorCxP = "Selecciona un proveedor.";
+            return;
+        }
+
+        _formCxP.FechaVencimiento = _fechaVencimientoCxP ?? DateTime.Today.AddDays(30);
+
+        var (exito, error) = await ApiClient.CrearCuentaPorPagarAsync(SucursalId, _formCxP);
+        if (!exito)
+        {
+            _errorCxP = error;
+            return;
+        }
+
+        _formCxP = new CrearCuentaPorPagarRequestDto();
+        await CargarAsync();
+    }
+
+    private void AbrirPagoCxP(CuentaPorPagarDto cuenta)
+    {
+        _cuentaPagoCxP = cuenta;
+        _formPagoCxP = new RegistrarPagoRequestDto();
+    }
+
+    private async Task ConfirmarPagoCxPAsync()
+    {
+        if (_cuentaPagoCxP is null) return;
+        await ApiClient.PagarCuentaPorPagarAsync(SucursalId, _cuentaPagoCxP.Id, _formPagoCxP);
+        _cuentaPagoCxP = null;
+        await CargarAsync();
+    }
+}
