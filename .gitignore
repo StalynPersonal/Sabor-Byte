@@ -37,3 +37,5 @@ Api/certificados/*
 e2e/test-results/
 e2e/playwright-report/
 e2e/playwright/.cache/
+
+xsd/
