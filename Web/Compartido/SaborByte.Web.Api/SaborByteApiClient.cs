@@ -187,6 +187,34 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<List<ClienteDto>> BuscarClientesAsync(Guid sucursalId, string? texto = null)
+    {
+        AdjuntarToken();
+        var url = $"api/clientes?sucursalId={sucursalId}&texto={Uri.EscapeDataString(texto ?? string.Empty)}";
+        return await http.GetFromJsonAsync<List<ClienteDto>>(url) ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearClienteAsync(Guid sucursalId, GuardarClienteRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/clientes?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarClienteAsync(Guid sucursalId, Guid clienteId, GuardarClienteRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/clientes/{clienteId}?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> DesactivarClienteAsync(Guid sucursalId, Guid clienteId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.DeleteAsync($"api/clientes/{clienteId}?sucursalId={sucursalId}");
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<List<UsuarioDto>> ListarUsuariosAsync()
     {
         AdjuntarToken();

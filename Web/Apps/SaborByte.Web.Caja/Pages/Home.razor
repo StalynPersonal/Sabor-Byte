@@ -116,6 +116,11 @@ else
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" Class="mb-2">Carrito</MudText>
 
+                <MudAutocomplete T="ClienteDto" Label="Cliente (opcional)" Value="_clienteSeleccionado"
+                                  ValueChanged="OnClienteSeleccionado" SearchFunc="BuscarClientesAsync"
+                                  ToStringFunc="@(c => c is null ? string.Empty : $"{c.NombreORazonSocial} ({c.RncOCedula})")"
+                                  Clearable="true" Class="mb-2" />
+
                 @foreach (var linea in _carrito)
                 {
                     <div class="d-flex justify-space-between mb-1">
@@ -239,6 +244,7 @@ else
     private readonly List<LineaCarrito> _carrito = [];
     private FormaPago _formaPago = FormaPago.Efectivo;
     private decimal _porcentajePropina;
+    private ClienteDto? _clienteSeleccionado;
 
     private bool _mostrarDialogoDescuento;
     private string _supervisorUsuario = string.Empty;
@@ -305,6 +311,14 @@ else
         _productos = await ApiClient.BuscarProductosAsync(sucursalId, _textoBusqueda);
     }
 
+    private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct)
+    {
+        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        return await ApiClient.BuscarClientesAsync(sucursalId, texto);
+    }
+
+    private void OnClienteSeleccionado(ClienteDto? cliente) => _clienteSeleccionado = cliente;
+
     private void AgregarAlCarrito(ProductoResumenDto producto)
     {
         var existente = _carrito.FirstOrDefault(l => l.ProductoId == producto.Id);
@@ -348,6 +362,7 @@ else
         var request = new CrearVentaRequestDto
         {
             TurnoCajaId = _turnoCajaId!.Value,
+            ClienteId = _clienteSeleccionado?.Id,
             FormaPago = _formaPago,
             Items = _carrito.Select((l, indice) => new ItemVentaDto
             {
@@ -377,6 +392,7 @@ else
         _descuentoAutorizado = false;
         _codigoAutorizacionDescuento = null;
         _montoDescuento = 0;
+        _clienteSeleccionado = null;
 
         StateHasChanged();
         await JS.InvokeVoidAsync("print");
