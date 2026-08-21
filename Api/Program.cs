@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SaborByte.Api.Hubs;
+using SaborByte.Api.Salud;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Infraestructura;
 using SaborByte.Infraestructura.Persistencia;
@@ -96,6 +97,10 @@ builder.Services.AddRateLimiter(opciones =>
             }));
 });
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<SaborByteDbContext>(name: "base-de-datos")
+    .AddCheck<FacturacionPendienteHealthCheck>("facturacion-electronica-pendiente");
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -120,5 +125,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<ComandaHub>("/hubs/comandas");
+app.MapHealthChecks("/health");
 
 app.Run();
