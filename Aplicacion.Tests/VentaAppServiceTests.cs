@@ -158,4 +158,8 @@ public class VentaAppServiceTests
                 Items = [new ItemVentaDto { ProductoId = _productoId, Cantidad = 1 }]
             }));
     }
+
+    // La regresión de concurrencia del NCF vive en VentaAppServiceConcurrenciaTests.cs (usa
+    // SQLite en memoria, no el proveedor InMemory de aquí, porque InMemory no soporta
+    // ExecuteUpdateAsync — que es justamente el mecanismo del fix).
 }

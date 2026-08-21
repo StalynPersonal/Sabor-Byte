@@ -132,23 +132,44 @@ public class VentaAppService(
 
     // v1: sin e-CF (Fase 4 pendiente). Si hay una secuencia NCF tradicional activa, se asigna;
     // si no, la factura queda "sin NCF" (consumo interno), sin bloquear la venta.
+    //
+    // La reserva del número es un compare-and-swap contra la base (ExecuteUpdateAsync, fuera
+    // del change tracker), no una lectura + incremento en memoria persistido recién en el
+    // SaveChanges final de CrearVentaAsync: con ese enfoque anterior, dos ventas concurrentes
+    // podían leer el mismo SecuenciaProxima antes de que cualquiera escribiera, y ambas
+    // terminaban con el mismo NCF — bug real encontrado con una prueba de carga de ventas
+    // concurrentes (ver pruebas-carga/concurrencia-ventas.js). El UPDATE con el filtro exacto
+    // "SecuenciaProxima == numeroReservado" hace que, bajo concurrencia, solo una de las
+    // transacciones actualice la fila con ese valor; la otra recibe 0 filas y reintenta con
+    // el valor ya avanzado.
     private async Task AsignarNcfSiAplicaAsync(Guid sucursalId, Factura factura, CancellationToken ct)
     {
-        var secuencia = await db.SecuenciasNcf.FirstOrDefaultAsync(s =>
-            s.SucursalId == sucursalId &&
-            s.Activa &&
-            s.FechaVencimiento > DateTime.UtcNow &&
-            s.SecuenciaProxima <= s.SecuenciaFinal, ct);
-
-        if (secuencia is null)
+        while (true)
         {
-            factura.EstadoDgii = EstadoDgii.NoAplica;
+            var secuencia = await db.SecuenciasNcf.AsNoTracking().FirstOrDefaultAsync(s =>
+                s.SucursalId == sucursalId &&
+                s.Activa &&
+                s.FechaVencimiento > DateTime.UtcNow &&
+                s.SecuenciaProxima <= s.SecuenciaFinal, ct);
+
+            if (secuencia is null)
+            {
+                factura.EstadoDgii = EstadoDgii.NoAplica;
+                return;
+            }
+
+            var numeroReservado = secuencia.SecuenciaProxima;
+            var filasActualizadas = await db.SecuenciasNcf
+                .Where(s => s.Id == secuencia.Id && s.SecuenciaProxima == numeroReservado)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.SecuenciaProxima, x => x.SecuenciaProxima + 1), ct);
+
+            if (filasActualizadas == 0)
+                continue; // otra venta concurrente ya reservó este número; reintentar con el valor actualizado
+
+            factura.NumeroNcf = secuencia.FormatearNumero(numeroReservado);
+            factura.TipoComprobante = secuencia.TipoComprobante;
+            factura.EstadoDgii = EstadoDgii.NoAplica; // no es e-CF, es NCF tradicional
             return;
         }
-
-        factura.NumeroNcf = secuencia.FormatearNumero(secuencia.SecuenciaProxima);
-        factura.TipoComprobante = secuencia.TipoComprobante;
-        factura.EstadoDgii = EstadoDgii.NoAplica; // no es e-CF, es NCF tradicional
-        secuencia.SecuenciaProxima++;
     }
 }
