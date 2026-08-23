@@ -134,6 +134,28 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await http.GetFromJsonAsync<ResumenTurnoDto>($"api/caja/turnos/{turnoCajaId}/resumen");
     }
 
+    public async Task<ResultadoPaginadoDto<TurnoCerradoResumenDto>> ListarTurnosCerradosAsync(
+        Guid sucursalId, Guid? cajaId, DateTime? desde, DateTime? hasta, int pagina, int tamanoPagina)
+    {
+        AdjuntarToken();
+        var url = $"api/caja/turnos/cerrados?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
+        if (cajaId is not null)
+            url += $"&cajaId={cajaId}";
+        if (desde is not null)
+            url += $"&desde={desde:O}";
+        if (hasta is not null)
+            url += $"&hasta={hasta:O}";
+
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<TurnoCerradoResumenDto>>(url)
+            ?? new ResultadoPaginadoDto<TurnoCerradoResumenDto>();
+    }
+
+    public async Task<ResumenTurnoDto?> ObtenerDetalleCuadreAsync(Guid turnoCajaId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<ResumenTurnoDto>($"api/caja/turnos/{turnoCajaId}/detalle");
+    }
+
     public async Task<(bool Exito, string? Error)> CerrarTurnoAsync(CerrarTurnoRequestDto request)
     {
         AdjuntarToken();
@@ -272,11 +294,14 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await http.GetFromJsonAsync<List<ProductoDetalleDto>>(url) ?? [];
     }
 
-    public async Task<List<MovimientoInventarioDto>> ListarMovimientosInventarioAsync(Guid sucursalId, Guid? productoId = null)
+    public async Task<ResultadoPaginadoDto<MovimientoInventarioDto>> ListarMovimientosInventarioAsync(
+        Guid sucursalId, int pagina, int tamanoPagina, Guid? productoId = null)
     {
         AdjuntarToken();
-        var url = $"api/inventario/movimientos?sucursalId={sucursalId}" + (productoId is null ? "" : $"&productoId={productoId}");
-        return await http.GetFromJsonAsync<List<MovimientoInventarioDto>>(url) ?? [];
+        var url = $"api/inventario/movimientos?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}"
+            + (productoId is null ? "" : $"&productoId={productoId}");
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<MovimientoInventarioDto>>(url)
+            ?? new ResultadoPaginadoDto<MovimientoInventarioDto>();
     }
 
     public async Task<(bool Exito, string? Error)> RegistrarEntradaInventarioAsync(Guid sucursalId, RegistrarEntradaRequestDto request)

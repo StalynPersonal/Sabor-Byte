@@ -76,8 +76,33 @@ public class ResumenTurnoDto
 {
     public Guid TurnoCajaId { get; set; }
     public EstadoTurnoCaja Estado { get; set; }
+    public string? CajaNumero { get; set; }
     public DateTime FechaHoraApertura { get; set; }
     public DateTime? FechaHoraCierre { get; set; }
     public decimal MontoAperturaEfectivo { get; set; }
+    public string? UsuarioAperturaNombre { get; set; }
+    public string? UsuarioCierreNombre { get; set; }
     public List<TotalPorFormaPagoDto> Totales { get; set; } = [];
+    public List<DetalleDenominacionDto> Denominaciones { get; set; } = [];
+}
+
+public class DetalleDenominacionDto
+{
+    public required string MetodoPagoNombre { get; set; }
+    public decimal? Denominacion { get; set; }
+    public int Cantidad { get; set; }
+    public decimal Subtotal { get; set; }
+}
+
+// Un turno ya cerrado — fila del listado "Cuadres de Caja" en Central.
+public class TurnoCerradoResumenDto
+{
+    public Guid TurnoCajaId { get; set; }
+    public required string CajaNumero { get; set; }
+    public DateTime FechaHoraApertura { get; set; }
+    public DateTime? FechaHoraCierre { get; set; }
+    public string? UsuarioAperturaNombre { get; set; }
+    public string? UsuarioCierreNombre { get; set; }
+    public decimal TotalVendido { get; set; }
+    public decimal DiferenciaTotal { get; set; }
 }

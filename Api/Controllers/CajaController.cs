@@ -90,6 +90,37 @@ public class CajaController(CajaAppService cajaAppService) : ControllerBase
         }
     }
 
+    // Historial de turnos ya cerrados (el "cuadre" de caja) — para la pantalla "Cuadres
+    // de Caja" en Central. No exige que el usuario esté asignado a la sucursal si es
+    // Admin, mismo criterio que "gestion" en otros controllers.
+    [HttpGet("turnos/cerrados")]
+    public async Task<IActionResult> ListarTurnosCerrados(
+        [FromQuery] Guid sucursalId, [FromQuery] Guid? cajaId, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta,
+        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
+    {
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await cajaAppService.ListarTurnosCerradosAsync(
+            sucursalId, cajaId, desde, hasta, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
+    }
+
+    // Detalle completo de un cuadre (abierto o cerrado) — reutiliza ObtenerResumenAsync,
+    // que ya trae esperado/contado/diferencia y el desglose de denominaciones cuando el
+    // turno está cerrado.
+    [HttpGet("turnos/{turnoCajaId:guid}/detalle")]
+    public async Task<IActionResult> ObtenerDetalleCuadre(Guid turnoCajaId, CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await cajaAppService.ObtenerResumenAsync(turnoCajaId, User.ObtenerSucursalesPermitidas(), ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { mensaje = ex.Message });
+        }
+    }
+
     [HttpGet("turnos/{turnoCajaId:guid}/resumen")]
     public async Task<ActionResult<ResumenTurnoDto>> ObtenerResumen(Guid turnoCajaId, CancellationToken ct)
     {

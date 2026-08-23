@@ -1,0 +1,224 @@
+@page "/cuadres-caja"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">Cuadres de Caja</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">
+        Historial de turnos ya cerrados, con lo esperado, lo contado y la diferencia por
+        forma de pago — lo mismo que se ve al cerrar el turno en Caja, pero disponible
+        después.
+    </MudText>
+
+    @if (_sucursalId == Guid.Empty)
+    {
+        <MudText Typo="Typo.body2">Cargando...</MudText>
+    }
+    else
+    {
+        <MudPaper Class="pa-3 mb-3">
+            <MudGrid>
+                <MudItem xs="6" sm="4" md="3">
+                    <MudSelect T="Guid" Label="Sucursal" Value="_sucursalId" ValueChanged="OnSucursalCambiadaAsync">
+                        @foreach (var sucursal in _sucursales)
+                        {
+                            <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="4" md="3">
+                    <MudSelect T="Guid?" Label="Caja" Value="_cajaId" ValueChanged="v => OnFiltroCambiado(() => _cajaId = v)">
+                        <MudSelectItem Value="@((Guid?)null)">Todas</MudSelectItem>
+                        @foreach (var caja in _cajas)
+                        {
+                            <MudSelectItem Value="@((Guid?)caja.Id)">Caja @caja.Numero</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="4" md="3">
+                    <MudDatePicker Label="Desde" Date="_desde" DateChanged="v => OnFiltroCambiado(() => _desde = v)" />
+                </MudItem>
+                <MudItem xs="6" sm="4" md="3">
+                    <MudDatePicker Label="Hasta" Date="_hasta" DateChanged="v => OnFiltroCambiado(() => _hasta = v)" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="TurnoCerradoResumenDto">
+            <HeaderContent>
+                <MudTh>Caja</MudTh>
+                <MudTh>Apertura</MudTh>
+                <MudTh>Cierre</MudTh>
+                <MudTh>Abrió</MudTh>
+                <MudTh>Cerró</MudTh>
+                <MudTh>Total vendido</MudTh>
+                <MudTh>Diferencia</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>Caja @context.CajaNumero</MudTd>
+                <MudTd>@context.FechaHoraApertura.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>@(context.FechaHoraCierre?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>
+                <MudTd>@(context.UsuarioAperturaNombre ?? "—")</MudTd>
+                <MudTd>@(context.UsuarioCierreNombre ?? "—")</MudTd>
+                <MudTd>RD$ @context.TotalVendido.ToString("0.00")</MudTd>
+                <MudTd Style="@EstiloDiferencia(context.DiferenciaTotal)">
+                    @(context.DiferenciaTotal > 0 ? "+" : "")RD$ @context.DiferenciaTotal.ToString("0.00")
+                </MudTd>
+                <MudTd>
+                    <MudTooltip Text="Ver detalle">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerDetalleAsync(context.TurnoCajaId)" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2">No hay turnos cerrados todavía para este filtro.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+            </PagerContent>
+        </MudTable>
+    }
+}
+
+<MudDialog @bind-Visible="_viendoDetalle" Options="_opcionesDialogo">
+    <TitleContent>Cuadre — Caja @_detalle?.CajaNumero</TitleContent>
+    <DialogContent>
+        @if (_detalle is not null)
+        {
+            <MudGrid Class="mb-3">
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Apertura</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">
+                        @_detalle.FechaHoraApertura.ToLocalTime().ToString("dd/MM/yyyy HH:mm") — @(_detalle.UsuarioAperturaNombre ?? "—")
+                    </MudText>
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Monto de apertura (efectivo)</MudText>
+                    <MudText Typo="Typo.body2">RD$ @_detalle.MontoAperturaEfectivo.ToString("0.00")</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Cierre</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">
+                        @(_detalle.FechaHoraCierre?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—") — @(_detalle.UsuarioCierreNombre ?? "—")
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Por forma de pago</MudText>
+            <MudTable Items="_detalle.Totales" Hover="true" Dense="true" Class="mb-3">
+                <HeaderContent>
+                    <MudTh>Forma de pago</MudTh>
+                    <MudTh>Esperado</MudTh>
+                    <MudTh>Contado</MudTh>
+                    <MudTh>Diferencia</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.MetodoPagoNombre</MudTd>
+                    <MudTd>RD$ @context.Esperado.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Contado.ToString("0.00")</MudTd>
+                    <MudTd Style="@EstiloDiferencia(context.Diferencia)">
+                        @(context.Diferencia > 0 ? "+" : "")RD$ @context.Diferencia.ToString("0.00")
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            @if (_detalle.Denominaciones.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Desglose de efectivo contado</MudText>
+                <MudTable Items="_detalle.Denominaciones" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Denominación</MudTh>
+                        <MudTh>Cantidad</MudTh>
+                        <MudTh>Subtotal</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>RD$ @context.Denominacion?.ToString("0.00")</MudTd>
+                        <MudTd>@context.Cantidad</MudTd>
+                        <MudTd>RD$ @context.Subtotal.ToString("0.00")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _viendoDetalle = false">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private MudTable<TurnoCerradoResumenDto>? _tabla;
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private List<SucursalResumenDto> _sucursales = [];
+    private Guid _sucursalId;
+    private List<CajaResumenDto> _cajas = [];
+    private Guid? _cajaId;
+    private DateTime? _desde;
+    private DateTime? _hasta;
+
+    private bool _viendoDetalle;
+    private ResumenTurnoDto? _detalle;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _sucursalId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
+            ? Sesion.SucursalActivaId
+            : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        if (_sucursalId != Guid.Empty)
+            _cajas = await ApiClient.ListarCajasAsync(_sucursalId);
+    }
+
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
+    {
+        _sucursalId = sucursalId;
+        _cajaId = null;
+        _cajas = await ApiClient.ListarCajasAsync(_sucursalId);
+        await RecargarTablaAsync();
+    }
+
+    private async Task OnFiltroCambiado(Action aplicar)
+    {
+        aplicar();
+        await RecargarTablaAsync();
+    }
+
+    private async Task<TableData<TurnoCerradoResumenDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
+    {
+        var resultado = await ApiClient.ListarTurnosCerradosAsync(
+            _sucursalId, _cajaId, _desde, _hasta?.AddDays(1).AddSeconds(-1), estado.Page + 1, estado.PageSize);
+        return new TableData<TurnoCerradoResumenDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private Task RecargarTablaAsync() => _tabla?.ReloadServerData() ?? Task.CompletedTask;
+
+    private async Task VerDetalleAsync(Guid turnoCajaId)
+    {
+        _detalle = await ApiClient.ObtenerDetalleCuadreAsync(turnoCajaId);
+        _viendoDetalle = _detalle is not null;
+    }
+
+    private static string EstiloDiferencia(decimal diferencia) => diferencia switch
+    {
+        0 => "",
+        > 0 => "color:var(--mud-palette-success); font-weight:bold",
+        _ => "color:var(--mud-palette-error); font-weight:bold"
+    };
+}

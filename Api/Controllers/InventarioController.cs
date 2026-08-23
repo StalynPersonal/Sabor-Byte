@@ -13,12 +13,14 @@ public class InventarioController(InventarioAppService inventario) : ControllerB
 {
     [HttpGet("movimientos")]
     public async Task<IActionResult> ListarMovimientos(
-        [FromQuery] Guid sucursalId, [FromQuery] Guid? productoId, CancellationToken ct)
+        [FromQuery] Guid sucursalId, [FromQuery] Guid? productoId,
+        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
-        return Ok(await inventario.ListarMovimientosAsync(sucursalId, productoId, ct));
+        return Ok(await inventario.ListarMovimientosAsync(
+            sucursalId, productoId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
     }
 
     [HttpPost("entradas")]

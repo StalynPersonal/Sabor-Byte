@@ -103,7 +103,12 @@ public class ProductoAppService(IAppDbContext db)
         var query = db.Productos.Where(p => p.Activo && p.Inventariable);
 
         if (!string.IsNullOrWhiteSpace(texto))
-            query = query.Where(p => EF.Functions.Like(p.Nombre, $"%{texto}%"));
+        {
+            query = query.Where(p =>
+                EF.Functions.Like(p.Nombre, $"%{texto}%") ||
+                (p.Codigo != null && EF.Functions.Like(p.Codigo, $"%{texto}%")) ||
+                p.CodigosBarra.Any(cb => EF.Functions.Like(cb.CodigoBarra, $"%{texto}%")));
+        }
 
         var items = await query
             .OrderBy(p => p.Nombre)

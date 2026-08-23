@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SaborByte.Aplicacion.Comun;
 using SaborByte.Aplicacion.Inventario.Dtos;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Catalogo;
@@ -90,30 +91,46 @@ public class InventarioAppService(IAppDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<List<MovimientoInventarioDto>> ListarMovimientosAsync(
-        Guid sucursalId, Guid? productoId, CancellationToken ct = default)
+    public async Task<ResultadoPaginado<MovimientoInventarioDto>> ListarMovimientosAsync(
+        Guid sucursalId, Guid? productoId, int pagina, int tamanoPagina, CancellationToken ct = default)
     {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
         var query = db.MovimientosInventario.Where(m => m.SucursalId == sucursalId);
         if (productoId is not null)
             query = query.Where(m => m.ProductoId == productoId);
 
-        var movimientos = await query.OrderByDescending(m => m.FechaHora).Take(200).ToListAsync(ct);
+        var total = await query.CountAsync(ct);
+
+        var movimientos = await query
+            .OrderByDescending(m => m.FechaHora)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .ToListAsync(ct);
+
         var productoIds = movimientos.Select(m => m.ProductoId).Distinct().ToList();
         var nombres = await db.Productos
             .Where(p => productoIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Nombre, ct);
 
-        return movimientos.Select(m => new MovimientoInventarioDto
+        return new Comun.ResultadoPaginado<MovimientoInventarioDto>
         {
-            Id = m.Id,
-            ProductoId = m.ProductoId,
-            NombreProducto = nombres.GetValueOrDefault(m.ProductoId, "(producto eliminado)"),
-            Tipo = m.Tipo,
-            Cantidad = m.Cantidad,
-            SaldoResultante = m.SaldoResultante,
-            Nota = m.Nota,
-            FechaHora = m.FechaHora
-        }).ToList();
+            Items = movimientos.Select(m => new MovimientoInventarioDto
+            {
+                Id = m.Id,
+                ProductoId = m.ProductoId,
+                NombreProducto = nombres.GetValueOrDefault(m.ProductoId, "(producto eliminado)"),
+                Tipo = m.Tipo,
+                Cantidad = m.Cantidad,
+                SaldoResultante = m.SaldoResultante,
+                Nota = m.Nota,
+                FechaHora = m.FechaHora
+            }).ToList(),
+            Pagina = pagina,
+            TamanoPagina = tamanoPagina,
+            TotalRegistros = total
+        };
     }
 
     private async Task<Producto> ObtenerInsumoAsync(Guid productoId, CancellationToken ct)

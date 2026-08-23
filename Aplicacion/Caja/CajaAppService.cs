@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Caja.Dtos;
+using SaborByte.Aplicacion.Comun;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Caja;
 
@@ -162,29 +163,162 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
     {
         var turno = await ObtenerTurnoDeSucursalPermitidaAsync(turnoCajaId, sucursalesPermitidas, ct);
 
-        var totalesEsperados = await db.MovimientosCaja
+        var caja = await db.Cajas.Where(c => c.Id == turno.CajaId).Select(c => c.Numero).FirstOrDefaultAsync(ct);
+
+        var usuarioIds = new List<Guid> { turno.UsuarioAperturaId };
+        if (turno.UsuarioCierreId is Guid idCierre)
+            usuarioIds.Add(idCierre);
+        var nombresUsuarios = await db.Usuarios.Where(u => usuarioIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Nombre, ct);
+
+        var ventasPorMetodo = await db.MovimientosCaja
             .Where(m => m.TurnoCajaId == turnoCajaId && m.Tipo == TipoMovimientoCaja.Venta)
             .GroupBy(m => m.MetodoPagoId)
             .Select(g => new { MetodoPagoId = g.Key, Total = g.Sum(m => m.Monto) })
-            .ToListAsync(ct);
+            .ToDictionaryAsync(x => x.MetodoPagoId, x => x.Total, ct);
 
+        // El conteo de billetes/monedas al cerrar incluye el fondo de apertura (nadie lo
+        // separa físicamente del cajón) — así que "esperado" en efectivo también debe
+        // sumar MontoAperturaEfectivo, o la diferencia saldría siempre desviada por ese
+        // monto aunque el cuadre esté perfecto.
+        var metodoEfectivoId = await db.MetodosPago.Where(m => m.EsEfectivo).Select(m => m.Id).FirstOrDefaultAsync(ct);
+
+        var denominaciones = await db.DenominacionesCierre
+            .Where(d => d.TurnoCajaId == turnoCajaId)
+            .ToListAsync(ct);
+        var contadoPorMetodo = denominaciones
+            .GroupBy(d => d.MetodoPagoId)
+            .ToDictionary(g => g.Key, g => g.Sum(d => d.Subtotal));
+
+        var metodoIds = ventasPorMetodo.Keys
+            .Concat(contadoPorMetodo.Keys)
+            .Concat(metodoEfectivoId != Guid.Empty ? [metodoEfectivoId] : [])
+            .Distinct()
+            .ToList();
         var nombresMetodos = await db.MetodosPago
-            .Where(m => totalesEsperados.Select(t => t.MetodoPagoId).Contains(m.Id))
+            .Where(m => metodoIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id, m => m.Nombre, ct);
+
+        var totales = metodoIds.Select(metodoId =>
+        {
+            var esperado = ventasPorMetodo.GetValueOrDefault(metodoId) + (metodoId == metodoEfectivoId ? turno.MontoAperturaEfectivo : 0);
+            var contado = contadoPorMetodo.GetValueOrDefault(metodoId);
+            return new TotalPorFormaPagoDto
+            {
+                MetodoPagoId = metodoId,
+                MetodoPagoNombre = nombresMetodos.GetValueOrDefault(metodoId, "?"),
+                Esperado = esperado,
+                Contado = turno.Estado == EstadoTurnoCaja.Cerrado ? contado : 0,
+                Diferencia = turno.Estado == EstadoTurnoCaja.Cerrado ? contado - esperado : 0
+            };
+        }).OrderByDescending(t => t.MetodoPagoId == metodoEfectivoId).ThenBy(t => t.MetodoPagoNombre).ToList();
 
         return new ResumenTurnoDto
         {
             TurnoCajaId = turno.Id,
             Estado = turno.Estado,
+            CajaNumero = caja,
             FechaHoraApertura = turno.FechaHoraApertura,
             FechaHoraCierre = turno.FechaHoraCierre,
             MontoAperturaEfectivo = turno.MontoAperturaEfectivo,
-            Totales = totalesEsperados.Select(t => new TotalPorFormaPagoDto
+            UsuarioAperturaNombre = nombresUsuarios.GetValueOrDefault(turno.UsuarioAperturaId),
+            UsuarioCierreNombre = turno.UsuarioCierreId is Guid uc ? nombresUsuarios.GetValueOrDefault(uc) : null,
+            Totales = totales,
+            Denominaciones = denominaciones
+                .Where(d => d.Denominacion is not null)
+                .OrderByDescending(d => d.Denominacion)
+                .Select(d => new DetalleDenominacionDto
+                {
+                    MetodoPagoNombre = nombresMetodos.GetValueOrDefault(d.MetodoPagoId, "?"),
+                    Denominacion = d.Denominacion,
+                    Cantidad = d.Cantidad,
+                    Subtotal = d.Subtotal
+                }).ToList()
+        };
+    }
+
+    // Listado de turnos ya cerrados (el "cuadre" queda guardado desde CerrarTurnoAsync,
+    // pero hasta ahora no había ninguna pantalla que lo mostrara después del cierre).
+    public async Task<ResultadoPaginado<TurnoCerradoResumenDto>> ListarTurnosCerradosAsync(
+        Guid sucursalId, Guid? cajaId, DateTime? desde, DateTime? hasta,
+        int pagina, int tamanoPagina, CancellationToken ct = default)
+    {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
+        var query =
+            from t in db.TurnosCaja
+            join c in db.Cajas on t.CajaId equals c.Id
+            where c.SucursalId == sucursalId && t.Estado == EstadoTurnoCaja.Cerrado
+            select new { Turno = t, CajaNumero = c.Numero, CajaId = c.Id };
+
+        if (cajaId is not null)
+            query = query.Where(x => x.CajaId == cajaId.Value);
+        if (desde is not null)
+            query = query.Where(x => x.Turno.FechaHoraCierre >= desde.Value);
+        if (hasta is not null)
+            query = query.Where(x => x.Turno.FechaHoraCierre <= hasta.Value);
+
+        var total = await query.CountAsync(ct);
+
+        var turnos = await query
+            .OrderByDescending(x => x.Turno.FechaHoraCierre)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .Select(x => new { x.Turno, x.CajaNumero })
+            .ToListAsync(ct);
+
+        var turnoIds = turnos.Select(t => t.Turno.Id).ToList();
+
+        var metodoEfectivoId = await db.MetodosPago.Where(m => m.EsEfectivo).Select(m => m.Id).FirstOrDefaultAsync(ct);
+
+        var ventasPorTurno = await db.MovimientosCaja
+            .Where(m => turnoIds.Contains(m.TurnoCajaId) && m.Tipo == TipoMovimientoCaja.Venta)
+            .GroupBy(m => m.TurnoCajaId)
+            .Select(g => new { TurnoCajaId = g.Key, Total = g.Sum(m => m.Monto) })
+            .ToDictionaryAsync(x => x.TurnoCajaId, x => x.Total, ct);
+
+        var esperadoPorTurnoYMetodo = await db.MovimientosCaja
+            .Where(m => turnoIds.Contains(m.TurnoCajaId) && m.Tipo == TipoMovimientoCaja.Venta)
+            .GroupBy(m => new { m.TurnoCajaId, m.MetodoPagoId })
+            .Select(g => new { g.Key.TurnoCajaId, g.Key.MetodoPagoId, Total = g.Sum(m => m.Monto) })
+            .ToListAsync(ct);
+
+        var contadoPorTurno = await db.DenominacionesCierre
+            .Where(d => turnoIds.Contains(d.TurnoCajaId))
+            .GroupBy(d => d.TurnoCajaId)
+            .Select(g => new { TurnoCajaId = g.Key, Total = g.Sum(d => d.Subtotal) })
+            .ToDictionaryAsync(x => x.TurnoCajaId, x => x.Total, ct);
+
+        var usuarioIds = turnos.Select(t => t.Turno.UsuarioAperturaId)
+            .Concat(turnos.Where(t => t.Turno.UsuarioCierreId.HasValue).Select(t => t.Turno.UsuarioCierreId!.Value))
+            .Distinct().ToList();
+        var nombresUsuarios = await db.Usuarios.Where(u => usuarioIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Nombre, ct);
+
+        var items = turnos.Select(t =>
+        {
+            var esperadoTotal = esperadoPorTurnoYMetodo.Where(e => e.TurnoCajaId == t.Turno.Id).Sum(e => e.Total)
+                + t.Turno.MontoAperturaEfectivo;
+            var contadoTotal = contadoPorTurno.GetValueOrDefault(t.Turno.Id);
+
+            return new TurnoCerradoResumenDto
             {
-                MetodoPagoId = t.MetodoPagoId,
-                MetodoPagoNombre = nombresMetodos.GetValueOrDefault(t.MetodoPagoId, ""),
-                Esperado = t.Total
-            }).ToList()
+                TurnoCajaId = t.Turno.Id,
+                CajaNumero = t.CajaNumero,
+                FechaHoraApertura = t.Turno.FechaHoraApertura,
+                FechaHoraCierre = t.Turno.FechaHoraCierre,
+                UsuarioAperturaNombre = nombresUsuarios.GetValueOrDefault(t.Turno.UsuarioAperturaId),
+                UsuarioCierreNombre = t.Turno.UsuarioCierreId is Guid idCierre ? nombresUsuarios.GetValueOrDefault(idCierre) : null,
+                TotalVendido = ventasPorTurno.GetValueOrDefault(t.Turno.Id),
+                DiferenciaTotal = contadoTotal - esperadoTotal
+            };
+        }).ToList();
+
+        return new ResultadoPaginado<TurnoCerradoResumenDto>
+        {
+            Items = items,
+            Pagina = pagina,
+            TamanoPagina = tamanoPagina,
+            TotalRegistros = total
         };
     }
 
