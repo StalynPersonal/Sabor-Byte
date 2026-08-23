@@ -1,0 +1,112 @@
+@page "/correo-smtp"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">Correo saliente (SMTP)</MudText>
+
+    <MudSelect T="Guid" Label="Sucursal" Value="_sucursalSeleccionadaId" ValueChanged="OnSucursalCambiadaAsync" Class="mb-4" Style="max-width:400px">
+        @foreach (var sucursal in _sucursales)
+        {
+            <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+        }
+    </MudSelect>
+
+    @if (_form is not null)
+    {
+        <MudPaper Class="pa-4" Style="max-width:600px">
+            <MudCheckBox T="bool" @bind-Value="_form.SmtpActivo" Label="Activar envío de correo" Class="mb-2" />
+            @if (_form.SmtpActivo)
+            {
+                <MudTextField T="string" Label="Servidor SMTP" @bind-Value="_form.SmtpHost" Class="mb-2" />
+                <MudNumericField T="int?" Label="Puerto" @bind-Value="_form.SmtpPuerto" Class="mb-2" />
+                <MudTextField T="string" Label="Usuario" @bind-Value="_form.SmtpUsuario" Class="mb-2" />
+                <MudTextField T="string" Label="Contraseña (dejar en blanco para no cambiarla)" InputType="InputType.Password" @bind-Value="_form.SmtpPassword" Class="mb-2" />
+                <MudTextField T="string" Label="Remitente" @bind-Value="_form.SmtpRemitente" Class="mb-2" />
+                <MudCheckBox T="bool" @bind-Value="_form.SmtpUsaSsl" Label="Usar SSL/TLS" Class="mb-2" />
+            }
+
+            <div class="mt-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+            </div>
+        </MudPaper>
+    }
+}
+
+@code {
+    private List<SucursalResumenDto> _sucursales = [];
+    private Guid _sucursalSeleccionadaId;
+    private ActualizarSmtpRequestDto? _form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _sucursalSeleccionadaId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
+            ? Sesion.SucursalActivaId
+            : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        await CargarAsync();
+    }
+
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
+    {
+        _sucursalSeleccionadaId = sucursalId;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (_sucursalSeleccionadaId == Guid.Empty)
+        {
+            _form = null;
+            return;
+        }
+
+        var sucursal = await ApiClient.ObtenerSucursalAsync(_sucursalSeleccionadaId);
+        if (sucursal is null)
+        {
+            _form = null;
+            return;
+        }
+
+        _form = new ActualizarSmtpRequestDto
+        {
+            SmtpActivo = sucursal.SmtpActivo,
+            SmtpHost = sucursal.SmtpHost,
+            SmtpPuerto = sucursal.SmtpPuerto,
+            SmtpUsuario = sucursal.SmtpUsuario,
+            SmtpRemitente = sucursal.SmtpRemitente,
+            SmtpUsaSsl = sucursal.SmtpUsaSsl
+        };
+    }
+
+    private async Task GuardarAsync()
+    {
+        var (exito, error) = await ApiClient.ActualizarSmtpSucursalAsync(_sucursalSeleccionadaId, _form!);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Configuración de correo guardada.", Severity.Success);
+        await CargarAsync();
+    }
+}

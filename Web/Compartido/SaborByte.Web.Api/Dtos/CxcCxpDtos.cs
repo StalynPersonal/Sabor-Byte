@@ -64,5 +64,5 @@ public class CuentaPorPagarDto
 public class RegistrarPagoRequestDto
 {
     public decimal Monto { get; set; }
-    public string FormaPago { get; set; } = string.Empty;
+    public Guid MetodoPagoId { get; set; }
 }

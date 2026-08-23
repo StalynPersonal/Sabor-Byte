@@ -18,6 +18,12 @@ public class ClienteDto
     public bool Activo { get; set; }
 }
 
+// Respuesta genérica { id } que devuelven los endpoints "Crear" del backend.
+public class IdRespuestaDto
+{
+    public Guid Id { get; set; }
+}
+
 public class GuardarClienteRequestDto
 {
     public string NombreORazonSocial { get; set; } = string.Empty;

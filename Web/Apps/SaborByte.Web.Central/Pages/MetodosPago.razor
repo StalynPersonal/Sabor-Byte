@@ -1,0 +1,142 @@
+@page "/metodos-pago"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Métodos de Pago</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoMetodo">
+            Nuevo método
+        </MudButton>
+    </div>
+
+    <MudTable Items="_metodos" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Es efectivo</MudTh>
+            <MudTh>Requiere comprobante</MudTh>
+            <MudTh>Activo</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@(context.EsEfectivo ? "Sí" : "No")</MudTd>
+            <MudTd>@(context.RequiereComprobante ? "Sí" : "No")</MudTd>
+            <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarMetodo(context)" />
+                </MudTooltip>
+                @if (context.Activo)
+                {
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Activar">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_metodoId is null ? "Nuevo método de pago" : "Editar método de pago")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.EsEfectivo" Label="Es efectivo" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.RequiereComprobante" Label="Requiere número de comprobante" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<MetodoPagoDto> _metodos = [];
+    private bool _editando;
+    private Guid? _metodoId;
+    private GuardarMetodoPagoRequestDto _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync() => _metodos = await ApiClient.ListarMetodosPagoAsync(incluirInactivos: true);
+
+    private void NuevoMetodo()
+    {
+        _metodoId = null;
+        _form = new GuardarMetodoPagoRequestDto();
+        _editando = true;
+    }
+
+    private void EditarMetodo(MetodoPagoDto metodo)
+    {
+        _metodoId = metodo.Id;
+        _form = new GuardarMetodoPagoRequestDto
+        {
+            Nombre = metodo.Nombre,
+            EsEfectivo = metodo.EsEfectivo,
+            RequiereComprobante = metodo.RequiereComprobante,
+            Activo = metodo.Activo
+        };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        var (exito, error) = _metodoId is null
+            ? await ApiClient.CrearMetodoPagoAsync(_form)
+            : await ApiClient.ActualizarMetodoPagoAsync(_metodoId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_metodoId is null ? "Método de pago creado." : "Método de pago actualizado.", Severity.Success);
+        _editando = false;
+        await CargarAsync();
+    }
+
+    private async Task AlternarActivoAsync(MetodoPagoDto metodo)
+    {
+        var request = new GuardarMetodoPagoRequestDto
+        {
+            Nombre = metodo.Nombre,
+            EsEfectivo = metodo.EsEfectivo,
+            RequiereComprobante = metodo.RequiereComprobante,
+            Activo = !metodo.Activo
+        };
+        await ApiClient.ActualizarMetodoPagoAsync(metodo.Id, request);
+        await CargarAsync();
+    }
+}

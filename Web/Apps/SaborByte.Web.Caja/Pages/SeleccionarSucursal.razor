@@ -1,0 +1,67 @@
+@page "/seleccionar-sucursal"
+@layout LoginLayout
+@using SaborByte.Web.Api
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Caja</PageTitle>
+
+<div class="d-flex justify-center align-center" style="min-height:100vh">
+    <MudPaper Class="pa-6" Style="max-width:420px; width:100%">
+        <MudText Typo="Typo.h5" Class="mb-2">¿En qué sucursal vas a trabajar?</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">Tu usuario tiene acceso a varias sucursales. Elige una — se recordará en este dispositivo.</MudText>
+
+        <MudList T="Guid">
+            @foreach (var sucursal in Sesion.SucursalesPermitidas)
+            {
+                <MudListItem T="Guid" OnClick="() => SeleccionarAsync(sucursal.Id)" Icon="@Icons.Material.Filled.Store">
+                    @sucursal.Nombre
+                </MudListItem>
+            }
+        </MudList>
+    </MudPaper>
+</div>
+
+@code {
+    private const string ClaveLocalStorage = "sb_sucursal_activa";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        if (!Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/inicio");
+            return;
+        }
+
+        // Si esta tablet/navegador ya recordaba una sucursal válida para este usuario,
+        // se aplica sola sin mostrarle el selector — solo se pregunta la primera vez.
+        var recordada = await JS.InvokeAsync<string?>("localStorage.getItem", ClaveLocalStorage);
+        if (Guid.TryParse(recordada, out var sucursalId) && Sesion.SucursalesPermitidas.Any(s => s.Id == sucursalId))
+        {
+            await SeleccionarAsync(sucursalId);
+        }
+    }
+
+    private async Task SeleccionarAsync(Guid sucursalId)
+    {
+        var (exito, error) = await ApiClient.SeleccionarSucursalActivaAsync(sucursalId);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        await JS.InvokeVoidAsync("localStorage.setItem", ClaveLocalStorage, sucursalId.ToString());
+        Navegacion.NavigateTo("/inicio");
+    }
+}

@@ -1,0 +1,231 @@
+@page "/configuracion-caja"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">Configuración de Caja</MudText>
+
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true">
+        <MudTabPanel Text="Porcentajes de Propina">
+            <div class="d-flex justify-space-between align-center my-4">
+                <MudText Typo="Typo.body2">
+                    Estos son los porcentajes que ve el cajero al facturar (pestaña "Venta" de Caja).
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoPorcentaje">
+                    Nuevo porcentaje
+                </MudButton>
+            </div>
+
+            <MudTable Items="_porcentajes" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Porcentaje</MudTh>
+                    <MudTh>Activo</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@(context.Valor == 0 ? "Sin propina" : $"{context.Valor}%")</MudTd>
+                    <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="Editar">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarPorcentaje(context)" />
+                        </MudTooltip>
+                        @if (context.Activo)
+                        {
+                            <MudTooltip Text="Desactivar">
+                                <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => AlternarActivoPorcentajeAsync(context)" />
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudTooltip Text="Activar">
+                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" OnClick="() => AlternarActivoPorcentajeAsync(context)" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Denominaciones de Efectivo">
+            <div class="d-flex justify-space-between align-center my-4">
+                <MudText Typo="Typo.body2">
+                    Billetes y monedas que se cuentan al cerrar turno en Caja.
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaDenominacion">
+                    Nueva denominación
+                </MudButton>
+            </div>
+
+            <MudTable Items="_denominaciones" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Valor</MudTh>
+                    <MudTh>Activo</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>RD$ @context.Valor</MudTd>
+                    <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="Editar">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarDenominacion(context)" />
+                        </MudTooltip>
+                        @if (context.Activo)
+                        {
+                            <MudTooltip Text="Desactivar">
+                                <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => AlternarActivoDenominacionAsync(context)" />
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudTooltip Text="Activar">
+                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" OnClick="() => AlternarActivoDenominacionAsync(context)" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+}
+
+<MudDialog @bind-Visible="_editandoPorcentaje" Options="_opcionesDialogo">
+    <TitleContent>@(_porcentajeId is null ? "Nuevo porcentaje de propina" : "Editar porcentaje de propina")</TitleContent>
+    <DialogContent>
+        <MudNumericField T="decimal" Label="Porcentaje (0 = sin propina)" @bind-Value="_formPorcentaje.Valor" Min="0" Max="100" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_formPorcentaje.Activo" Label="Activo" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editandoPorcentaje = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarPorcentajeAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_editandoDenominacion" Options="_opcionesDialogo">
+    <TitleContent>@(_denominacionId is null ? "Nueva denominación" : "Editar denominación")</TitleContent>
+    <DialogContent>
+        <MudNumericField T="int" Label="Valor (RD$)" @bind-Value="_formDenominacion.Valor" Min="1" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_formDenominacion.Activo" Label="Activo" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editandoDenominacion = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarDenominacionAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<PorcentajePropinaDto> _porcentajes = [];
+    private bool _editandoPorcentaje;
+    private Guid? _porcentajeId;
+    private GuardarPorcentajePropinaRequestDto _formPorcentaje = new();
+
+    private List<DenominacionEfectivoDto> _denominaciones = [];
+    private bool _editandoDenominacion;
+    private Guid? _denominacionId;
+    private GuardarDenominacionEfectivoRequestDto _formDenominacion = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _porcentajes = await ApiClient.ListarPorcentajesPropinaAsync(incluirInactivos: true);
+        _denominaciones = await ApiClient.ListarDenominacionesEfectivoAsync(incluirInactivos: true);
+    }
+
+    private void NuevoPorcentaje()
+    {
+        _porcentajeId = null;
+        _formPorcentaje = new GuardarPorcentajePropinaRequestDto();
+        _editandoPorcentaje = true;
+    }
+
+    private void EditarPorcentaje(PorcentajePropinaDto porcentaje)
+    {
+        _porcentajeId = porcentaje.Id;
+        _formPorcentaje = new GuardarPorcentajePropinaRequestDto { Valor = porcentaje.Valor, Activo = porcentaje.Activo };
+        _editandoPorcentaje = true;
+    }
+
+    private async Task GuardarPorcentajeAsync()
+    {
+        var (exito, error) = _porcentajeId is null
+            ? await ApiClient.CrearPorcentajePropinaAsync(_formPorcentaje)
+            : await ApiClient.ActualizarPorcentajePropinaAsync(_porcentajeId.Value, _formPorcentaje);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_porcentajeId is null ? "Porcentaje creado." : "Porcentaje actualizado.", Severity.Success);
+        _editandoPorcentaje = false;
+        await CargarAsync();
+    }
+
+    private async Task AlternarActivoPorcentajeAsync(PorcentajePropinaDto porcentaje)
+    {
+        var request = new GuardarPorcentajePropinaRequestDto { Valor = porcentaje.Valor, Activo = !porcentaje.Activo };
+        await ApiClient.ActualizarPorcentajePropinaAsync(porcentaje.Id, request);
+        await CargarAsync();
+    }
+
+    private void NuevaDenominacion()
+    {
+        _denominacionId = null;
+        _formDenominacion = new GuardarDenominacionEfectivoRequestDto();
+        _editandoDenominacion = true;
+    }
+
+    private void EditarDenominacion(DenominacionEfectivoDto denominacion)
+    {
+        _denominacionId = denominacion.Id;
+        _formDenominacion = new GuardarDenominacionEfectivoRequestDto { Valor = denominacion.Valor, Activo = denominacion.Activo };
+        _editandoDenominacion = true;
+    }
+
+    private async Task GuardarDenominacionAsync()
+    {
+        var (exito, error) = _denominacionId is null
+            ? await ApiClient.CrearDenominacionEfectivoAsync(_formDenominacion)
+            : await ApiClient.ActualizarDenominacionEfectivoAsync(_denominacionId.Value, _formDenominacion);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_denominacionId is null ? "Denominación creada." : "Denominación actualizada.", Severity.Success);
+        _editandoDenominacion = false;
+        await CargarAsync();
+    }
+
+    private async Task AlternarActivoDenominacionAsync(DenominacionEfectivoDto denominacion)
+    {
+        var request = new GuardarDenominacionEfectivoRequestDto { Valor = denominacion.Valor, Activo = !denominacion.Activo };
+        await ApiClient.ActualizarDenominacionEfectivoAsync(denominacion.Id, request);
+        await CargarAsync();
+    }
+}

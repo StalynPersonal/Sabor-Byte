@@ -26,8 +26,15 @@ public class ClientesController(ClienteAppService clientes) : ControllerBase
         if (!User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
-        var id = await clientes.CrearAsync(sucursalId, request, ct);
-        return Ok(new { id });
+        try
+        {
+            var id = await clientes.CrearAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
+            return Ok(new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPut("{clienteId:guid}")]

@@ -139,3 +139,8 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* Color del panel de marca en el login (ver login.css) — azul, igual que el tema de la app. */
+:root {
+    --login-gradient-inicio: #245582;
+    --login-gradient-fin: #2E6DA4;
+}

@@ -80,12 +80,9 @@ public static class GeneradorXmlEcf32
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    // Catálogo DGII: 1 ITBIS1 18%, 2 ITBIS2 16%, 3 ITBIS3 0%, 4 Exento.
-    // TasaItbis null = el producto no aplica ITBIS (Exento); un valor (incluyendo 0)
-    // significa que sí aplica, a esa tasa.
-    private static int DeterminarIndicadorFacturacion(decimal? tasaItbis) => tasaItbis switch
+    // Catálogo DGII: 1 ITBIS1 18%, 2 ITBIS2 16%, 3 ITBIS3 0%.
+    private static int DeterminarIndicadorFacturacion(decimal tasaItbis) => tasaItbis switch
     {
-        null => 4,
         0.18m => 1,
         0.16m => 2,
         0m => 3,

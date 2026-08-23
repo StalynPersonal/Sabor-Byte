@@ -6,13 +6,14 @@ using SaborByte.Aplicacion.Facturacion.Dtos;
 
 namespace SaborByte.Api.Controllers;
 
+// Solo lectura desde Central (listar/ver detalle); la emisión ("Crear") solo la usa
+// Caja, gatillada por autorización de Supervisor/Admin — ver NotaCreditoAppService.CrearAsync.
 [ApiController]
-[Route("api/notascreditodebito")]
+[Route("api/notascredito")]
 [Authorize]
-public class NotasCreditoDebitoController(NotaCreditoDebitoAppService notas) : ControllerBase
+public class NotasCreditoController(NotaCreditoAppService notas) : ControllerBase
 {
     [HttpPost]
-    [Authorize(Roles = "Supervisor,Admin")]
     public async Task<IActionResult> Crear([FromQuery] Guid sucursalId, CrearNotaRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId))
@@ -28,6 +29,22 @@ public class NotasCreditoDebitoController(NotaCreditoDebitoAppService notas) : C
         }
     }
 
+    [HttpGet("facturas/{facturaId:guid}/detalle")]
+    public async Task<IActionResult> ObtenerDetalleDisponible([FromQuery] Guid sucursalId, Guid facturaId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        try
+        {
+            return Ok(await notas.ObtenerDetalleDisponibleAsync(sucursalId, facturaId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { mensaje = ex.Message });
+        }
+    }
+
     [HttpGet("por-factura/{facturaId:guid}")]
     public async Task<IActionResult> ListarPorFactura([FromQuery] Guid sucursalId, Guid facturaId, CancellationToken ct)
     {
@@ -37,12 +54,18 @@ public class NotasCreditoDebitoController(NotaCreditoDebitoAppService notas) : C
         return Ok(await notas.ListarPorFacturaAsync(sucursalId, facturaId, ct));
     }
 
-    [HttpGet("facturas")]
-    public async Task<IActionResult> BuscarFacturas([FromQuery] Guid sucursalId, [FromQuery] string? texto, CancellationToken ct)
+    [HttpGet]
+    public async Task<IActionResult> Listar(
+        [FromQuery] Guid sucursalId, [FromQuery] string? texto,
+        [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta,
+        [FromQuery] decimal? montoMinimo, [FromQuery] decimal? montoMaximo, [FromQuery] Guid? cajaId,
+        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
-        return Ok(await notas.BuscarFacturasAsync(sucursalId, texto, ct));
+        return Ok(await notas.ListarAsync(
+            sucursalId, texto, desde, hasta, montoMinimo, montoMaximo, cajaId,
+            pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
     }
 }

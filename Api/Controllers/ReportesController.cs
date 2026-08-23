@@ -38,4 +38,76 @@ public class ReportesController(ReporteAppService reportes) : ControllerBase
 
         return Ok(await reportes.VentasPorHoraAsync(sucursalId, request, ct));
     }
+
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> Dashboard([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.ObtenerDashboardAsync(sucursalId, ct));
+    }
+
+    [HttpPost("ventas-resumen-por-dia")]
+    public async Task<IActionResult> VentasResumenPorDia([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.VentasResumenPorDiaAsync(sucursalId, request, ct));
+    }
+
+    [HttpPost("ventas-detalle")]
+    public async Task<IActionResult> VentasDetalle([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.VentasDetalleAsync(sucursalId, request, ct));
+    }
+
+    [HttpPost("ventas-por-categoria")]
+    public async Task<IActionResult> VentasPorCategoria([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.VentasPorCategoriaAsync(sucursalId, request, ct));
+    }
+
+    [HttpPost("ventas-por-metodo-pago")]
+    public async Task<IActionResult> VentasPorMetodoPago([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.VentasPorMetodoPagoAsync(sucursalId, request, ct));
+    }
+
+    [HttpPost("movimientos-inventario")]
+    public async Task<IActionResult> MovimientosInventario([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.MovimientosInventarioAsync(sucursalId, request, ct));
+    }
+
+    [HttpGet("cxc-pendientes")]
+    public async Task<IActionResult> CxCPendientes([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.CxCPendientesAsync(sucursalId, ct));
+    }
+
+    [HttpGet("cxp-pendientes")]
+    public async Task<IActionResult> CxPPendientes([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.CxPPendientesAsync(sucursalId, ct));
+    }
 }

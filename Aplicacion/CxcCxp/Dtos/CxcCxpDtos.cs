@@ -13,7 +13,7 @@ public class CrearCuentaPorCobrarRequestDto
 public class RegistrarPagoRequestDto
 {
     public decimal Monto { get; set; }
-    public required string FormaPago { get; set; }
+    public Guid MetodoPagoId { get; set; }
 }
 
 public class CuentaPorCobrarDto

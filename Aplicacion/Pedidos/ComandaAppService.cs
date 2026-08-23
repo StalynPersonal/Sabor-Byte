@@ -18,16 +18,35 @@ public class ComandaAppService(
         if (request.Items.Count == 0)
             throw new InvalidOperationException("La comanda debe tener al menos un producto.");
 
+        if (request.MesaId is null)
+            throw new InvalidOperationException("Debes seleccionar una mesa.");
+
         var productoIds = request.Items.Select(i => i.ProductoId).ToList();
         var productos = await db.Productos
             .Where(p => productoIds.Contains(p.Id) && p.TipoProducto == TipoProducto.Vendible)
             .ToDictionaryAsync(p => p.Id, ct);
 
+        var ingredienteIds = request.Items.SelectMany(i => i.IngredientesExcluidosIds).Distinct().ToList();
+        var nombresIngredientes = await db.Productos
+            .Where(p => ingredienteIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Nombre, ct);
+
+        var mesa = await db.Mesas.FirstOrDefaultAsync(m => m.Id == request.MesaId && m.SucursalId == sucursalId, ct)
+            ?? throw new InvalidOperationException("La mesa no existe.");
+
+        var meseroId = request.MeseroId ?? usuarioMeseroId;
+        var nombreMesero = meseroId is null
+            ? null
+            : await db.Usuarios.Where(u => u.Id == meseroId).Select(u => u.Nombre).FirstOrDefaultAsync(ct);
+
         var comanda = new Comanda
         {
             SucursalId = sucursalId,
             MesaId = request.MesaId,
-            MeseroId = request.MeseroId ?? usuarioMeseroId
+            NumeroMesa = mesa.Numero,
+            NombreSalon = mesa.Salon,
+            MeseroId = meseroId,
+            NombreMesero = nombreMesero
         };
 
         foreach (var item in request.Items)
@@ -46,7 +65,13 @@ public class ComandaAppService(
             };
 
             foreach (var ingredienteId in item.IngredientesExcluidosIds)
-                comandaItem.IngredientesExcluidos.Add(new ComandaItemIngrediente { IngredienteId = ingredienteId });
+            {
+                comandaItem.IngredientesExcluidos.Add(new ComandaItemIngrediente
+                {
+                    IngredienteId = ingredienteId,
+                    NombreIngrediente = nombresIngredientes.GetValueOrDefault(ingredienteId, "?")
+                });
+            }
 
             comanda.Items.Add(comandaItem);
         }
@@ -54,12 +79,7 @@ public class ComandaAppService(
         comanda.Estado = EstadoComanda.EnviadaCocina;
         db.Comandas.Add(comanda);
 
-        if (request.MesaId is not null)
-        {
-            var mesa = await db.Mesas.FirstOrDefaultAsync(m => m.Id == request.MesaId && m.SucursalId == sucursalId, ct)
-                ?? throw new InvalidOperationException("La mesa no existe.");
-            mesa.Estado = EstadoMesa.Ocupada;
-        }
+        mesa.Estado = EstadoMesa.Ocupada;
 
         await db.SaveChangesAsync(ct); // asigna NumeroComanda (identity)
 
@@ -158,6 +178,29 @@ public class ComandaAppService(
             InventarioRevertido = inventarioRevertido
         });
 
+        // Si este era el último ítem vigente de la comanda, la comanda misma queda "viva"
+        // pero sin nada que facturar (caja se topaba con "no tiene ítems vigentes" al
+        // intentar cobrarla) — mismo criterio que CancelarComandaAsync: si queda algo
+        // entregado, se cierra (eso sí se factura); si no, se cancela y libera la mesa.
+        var otrosItems = await db.ComandaItems
+            .Where(i => i.ComandaId == item.ComandaId && i.Id != item.Id)
+            .Select(i => i.Estado)
+            .ToListAsync(ct);
+
+        if (otrosItems.All(e => e is EstadoItemComanda.Cancelado or EstadoItemComanda.Entregado) &&
+            item.Comanda!.Estado is not (EstadoComanda.Cerrada or EstadoComanda.Cancelada))
+        {
+            var quedaAlgoEntregado = otrosItems.Any(e => e == EstadoItemComanda.Entregado);
+            item.Comanda.Estado = quedaAlgoEntregado ? EstadoComanda.Cerrada : EstadoComanda.Cancelada;
+
+            if (item.Comanda.Estado == EstadoComanda.Cancelada && item.Comanda.MesaId is not null)
+            {
+                var mesa = await db.Mesas.FirstOrDefaultAsync(m => m.Id == item.Comanda.MesaId, ct);
+                if (mesa is not null)
+                    mesa.Estado = EstadoMesa.Libre;
+            }
+        }
+
         await db.SaveChangesAsync(ct);
         await notificador.ComandaCanceladaAsync(sucursalId, item.ComandaId, item.Id);
         await auditoria.RegistrarAsync(sucursalId, usuarioId, "CancelacionItemComanda", "ComandaItem", item.Id,
@@ -246,7 +289,10 @@ public class ComandaAppService(
         Id = c.Id,
         NumeroComanda = c.NumeroComanda,
         MesaId = c.MesaId,
+        NumeroMesa = c.NumeroMesa,
+        NombreSalon = c.NombreSalon,
         MeseroId = c.MeseroId,
+        NombreMesero = c.NombreMesero,
         Estado = c.Estado,
         CreadoEn = c.CreadoEn,
         Items = c.Items.Select(MapearItem).ToList()
@@ -261,6 +307,7 @@ public class ComandaAppService(
         PrecioUnitario = i.PrecioUnitario,
         Estado = i.Estado,
         Notas = i.Notas,
-        IngredientesExcluidosIds = i.IngredientesExcluidos.Select(e => e.IngredienteId).ToList()
+        IngredientesExcluidosIds = i.IngredientesExcluidos.Select(e => e.IngredienteId).ToList(),
+        IngredientesExcluidosNombres = i.IngredientesExcluidos.Select(e => e.NombreIngrediente).ToList()
     };
 }

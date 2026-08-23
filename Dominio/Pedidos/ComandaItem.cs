@@ -34,4 +34,5 @@ public class ComandaItemIngrediente
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ComandaItemId { get; set; }
     public Guid IngredienteId { get; set; } // Producto (Insumo)
+    public string NombreIngrediente { get; set; } = string.Empty; // snapshot al pedir
 }

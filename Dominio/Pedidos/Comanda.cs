@@ -8,12 +8,6 @@ public enum EstadoComanda
     Cancelada
 }
 
-public enum OrigenCreacion
-{
-    Online,
-    Offline
-}
-
 public class Comanda
 {
     // Id generado en cliente (GUID) — ver sección 1.3 del plan: es la clave definitiva,
@@ -23,10 +17,12 @@ public class Comanda
 
     public int NumeroComanda { get; set; } // correlativo visible, asignado por el servidor
     public Guid? MesaId { get; set; }
+    public string? NumeroMesa { get; set; } // snapshot al pedir, para no depender de un JOIN para mostrarla
+    public string? NombreSalon { get; set; } // snapshot al pedir — dos mesas pueden compartir número en salones distintos
     public Guid? MeseroId { get; set; } // null si se tomó directo en caja
+    public string? NombreMesero { get; set; } // snapshot al pedir
 
     public EstadoComanda Estado { get; set; } = EstadoComanda.Abierta;
-    public OrigenCreacion OrigenCreacion { get; set; } = OrigenCreacion.Online;
 
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
 

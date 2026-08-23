@@ -1,0 +1,67 @@
+@page "/empresa"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else if (_form is null)
+{
+    <MudText>Cargando...</MudText>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <MudText Typo="Typo.h5" Class="mb-2">Datos de la Empresa</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Sistema multisucursal: solo hay una empresa. Su nombre es el que se muestra en
+            el encabezado de las 4 apps. Para administrar los distintos locales, ve a
+            "Sucursales".
+        </MudText>
+
+        <MudPaper Class="pa-4">
+            <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+            <MudTextField T="string" Label="RNC" @bind-Value="_form.Rnc" Class="mb-2" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Class="mt-2">Guardar</MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+
+@code {
+    private GuardarEmpresaRequestDto? _form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        var empresa = await ApiClient.ObtenerEmpresaAsync();
+        if (empresa is null)
+            return;
+
+        _form = new GuardarEmpresaRequestDto { Nombre = empresa.Nombre, Rnc = empresa.Rnc };
+    }
+
+    private async Task GuardarAsync()
+    {
+        var (exito, error) = await ApiClient.ActualizarEmpresaAsync(_form!);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Guardado correctamente.", Severity.Success);
+    }
+}

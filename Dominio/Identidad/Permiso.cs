@@ -28,4 +28,5 @@ public class UsuarioSucursal
     public Guid UsuarioId { get; set; }
     public Usuario? Usuario { get; set; }
     public Guid SucursalId { get; set; }
+    public Sucursales.Sucursal? Sucursal { get; set; }
 }

@@ -20,3 +20,14 @@ public class CrearUsuarioRequestDto
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
 }
+
+public class ActualizarUsuarioRequestDto
+{
+    public string NombreUsuario { get; set; } = string.Empty;
+    public string? Password { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public bool Activo { get; set; } = true;
+    public List<string> Roles { get; set; } = [];
+    public List<Guid> SucursalesAsignadas { get; set; } = [];
+}

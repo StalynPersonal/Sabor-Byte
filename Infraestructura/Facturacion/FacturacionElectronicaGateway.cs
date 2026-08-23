@@ -23,9 +23,11 @@ public class FacturacionElectronicaGateway(
         var sucursal = await db.Sucursales.FirstOrDefaultAsync(s => s.Id == factura.SucursalId, ct)
             ?? throw new InvalidOperationException("La sucursal de la factura no existe.");
 
-        Dominio.Clientes.Cliente? cliente = factura.ClienteId is null
-            ? null
-            : await db.Clientes.FirstOrDefaultAsync(c => c.Id == factura.ClienteId, ct);
+        // El RNC del emisor es el de la Empresa (única en el sistema), no de la sucursal.
+        var empresa = await db.Empresas.FirstOrDefaultAsync(ct)
+            ?? throw new InvalidOperationException("No hay una empresa configurada en el sistema.");
+
+        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Id == factura.ClienteId, ct);
 
         var comprobante = new ComprobanteDto
         {
@@ -34,7 +36,7 @@ public class FacturacionElectronicaGateway(
             FechaEmision = factura.FechaEmision,
             Emisor = new EmisorDto
             {
-                Rnc = sucursal.Rnc ?? string.Empty,
+                Rnc = empresa.Rnc ?? string.Empty,
                 RazonSocial = sucursal.Nombre
             },
             Comprador = cliente is null ? null : new CompradorDto

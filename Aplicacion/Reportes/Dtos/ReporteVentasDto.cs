@@ -45,3 +45,76 @@ public class VentaPorHoraDto
     public int CantidadFacturas { get; set; }
     public decimal TotalVendido { get; set; }
 }
+
+public class VentaResumenDiaDto
+{
+    public DateTime Fecha { get; set; }
+    public int CantidadFacturas { get; set; }
+    public decimal TotalVendido { get; set; }
+    public decimal TotalItbis { get; set; }
+    public decimal TicketPromedio { get; set; }
+}
+
+public class VentaDetalleDto
+{
+    public Guid FacturaId { get; set; }
+    public string? NumeroFactura { get; set; }
+    public string? NumeroNcf { get; set; }
+    public DateTime FechaEmision { get; set; }
+    public string ClienteNombre { get; set; } = string.Empty;
+    public decimal Subtotal { get; set; }
+    public decimal Itbis { get; set; }
+    public decimal Descuento { get; set; }
+    public decimal Total { get; set; }
+    public string FormasPago { get; set; } = string.Empty;
+}
+
+public class VentaPorMetodoPagoDto
+{
+    public Guid MetodoPagoId { get; set; }
+    public string NombreMetodo { get; set; } = string.Empty;
+    public int CantidadPagos { get; set; }
+    public decimal TotalCobrado { get; set; }
+}
+
+public class MovimientoInventarioReporteDto
+{
+    public DateTime FechaHora { get; set; }
+    public string NombreProducto { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
+    public decimal Cantidad { get; set; }
+    public decimal SaldoResultante { get; set; }
+    public string? Nota { get; set; }
+}
+
+public class VentaPorCategoriaDto
+{
+    public Guid CategoriaId { get; set; }
+    public string NombreCategoria { get; set; } = string.Empty;
+    public decimal TotalVendido { get; set; }
+}
+
+public class CuentaPendienteDto
+{
+    public Guid CuentaId { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public decimal MontoOriginal { get; set; }
+    public decimal SaldoPendiente { get; set; }
+    public DateTime FechaVencimiento { get; set; }
+    public string Estado { get; set; } = string.Empty;
+}
+
+public class DashboardResumenDto
+{
+    public decimal VentasHoyTotal { get; set; }
+    public int VentasHoyCantidadFacturas { get; set; }
+    public decimal TicketPromedioHoy { get; set; }
+    public int TurnosAbiertos { get; set; }
+    public int CxCPendienteCantidad { get; set; }
+    public decimal CxCPendienteTotal { get; set; }
+    public int CxPPendienteCantidad { get; set; }
+    public decimal CxPPendienteTotal { get; set; }
+    public int ProductosStockBajo { get; set; }
+    public List<VentaPorHoraDto> VentasPorHoraHoy { get; set; } = [];
+    public List<VentaPorProductoDto> TopProductosHoy { get; set; } = [];
+}

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
@@ -10,8 +11,15 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.BaseAddress;
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 builder.Services.AddSingleton<SesionCliente>();
+builder.Services.AddScoped(sp =>
+{
+    var handler = new SesionExpiradaHandler(sp.GetRequiredService<SesionCliente>(), sp.GetRequiredService<NavigationManager>())
+    {
+        InnerHandler = new HttpClientHandler()
+    };
+    return new HttpClient(handler) { BaseAddress = new Uri(apiBaseUrl) };
+});
 builder.Services.AddScoped<SaborByteApiClient>();
 builder.Services.AddScoped(sp => new ConexionComandas(sp.GetRequiredService<SesionCliente>(), apiBaseUrl));
 builder.Services.AddMudServices();

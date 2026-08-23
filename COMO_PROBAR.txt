@@ -1,10 +1,11 @@
 ==================================================================
-SABOR BYTE — GUIA PARA LEVANTAR EL SISTEMA Y PROBARLO
+SABORBYTE — GUIA PARA LEVANTAR EL SISTEMA Y PROBARLO
 ==================================================================
 
 Este documento explica como levantar la Api y las 4 apps (Central,
 Caja, Cocina, Mesero) en tu maquina de desarrollo, y da un flujo de
-prueba completo paso a paso que cubre el sistema entero.
+prueba completo, pantalla por pantalla, que cubre todas las
+funciones del sistema.
 
 
 ------------------------------------------------------------------
@@ -36,7 +37,7 @@ solo (varia segun la version), configuralo una vez a mano:
      opciones de usuario, para que quede compartido en el repo).
 
 Con eso resuelto, puedes saltar directo a la seccion 4 (usuarios de
-prueba) y el flujo de prueba (seccion 5) — no hace falta lo de abajo.
+prueba) y el flujo de prueba (secciones 5 y 6) — no hace falta lo de abajo.
 
 Si prefieres terminal (o Visual Studio no coopera), sigue con las
 secciones 1-3.
@@ -79,8 +80,8 @@ y revisa que launchSettings.json no se haya modificado.)
 Dejala corriendo. En modo Development, al arrancar la Api:
   - Aplica automaticamente cualquier migracion pendiente de la base
     de datos.
-  - Siembra los usuarios de prueba (ver seccion 4) si la base esta
-    vacia.
+  - Siembra los usuarios y datos base de prueba (ver seccion 4) si
+    la base esta vacia.
 
 Como saber que arranco bien: en la consola deberias ver la linea
     "Now listening on: http://localhost:5080"
@@ -110,71 +111,301 @@ Si responde 200, la Api esta lista.
     dotnet run --urls http://localhost:5093
 
 Abre cada URL en el navegador, idealmente en ventanas/pestanas
-separadas (cada app maneja su propia sesion, sin localStorage — si
-recargas la pagina, se pierde el login de esa pestana).
+separadas (cada app maneja su propia sesion — ver seccion 7 sobre
+que tanto persiste y que no).
+
+Cada app tiene su propio color de AppBar para distinguirlas de un
+vistazo sin leer el texto: Central = rojo, Caja = azul, Mesero =
+verde, Cocina = naranja sobre fondo oscuro. El color tambien se ve
+en la pantalla de login (el panel de marca), no solo despues de
+entrar.
+
+Al lado del boton de logout aparece el nombre del usuario logueado;
+click ahi abre un dialogo para cambiar su propia contrasena (pide la
+actual + la nueva, minimo 8 caracteres).
 
 
 ------------------------------------------------------------------
-4) USUARIOS DE PRUEBA (ya sembrados automaticamente)
+4) DATOS DE PRUEBA YA SEMBRADOS AUTOMATICAMENTE
 ------------------------------------------------------------------
 
+Usuarios:
     Usuario:     admin
     Contrasena:  Admin#2026
-    Rol:         Admin (entra en las 4 apps)
+    Rol:         Admin (entra en las 4 apps, ve todo en Central)
 
     Usuario:     supervisor
     Contrasena:  Supervisor#2026
-    Rol:         Supervisor (para autorizar descuentos)
+    Rol:         Supervisor (para autorizar descuentos y notas de credito)
 
-Sucursal ya sembrada:  "Sucursal Principal"
-Caja ya sembrada:      "01"
+Roles disponibles (Central -> Usuarios, checklist al crear/editar):
+Admin, Supervisor, Cajero, Mesero, Cocina, y "AutorizaNotaCredito" —
+este ultimo es un rol acotado: SOLO sirve para autorizar la emision
+de notas de credito desde Caja (ver PASO 6), no da acceso a nada mas
+ni sirve para autorizar descuentos (eso sigue siendo solo Supervisor
+o Admin). Un usuario puede tener varios roles a la vez (es una
+relacion muchos-a-muchos, no una eleccion unica).
+
+Empresa:   "Sabor Byte" (sistema multisucursal, NO multiempresa: solo existe
+           UNA empresa en todo el sistema, editable en Central -> "Empresa").
+           El titulo "SaborByte" que se ve en el AppBar de las 4 apps es fijo
+           (no cambia si renombras la Empresa desde esa pantalla).
+Sucursal:  "Sucursal Principal", Codigo "01"
+Caja:      "01"
+Cliente:   "Cliente Contado" (generico — ver seccion 6, PASO 5)
+Motivos de nota de credito/debito ya sembrados: "Producto danado o
+defectuoso", "Error de cobro", "Cliente insatisfecho", "Devolucion
+de mercancia", "Otro".
+Metodos de pago ya sembrados: "Efectivo" (marcado EsEfectivo),
+"Tarjeta" (marcado RequiereComprobante — pide numero de
+autorizacion), "Transferencia", "Deposito". Editables desde Central
+-> "Metodos de Pago".
+
+El Codigo de 2 digitos de la sucursal (Central -> Sucursales) y el
+Numero de cada caja (Central -> Cajas) arman en conjunto el numero
+interno de cada factura: CodigoSucursal + NumeroCaja + secuencia de
+5 digitos (ej. "010100001"). Ya vienen configurados en el seed, pero
+si creas una sucursal o caja nueva a mano en SQL, no te olvides del
+Codigo o las ventas van a fallar al facturar.
+
+Todo usuario nuevo (Central -> Usuarios) tiene que quedar con al
+menos una sucursal asignada, si no, no puede hacer nada al entrar
+(la Api lo rechaza al crearlo).
+
+Pantalla "¿En que sucursal vas a trabajar?" (/seleccionar-sucursal):
+SOLO existe en Caja, Cocina y Mesero — apps que operan sobre UNA
+sucursal fija durante el turno/servicio. Aparece unicamente si el
+usuario que inicia sesion tiene MAS DE UNA sucursal asignada (con
+una sola, se autoselecciona y esta pantalla ni se muestra). Elige
+una de la lista y queda recordada en esa pestana/dispositivo hasta
+cerrar sesion. Para probarla: en Central -> Usuarios, asigna una
+segunda sucursal a "admin" (o crea una sucursal nueva, que
+auto-asigna al admin que la crea — ver PASO 9b), cierra sesion y
+vuelve a entrar en Caja, Cocina o Mesero. Las 3 pantallas de "Inicio"
+esperan a que la sucursal quede elegida antes de pedir datos a la
+Api (si se entraba directo a /inicio con la sucursal aun sin elegir,
+antes se veia un error 403 en la consola porque la pantalla
+alcanzaba a pedir datos con sucursalId vacio antes de que la
+redireccion a /seleccionar-sucursal terminara — ya esta corregido).
+
+Central es distinto a proposito: NUNCA muestra esta pantalla, aunque
+el usuario tenga varias sucursales asignadas — ahi se administra el
+negocio completo, y cada pantalla que necesita acotar a una sucursal
+puntual ya trae su propio selector de "Sucursal" (Facturas, Notas de
+Credito, Mesas, Inventario...). Si el admin tiene varias sucursales,
+Central autoselecciona la primera como punto de partida al entrar
+(sin preguntar) y desde ahi se navega con esos selectores.
 
 
 ------------------------------------------------------------------
-5) FLUJO DE PRUEBA COMPLETO, PASO A PASO
+5) FLUJO RAPIDO (sin detalle — ver seccion 6 para el paso a paso)
 ------------------------------------------------------------------
 
-Este flujo cubre: catalogo, mesas, inventario, ITBIS por producto,
-comandas (mesero -> cocina -> caja), impresion, cancelaciones, venta
-directa y cuadre de caja.
+Login admin / Admin#2026 en las 4 apps (mismo usuario en todas).
 
---- PASO 1: Central (http://localhost:5090) ---
+Central:
+  - Crea uno o dos productos vendibles (ej. una hamburguesa).
+  - Crea una o dos mesas.
+  - Crea un cliente.
+
+Mesero:
+  - Arma un pedido con esos productos, elige una mesa, envialo a cocina.
+
+Cocina:
+  - Marca el pedido "En preparacion" y despues "Listo".
+
+Mesero:
+  - Marca el pedido como "Entregado".
+
+Caja:
+  - Abre turno, factura la comanda (o una venta directa aparte),
+    prueba un pago mixto (2 formas de pago), cierra turno.
+
+Central:
+  - Revisa "Inicio" (dashboard), "Reportes", emite una nota de
+    credito sobre la factura, registra una CxC/CxP, y date una
+    vuelta por Empresa/Sucursales/Cajas/Metodos de Pago/Usuarios.
+
+Con esto ya tocaste el flujo completo del sistema. Si algo falla o
+queres el detalle exacto de cada pantalla (que boton, que campo),
+segui con la seccion 6.
+
+
+------------------------------------------------------------------
+6) FLUJO DE PRUEBA COMPLETO, PASO A PASO
+------------------------------------------------------------------
+
+--- PASO 1: Central (http://localhost:5090) — Catalogo ---
   1. Login con admin / Admin#2026.
+  1b. La pantalla "Inicio" (dashboard) ya muestra: ventas de hoy
+      (total, cantidad de facturas, ticket promedio), turnos de caja
+      abiertos, saldo pendiente de CxC/CxP, una alerta si hay
+      insumos con stock por debajo del minimo, grafico de ventas por
+      hora de hoy y top 5 productos vendidos hoy.
+      Al principio (sin ventas del dia) la mayoria aparece en cero —
+      volve a revisarlo despues del PASO 5 para verlo con datos.
+      Mas abajo, despues de un divisor, hay una segunda seccion con
+      su propio filtro de fecha (Desde/Hasta + "Aplicar") que trae:
+      3 tarjetas (Total vendido, Facturas emitidas, Ticket promedio),
+      2 graficos de barras (Top productos vendidos, Ventas por hora
+      del dia) y 3 paneles mas: dos graficos de dona (Ventas por
+      metodo de pago, Ventas por categoria) y una tabla de "Insumos
+      con stock bajo" (el detalle completo, no solo el contador de
+      la alerta de arriba) con enlace directo a Inventario.
   2. Ir a "Productos":
-     - Crear un producto Vendible, ej. "Hamburguesa Clasica",
-       precio 250, Aplica ITBIS = si, Tasa de ITBIS = 18%.
-     - (Opcional) Crear otro producto y probarlo con 16% o 0% para
-       confirmar que el selector de tasa funciona.
+     - IMPORTANTE: el catalogo de Productos (y de Categorias) ya NO
+       es por sucursal — es UNICO para toda la empresa. Si tienes
+       varias sucursales, el mismo producto/categoria se ve y se
+       vende igual en todas; lo unico que varia por sucursal es el
+       STOCK (ver PASO 1, punto 4, mas abajo).
+     - Click "Nuevo producto" (se abre en un modal). Campos:
+       Nombre, Descripcion, Codigo (obligatorio y unico en TODO el
+       catalogo — ya no por sucursal; ademas, el Codigo y los
+       Codigos de barra comparten el mismo espacio de unicidad: no
+       podes usar como Codigo algo que otro producto ya tiene
+       registrado como codigo de barra, y viceversa), Categoria
+       (con un boton "+" al lado para crear una nueva sin salir del
+       modal), Unidad de medida (obligatoria, con su propio boton
+       "+" para crear una nueva), Precio y Costo unitario (ninguno
+       admite negativos), Tasa de ITBIS.
+     - Imagen: ya no es un campo de texto con URL — es un selector
+       de archivo (botón "Seleccionar imagen", maximo 2 MB). La
+       imagen se guarda en la base de datos codificada en Base64 y
+       se muestra en miniatura ahi mismo, en "Ver detalle" y en el
+       formulario de edicion.
+     - Codigos de barra: agregalos uno por uno con el campo +
+       boton "Agregar" (o Enter). Se pueden buscar productos por
+       cualquiera de sus codigos de barra en el buscador de arriba
+       de la tabla, no solo por Nombre/Codigo (busqueda parcial,
+       no hace falta el codigo completo).
+     - Si el Tipo es "Insumo", el formulario NO pide Stock minimo/
+       maximo aca (avisa que eso se configura por sucursal desde
+       Inventario — ver PASO 1, punto 4).
+     - (Opcional) Crear otro producto con 16% o 0% para confirmar
+       que el selector de tasa funciona.
+     - Probar los filtros de arriba: buscar por nombre, codigo o
+       codigo de barra; filtrar por tipo (Insumo/Vendible); casilla
+       "Mostrar inactivos".
+     - La columna "Combo" de la tabla indica Si/No. El icono de
+       receta (tenedor) de cada fila abre un modal APARTE (ya no
+       esta dentro del formulario de editar) para armar/editar la
+       receta (ingredientes) de un Vendible — buscar el insumo por
+       codigo, codigo de barra o descripcion con el autocompletar.
+       Ese mismo icono se ve SIEMPRE, en todas las filas (para que
+       la tabla no quede desalineada), pero aparece deshabilitado
+       en los Insumos (no tienen receta propia) y en los combos (la
+       heredan de sus componentes) — el tooltip explica por que en
+       cada caso.
+       La Cantidad de cada ingrediente (y de cada componente de
+       combo) no puede ser menor a 1.
+     - Los iconos de la fila (ojo = ver detalle, lapiz = editar,
+       tenedor = receta, circulo tachado = desactivar / check =
+       reactivar) reemplazan los botones de texto — pasar el mouse
+       muestra el titulo.
+     - Abajo de la tabla hay paginacion real (contra el backend):
+       cambiar el tamano de pagina y navegar entre paginas.
+     - Click "Nuevo combo": arma un combo con 2+ productos
+       vendibles existentes (buscables igual que en receta, por
+       codigo/codigo de barra/descripcion), tambien pide Codigo
+       propio.
+  2b. Ir a "Categorias" (menu "Catalogo"): CRUD completo —
+      Nombre, Orden, Activo/Inactivo. Es el mismo catalogo global
+      que usa el selector de Categoria en Productos.
+  2c. Ir a "Unidades de Medida" (menu "Catalogo"): CRUD completo,
+      igual de simple — Nombre, Activo/Inactivo.
   3. Ir a "Mesas":
-     - Crear 2 o 3 mesas (ej. "01", "02", "03").
+     - Numero, Salon y Capacidad son obligatorios (ya no se puede
+       dejar el salon vacio) y Capacidad debe ser mayor a cero —
+       probar guardar con alguno vacio o Capacidad 0 y debe
+       rechazarse, tanto en el formulario (validacion inmediata)
+       como si se fuerza el guardado (validacion en el backend).
+     - Crear 2 o 3 mesas (ej. "01" salon "Centro", "02" salon
+       "Centro", "01" salon "Terraza" — repetir un numero DENTRO
+       del mismo salon debe rechazarse con error; el mismo numero
+       en salones distintos si se permite).
   4. Ir a "Inventario":
-     - Crear un producto tipo Insumo, ej. "Pan de hamburguesa".
-     - Click "Registrar entrada": cantidad 50, guardar. Confirmar
-       que el stock sube a 50 en la tabla de insumos.
-     - Click "Registrar ajuste": poner un nuevo stock (ej. 45) con
-       un motivo ("conteo fisico"), guardar. Confirmar que el stock
-       baja y que aparece un movimiento tipo "Ajuste" en la tabla de
-       movimientos recientes.
+     - IMPORTANTE: el STOCK (a diferencia del producto en si) SI es
+       por sucursal. Un mismo insumo (ej. "Pan de hamburguesa")
+       puede tener 2 unidades en la Sucursal Norte y 7 en la
+       Sucursal Sur — cada sucursal ve y administra su propio
+       numero. La pantalla de Inventario siempre opera sobre la
+       sucursal activa de tu sesion.
+     - Crear un producto tipo Insumo (desde Productos), ej. "Pan
+       de hamburguesa". Al crearlo, el sistema le siembra
+       automaticamente una fila de stock en CERO para cada
+       sucursal existente (y al crear una sucursal nueva, se le
+       siembra una fila en cero para cada insumo existente) — asi
+       nunca falta la fila, solo hay que cargarle cantidad.
+     - Click "Registrar entrada" (modal): cantidad 50, guardar.
+       Confirmar que el stock sube a 50 en la tabla de insumos,
+       PERO solo para la sucursal activa.
+     - Click "Registrar ajuste" (modal): poner un nuevo stock
+       (ej. 45) con un motivo ("conteo fisico"), guardar. Confirmar
+       que el stock baja y que aparece un movimiento tipo "Ajuste"
+       en la tabla de movimientos recientes.
+     - Icono de "Configurar umbrales" (llave inglesa) en cada fila:
+       abre un modal para fijar el Stock minimo (dispara la alerta
+       de "stock bajo" del dashboard) y el Stock maximo, AMBOS
+       especificos de la sucursal activa — la misma sucursal puede
+       tener un minimo de 5 mientras otra tiene 20 para el mismo
+       insumo.
+     - Prueba de bloqueo por stock insuficiente: si registras una
+       venta (PASO 5) de un producto cuya receta pide mas insumo
+       del que hay disponible EN ESA SUCURSAL, la venta se rechaza
+       con un mensaje tipo "Stock insuficiente de 'X' en esta
+       sucursal: disponible N, solicitado M." — no se descuenta
+       nada de ningun insumo de esa venta (todo o nada).
+  5. Ir a "Clientes":
+     - Click "Nuevo cliente" (modal): crear uno Fiscal (con RNC) y
+       uno Consumo. Los iconos de editar/desactivar funcionan igual
+       que en Productos.
 
 --- PASO 2: Mesero (http://localhost:5093) ---
   1. Login con admin / Admin#2026.
-  2. Pestana "Nuevo pedido":
-     - Buscar "Hamburguesa" y agregarla al pedido.
-     - Seleccionar una mesa en el dropdown "Mesa (opcional)".
-     - Click "Enviar a cocina". Debe aparecer un mensaje de exito
-       con el numero de comanda.
-  3. Volver a Central -> Mesas: la mesa elegida debe verse ahora
+  2. Si el usuario tuviera mas de una sucursal asignada, aca
+     aparece la pantalla "Seleccionar sucursal" antes de entrar —
+     con un solo usuario/sucursal de prueba no deberia salir.
+  3. Pestana "Nuevo pedido":
+     - Filtro de "Categoria" arriba de la grilla de productos, y
+       cada tarjeta muestra la imagen del producto (o un icono de
+       plato por defecto si no tiene).
+     - Buscar "Hamburguesa" y agregarla al pedido. Si el producto
+       tiene algun ingrediente marcado "Opcional" en su receta
+       (Central -> Productos -> icono de receta), al hacer click en
+       la tarjeta se abre un dialogo "Desmarca lo que no lleve"
+       antes de agregarlo — desmarcar uno (ej. "Cebolla") y
+       "Agregar al pedido". La linea del pedido debe mostrar
+       "Sin: Cebolla" debajo del nombre. Si el producto NO tiene
+       ingredientes opcionales, se agrega directo sin dialogo (como
+       antes).
+     - En el pedido, cada linea tiene un boton "-" (resta una
+       unidad, y si llega a 0 la quita) y un icono de basura para
+       eliminarla directamente.
+     - Seleccionar una mesa en el dropdown "Mesa" (obligatorio — el
+       boton "Enviar a cocina" queda deshabilitado sin una elegida,
+       y el backend tambien la exige aunque se fuerce la llamada).
+     - Click "Enviar a cocina". Debe aparecer un toast de exito con
+       el numero de comanda.
+  4. Volver a Central -> Mesas: la mesa elegida debe verse ahora
      "Ocupada".
 
 --- PASO 3: Cocina (http://localhost:5092) ---
   1. Login con admin / Admin#2026.
   2. La comanda enviada por el mesero debe aparecer sola, en tiempo
-     real, sin recargar la pagina (SignalR).
+     real, sin recargar la pagina (SignalR), bajo la seccion "En
+     preparacion". Si el pedido tenia un ingrediente excluido (ver
+     PASO 2), el item debe mostrar "Sin: Cebolla" debajo del nombre.
   3. Click "Preparar" en el item -> pasa a "En preparacion".
-  4. Click "Listo" -> pasa a "Listo".
+  4. Click "Listo" -> pasa a "Listo". En cuanto TODOS los items de
+     esa comanda quedan en Listo (o Entregado), la tarjeta se mueve
+     sola de "En preparacion" a la seccion "Listas" (mas abajo) —
+     no desaparece, solo se saca de en medio para no estorbar con
+     las que si necesitan trabajo.
   5. Click el boton "Imprimir" de la comanda: debe abrirse el
      dialogo de impresion del navegador con el ticket de cocina
-     (numero de comanda + items, sin precios).
+     (numero de comanda + items, sin precios). Si el ticket sale con
+     el titulo pero sin los items, es el bug de timing que ya se
+     corrigio (avisar si vuelve a pasar).
 
 --- PASO 4: Mesero de nuevo (http://localhost:5093) ---
   1. Ir a la pestana "Mis comandas".
@@ -185,21 +416,194 @@ directa y cuadre de caja.
 --- PASO 5: Caja (http://localhost:5091) ---
   1. Login con admin / Admin#2026.
   2. Elegir la Caja "01", monto de apertura (ej. 1000), "Abrir turno".
+     - El turno vive en la base de datos, no en el navegador de quien
+       lo abrio: si cierras sesion y entra OTRO usuario, al elegir esa
+       misma caja la app detecta el turno ya abierto y lo retoma
+       automaticamente (no deja abrir uno nuevo ni pide nada — pasa
+       directo a la pantalla de venta).
+     - Un turno NO puede cruzar de un dia calendario a otro sin
+       cerrarse. Si quedo abierto de un dia anterior, al elegir esa
+       caja aparece una pantalla de aviso ("Turno sin cerrar de otro
+       dia") con un boton "Ir a cerrar ese turno" — no deja vender
+       hasta que se cierre. (Esto tambien lo valida el backend: si
+       de algun modo se intenta facturar igual, la Api lo rechaza con
+       el mismo mensaje.)
   3. Pestana "Comandas abiertas":
      - Debe aparecer la comanda del mesero. Seleccionarla.
      - Elegir forma de pago, click "Facturar comanda".
-     - Debe abrirse el dialogo de impresion con la boleta.
+     - Debe abrirse el dialogo de impresion con la boleta. El
+       ticket ahora siempre muestra "Factura: <numero interno>"
+       (ej. 010100001) arriba del NCF, que solo sale si hay una
+       secuencia NCF activa (ver PASO 9c), y debajo el/los metodos
+       de pago usados.
   4. Volver a Central -> Mesas: la mesa debe volver a "Libre".
   5. Probar tambien una venta directa (pestana "Venta directa"):
-     buscar un producto, agregarlo al carrito, elegir forma de pago,
-     "Facturar".
+     buscar un producto, agregarlo al carrito, elegir forma de
+     pago, "Facturar". Si no eliges un cliente, la venta queda
+     facturada automaticamente contra "Cliente Contado" (el
+     generico de la sucursal — seccion 4).
+     - Pago mixto: click "+ Agregar otra forma de pago" para
+       partir el total entre dos o mas metodos (ej. parte en
+       Efectivo, parte en Tarjeta) — el sistema valida que la suma
+       de los pagos coincida exactamente con el total antes de
+       dejar facturar.
+     - Si eliges un metodo marcado "Requiere comprobante" (por
+       defecto, Tarjeta), aparece un campo extra para el numero de
+       autorizacion/comprobante que emite el datafono; es opcional
+       pero queda guardado junto al pago si se llena.
   6. Cerrar turno:
      - Click "Cerrar turno".
-     - Contar el efectivo esperado (o dejar los campos en 0 para una
-       prueba rapida) y confirmar el cierre.
+     - El resumen "Esperado" ahora se arma dinamicamente por cada
+       metodo de pago del catalogo (no solo Efectivo/Tarjeta fijos).
+     - Contar el efectivo esperado (denominaciones) y, para los
+       demas metodos, ingresar el monto contado (o dejar los campos
+       en 0 para una prueba rapida) y confirmar el cierre.
 
---- PASO 6 (opcional): Cancelacion de comanda completa ---
-  1. En Mesero, crear una comanda nueva (paso 2) y NO facturarla.
+--- PASO 6: Facturas y Notas de Credito ---
+  IMPORTANTE: ya no existen las "notas de debito" en ningun lado del
+  sistema (ni pantalla, ni selector) — solo se emiten notas de
+  CREDITO. Y las notas de credito ya NO se pueden emitir desde
+  Central: esa pantalla ahora es de solo consulta. Se emiten desde
+  Caja, con autorizacion obligatoria.
+
+  a) Central -> "Facturas" (menu "Facturacion"): listado de solo
+     lectura de TODAS las facturas de la sucursal (buscable por N° de
+     factura o NCF), con icono de ojo que abre el detalle completo:
+     lineas (con cantidad ya acreditada si aplica), formas de pago,
+     cliente, subtotal/ITBIS/descuento/propina/total. No hay forma de
+     crear una factura desde aqui — solo se generan desde Caja.
+     Arriba del listado hay filtros: texto (N°/NCF), Sucursal, Caja
+     (con opcion "Todas"), Desde/Hasta (rango de fecha de emision) y
+     Monto minimo/maximo — todos se aplican contra el backend (no es
+     filtrado en memoria) y se combinan entre si. El dialogo de
+     detalle muestra la cabecera en dos columnas (N° Factura/Sucursal
+     con nombre y codigo/Cliente a la izquierda, NCF/Caja/Fecha a la
+     derecha) y los totales (Subtotal/ITBIS/Descuento/Propina/Total)
+     alineados a la derecha, estilo factura fisica.
+
+  b) Central -> "Notas de Credito" (mismo menu, debajo de
+     "Facturas"): mismo patron, listado de solo lectura de las notas
+     ya emitidas, con icono de ojo para el detalle (lineas
+     acreditadas, motivo, factura original, monto). Tampoco hay boton
+     para crear una nota aqui. Tiene los mismos filtros que Facturas
+     (texto, Sucursal, Caja, Desde/Hasta, Monto minimo/maximo).
+
+  c) Caja (http://localhost:5091) -> pestana "Notas de credito":
+     1. Buscar la factura de la venta directa del PASO 5 (por N° de
+        factura o NCF), click "Elegir".
+     2. Elegir Motivo (viene del catalogo sembrado, no es texto
+        libre). Abajo aparece la tabla de lineas de esa factura, con
+        columnas Vendido / Ya acreditado / Disponible, y un campo de
+        cantidad por linea (topado al disponible). Si la factura
+        tenia un producto en cantidad 2, probar acreditar solo 1: el
+        campo "Disponible" de esa linea debe quedar en 1 despues de
+        guardar, no en 0.
+     3. Click "Solicitar autorizacion de supervisor": pide usuario y
+        contrasena de alguien con rol Supervisor, Admin, o el rol
+        nuevo "AutorizaNotaCredito" (dedicado solo a esto — alguien
+        puede tenerlo sin ser Supervisor de todo lo demas; se asigna
+        en Central -> Usuarios). El codigo que devuelve es de UN SOLO
+        USO — si la emision falla despues, hay que volver a
+        autorizar.
+     4. Con la autorizacion en verde, click "Emitir nota de credito".
+        La nota queda con su propio numero interno (NumeroNota) y ya
+        se puede ver en Central -> "Notas de Credito" (paso b).
+  5. Repetir la busqueda de la misma factura desde Caja: la cantidad
+     ya acreditada no debe dejarse seleccionar de nuevo mas alla de
+     lo que quede disponible.
+
+--- PASO 7: Central — CxC / CxP ---
+  1. Ir a "CxC / CxP".
+  2. Pestana "Por Cobrar": click "Nueva cuenta por cobrar" (modal),
+     buscar un cliente y una factura, poner monto y fecha de
+     vencimiento, guardar. Despues, icono de pago para registrar un
+     abono parcial.
+  3. Pestana "Por Pagar": click "Nuevo proveedor" (modal) y despues
+     "Nueva cuenta por pagar" (modal) contra ese proveedor.
+  4. Ambas tablas tienen paginacion real contra el backend.
+
+--- PASO 8: Central — Reportes ---
+  1. Ir a "Reportes" (esta fuera de los grupos del menu, debajo de
+     "Facturacion"). Elegir un rango Desde/Hasta que incluya las
+     ventas de la prueba y click "Aplicar".
+  2. Un dropdown ("Reporte") elige cual de los 6 reportes se muestra
+     a pantalla completa debajo (no son pestanas, para que las
+     tablas no queden apretadas):
+       - Ventas resumidas por fecha (totales agrupados por dia)
+       - Ventas detalle por fecha (factura por factura, con NCF,
+         cliente y formas de pago)
+       - Top productos vendidos (grafico + tabla, con utilidad
+         estimada calculada con el CostoUnitario del producto — 0
+         si nunca se registro)
+       - Ventas por metodo de pago
+       - Movimientos de inventario (el kardex del rango elegido)
+       - CxC / CxP pendientes (dos tablas lado a lado)
+  3. Boton "Exportar a Excel" (al lado de "Aplicar"): descarga un
+     .csv del reporte actualmente seleccionado en el dropdown (abre
+     directo en Excel, con tildes/enes correctas).
+
+--- PASO 9: Central — Administracion ---
+  a) "Empresa": UNA sola pantalla (no un listado) para editar Nombre
+     y RNC de la unica empresa del sistema — es multisucursal, NO
+     multiempresa, asi que no hay "Nueva empresa" ni una lista.
+  b) "Sucursales": lista TODAS las sucursales del sistema. Click
+     "Nueva sucursal" (modal): Nombre, Codigo (2 digitos, unico),
+     direccion/telefono opcionales — no pide RNC (eso es de la
+     Empresa, ver PASO 9a, una sucursal ya no tiene su propio RNC) ni
+     elegir empresa (ya esta implicita, es la unica). El modal de
+     creacion tiene la misma seccion "Modulos opcionales" (Mesero/
+     Cocina/e-CF) que el de editar, para no tener que crear la
+     sucursal y editarla de nuevo solo para activarlos. El admin que
+     la crea se auto-asigna a esa sucursal, pero el cambio solo se ve
+     reflejado en su sesion despues de cerrar sesion y volver a
+     entrar (el JWT solo se refresca en el login). El icono de editar
+     de cada fila abre "Datos generales" + "Modulos opcionales"
+     (Mesero/Cocina/e-CF) — el correo SMTP ya NO esta aca, ver PASO 9i.
+  c) "Cajas": click "Nueva caja" (modal) o editar la "01" existente.
+     Mientras escribis, el modal muestra en vivo como va a quedar el
+     proximo numero de factura completo. El campo "Proximo N° de
+     factura" no se puede bajar, solo mantener o avanzar.
+  d) "Secuencias NCF": click "Nueva secuencia" (modal). Elegir tipo
+     de comprobante (31/32/33/34/41/43/44/45), secuencia inicial/
+     proxima/final y fecha de vencimiento. Sin una secuencia activa
+     y vigente para el tipo correspondiente, las facturas y notas
+     salen "sin NCF" (no bloquea la venta, solo no llevan NCF).
+  e) "Motivos de Nota": CRUD del catalogo que usa el PASO 6 —
+     crear uno nuevo, desactivarlo, confirmar que deja de aparecer
+     en el selector del modal de "Emitir nota" (pero las notas ya
+     emitidas con ese motivo lo siguen mostrando, es un snapshot).
+  f) "Metodos de Pago": CRUD del catalogo que usa Caja y CxC/CxP
+     (PASO 5 y PASO 7) — crear uno nuevo (ej. "Cheque"), marcar si
+     es efectivo o si requiere comprobante, desactivarlo. Los pagos
+     ya registrados con un metodo desactivado lo siguen mostrando.
+  g) "Usuarios": click "Nuevo usuario" (modal), asignar roles y
+     sucursales (al menos una, obligatorio). Nombre de usuario y
+     Nombre completo son obligatorios (se valida en el formulario y
+     tambien en el backend). El icono de editar de cada fila abre el
+     mismo modal ya con los datos cargados — permite cambiar Nombre
+     de usuario, Nombre, Email, roles, sucursales y el checkbox
+     "Activo" (unica forma de reactivar a alguien que se desactivo
+     con el icono de bloquear). La contrasena en el modal de editar
+     queda opcional: si se deja vacia, no se toca la actual. Paginacion real.
+  h) "Usuarios activos": lista quien tiene sesion abierta ahora
+     mismo (ultimos 15 minutos de actividad), con su sucursal
+     activa y hace cuanto fue su ultima accion. Se refresca solo
+     cada 30s.
+  i) "Correo (SMTP)": pantalla propia (antes estaba dentro del
+     formulario de editar Sucursal, PASO 9b) con su propio selector
+     de sucursal arriba — la config de correo saliente (activar,
+     servidor, puerto, usuario, contrasena, remitente, SSL/TLS) es
+     especifica de cada sucursal, igual que antes, solo que ahora
+     tiene su propia pantalla dentro de "Administracion".
+
+--- PASO 10: Cerrar sesion ---
+  1. En cualquiera de las 4 apps, el icono de logout (arriba a la
+     derecha del AppBar) cierra la sesion — tanto la del navegador
+     como el registro del lado del servidor (ver seccion 7) — y
+     vuelve al login.
+
+--- PASO 11 (opcional): Cancelacion de comanda completa ---
+  1. En Mesero, crear una comanda nueva (PASO 2) y NO facturarla.
   2. En la pestana "Mis comandas", click "Cancelar comanda", escribir
      un motivo, confirmar.
   3. Ir a Central -> Inventario -> deberia verse un movimiento tipo
@@ -208,7 +612,7 @@ directa y cuadre de caja.
 
 
 ------------------------------------------------------------------
-6) NOTAS Y PROBLEMAS COMUNES
+7) NOTAS Y PROBLEMAS COMUNES
 ------------------------------------------------------------------
 
 - "Failed to fetch" / ERR_CONNECTION_REFUSED en la consola del
@@ -221,12 +625,71 @@ directa y cuadre de caja.
   cerrar de una prueba anterior. Hay que cerrarlo desde Caja antes
   de poder abrir uno nuevo.
 
-- Envio real a DGII: requiere el certificado digital configurado en
-  Api/certificados/ (ver Api/certificados/README.md) y vigente. Sin
-  eso, las ventas con e-CF activo quedan marcadas "Contingencia"
-  automaticamente — la venta NO se bloquea, solo queda pendiente de
-  reenvio.
+- Envio real a DGII: si la Sucursal tiene "e-CF" activado (PASO 9a)
+  y la venta tomo un NCF, la Api invoca el gateway de facturacion
+  electronica (libreria independiente FacturacionElectronica) justo
+  despues de guardar la factura. Requiere el certificado digital
+  configurado en Api/certificados/ (ver Api/certificados/README.md)
+  y vigente; sin eso, la factura queda marcada "Contingencia"/con un
+  mensaje de error de DGII — la venta NO se bloquea nunca por esto,
+  solo queda pendiente de reenvio. El resultado (aceptada, rechazada,
+  pendiente) se puede ver en el mensaje que muestra Caja al facturar.
 
-- Las 4 apps no comparten sesion entre si (cada una su propio login),
-  y ninguna persiste la sesion en el navegador (sin localStorage) —
-  si recargas una pestana, hay que volver a iniciar sesion ahi.
+- Metodos de pago (Efectivo/Tarjeta/Transferencia/Deposito) ya NO
+  son un enum fijo: es un catalogo editable desde Central -> PASO 9g,
+  usado tanto en Caja (ventas y cuadre de turno) como en CxC/CxP.
+
+- Sesion y "recordar sucursal": cada app mantiene su login en
+  memoria (no sobrevive un F5/recarga de esa pestana — hay que
+  volver a iniciar sesion ahi). Lo que SI se guarda en el navegador
+  (localStorage, por dispositivo) es la sucursal elegida, para no
+  tener que reelegirla en cada login desde la misma maquina/tablet
+  si el usuario tiene mas de una sucursal asignada. El logout (ver
+  PASO 10) cierra la sesion en el servidor tambien, asi deja de
+  aparecer en "Usuarios activos".
+
+- Codigo de producto duplicado / secuencia de factura o NCF
+  agotada: son validaciones reales del backend, no bugs — el
+  mensaje de error explica cual es el problema (codigo repetido,
+  secuencia sin cupo, etc). El Codigo de un producto es unico en
+  TODO el catalogo de la empresa, no solo dentro de una sucursal.
+
+- Productos y Categorias son de toda la empresa (un solo catalogo
+  compartido por todas las sucursales); solo el STOCK de los
+  insumos (StockActual/Minimo/Maximo) es especifico de cada
+  sucursal — ver PASO 1, punto 4.
+
+- Cada Factura guarda una copia (snapshot) del nombre/RNC-cedula del
+  cliente y del codigo de sucursal/caja al momento de facturar, no
+  solo el ClienteId — asi que editar un cliente despues (PASO 1,
+  paso 5) no cambia como se ve una factura vieja ya emitida.
+
+- FormaPago (Efectivo/Tarjeta/Transferencia/Deposito) sigue siendo
+  un enum fijo del sistema en Caja, todavia no es un catalogo
+  editable desde Central (pendiente).
+
+- Sesion vencida (token JWT de 10 horas): si hacias una accion en
+  Central con la sesion ya vencida, antes se rompia toda la pantalla
+  con un error tecnico en la consola. Ahora cualquier respuesta 401
+  de la Api cierra la sesion local y manda directo al login, en las
+  4 apps. Si te llega a pasar, es normal — volve a iniciar sesion.
+  IMPORTANTE: los cambios de este tipo (registrados en Program.cs de
+  cada app) solo se aplican si REINICIAS el proceso "dotnet run" de
+  esa app — un simple refresh del navegador no alcanza, hay que parar
+  y volver a levantar la app (y despues si hacer un refresh fuerte,
+  Ctrl+Shift+R, para descartar el .wasm viejo cacheado).
+
+- Datos de prueba: la base ya viene con un set de datos realistas
+  sembrado (no hardcodeado en el codigo, son filas reales en SQL) —
+  categorias, insumos con recetas, productos vendibles, 22 facturas
+  historicas repartidas en 10 dias con distintas horas/metodos de
+  pago/clientes, clientes y proveedores de ejemplo, y CxC/CxP
+  pendientes. Sirve para probar Reportes e Inicio con datos que no
+  esten todos amontonados en un solo dia/hora. Si necesitas la base
+  completamente vacia para tu propia prueba, hay que limpiarla a
+  mano (no hay un boton para esto todavia).
+
+- Menu de Central reorganizado en grupos: Catalogo, Operacion,
+  Facturacion, Empresa, Administracion — mas "Inicio" y "Reportes"
+  sueltos, fuera de cualquier grupo (Reportes queda debajo de
+  Facturacion).

@@ -1,12 +1,39 @@
 <MudNavMenu>
     <MudNavLink Href="inicio" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Inicio</MudNavLink>
-    <MudNavLink Href="productos" Icon="@Icons.Material.Filled.Fastfood">Productos</MudNavLink>
-    <MudNavLink Href="mesas" Icon="@Icons.Material.Filled.TableRestaurant">Mesas</MudNavLink>
-    <MudNavLink Href="inventario" Icon="@Icons.Material.Filled.Inventory">Inventario</MudNavLink>
-    <MudNavLink Href="clientes" Icon="@Icons.Material.Filled.Person">Clientes</MudNavLink>
-    <MudNavLink Href="notascreditodebito" Icon="@Icons.Material.Filled.ReceiptLong">Notas Crédito/Débito</MudNavLink>
-    <MudNavLink Href="cxccxp" Icon="@Icons.Material.Filled.AccountBalance">CxC / CxP</MudNavLink>
+
+    <MudNavGroup Title="Catálogo" Icon="@Icons.Material.Filled.Fastfood" Expanded="true">
+        <MudNavLink Href="productos" Icon="@Icons.Material.Filled.Fastfood">Productos</MudNavLink>
+        <MudNavLink Href="categorias" Icon="@Icons.Material.Filled.Category">Categorías</MudNavLink>
+        <MudNavLink Href="unidades-medida" Icon="@Icons.Material.Filled.Straighten">Unidades de Medida</MudNavLink>
+        <MudNavLink Href="inventario" Icon="@Icons.Material.Filled.Inventory">Inventario</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Operación" Icon="@Icons.Material.Filled.PointOfSale" Expanded="true">
+        <MudNavLink Href="mesas" Icon="@Icons.Material.Filled.TableRestaurant">Mesas</MudNavLink>
+        <MudNavLink Href="cajas" Icon="@Icons.Material.Filled.PointOfSale">Cajas</MudNavLink>
+        <MudNavLink Href="configuracion-caja" Icon="@Icons.Material.Filled.Tune">Configuración de Caja</MudNavLink>
+        <MudNavLink Href="clientes" Icon="@Icons.Material.Filled.Person">Clientes</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Facturación" Icon="@Icons.Material.Filled.ReceiptLong">
+        <MudNavLink Href="facturas" Icon="@Icons.Material.Filled.Description">Facturas</MudNavLink>
+        <MudNavLink Href="notas-credito" Icon="@Icons.Material.Filled.ReceiptLong">Notas de Crédito</MudNavLink>
+        <MudNavLink Href="cxccxp" Icon="@Icons.Material.Filled.AccountBalance">CxC / CxP</MudNavLink>
+        <MudNavLink Href="secuencias-ncf" Icon="@Icons.Material.Filled.Tag">Secuencias NCF</MudNavLink>
+        <MudNavLink Href="motivos-nota-credito" Icon="@Icons.Material.Filled.List">Motivos de Nota</MudNavLink>
+        <MudNavLink Href="metodos-pago" Icon="@Icons.Material.Filled.Payments">Métodos de Pago</MudNavLink>
+    </MudNavGroup>
+
     <MudNavLink Href="reportes" Icon="@Icons.Material.Filled.BarChart">Reportes</MudNavLink>
-    <MudNavLink Href="sucursales" Icon="@Icons.Material.Filled.Store">Sucursales</MudNavLink>
-    <MudNavLink Href="usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
+
+    <MudNavGroup Title="Empresa" Icon="@Icons.Material.Filled.Business">
+        <MudNavLink Href="empresa" Icon="@Icons.Material.Filled.Business">Empresa</MudNavLink>
+        <MudNavLink Href="sucursales" Icon="@Icons.Material.Filled.Store">Sucursales</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Administración" Icon="@Icons.Material.Filled.AdminPanelSettings">
+        <MudNavLink Href="usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
+        <MudNavLink Href="sesiones-activas" Icon="@Icons.Material.Filled.OnlinePrediction">Usuarios activos</MudNavLink>
+        <MudNavLink Href="correo-smtp" Icon="@Icons.Material.Filled.Email">Correo (SMTP)</MudNavLink>
+    </MudNavGroup>
 </MudNavMenu>

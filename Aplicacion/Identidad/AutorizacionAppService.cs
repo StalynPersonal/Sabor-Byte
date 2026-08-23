@@ -10,7 +10,14 @@ namespace SaborByte.Aplicacion.Identidad;
 // un código de un solo uso que se adjunta a la operación sensible (ej. descuento).
 public class AutorizacionAppService(IAppDbContext db, IPasswordHasher passwordHasher, IAuditoriaService auditoria)
 {
-    private static readonly string[] RolesAutorizan = ["Supervisor", "Admin"];
+    // Qué roles pueden autorizar cada acción sensible. Admin y Supervisor autorizan
+    // cualquier acción; algunas acciones además admiten un rol dedicado más acotado
+    // (ej. "AutorizaNotaCredito" solo puede autorizar notas de crédito, no descuentos).
+    private static readonly Dictionary<string, string[]> RolesPorAccion = new()
+    {
+        ["Descuento"] = ["Supervisor", "Admin"],
+        ["EmitirNotaCredito"] = ["Supervisor", "Admin", "AutorizaNotaCredito"],
+    };
 
     public async Task<SolicitarAutorizacionResponseDto> SolicitarAsync(
         SolicitarAutorizacionRequestDto request, CancellationToken ct = default)
@@ -22,9 +29,10 @@ public class AutorizacionAppService(IAppDbContext db, IPasswordHasher passwordHa
         if (usuario is null || !passwordHasher.Verificar(usuario.HashPassword, request.Password))
             throw new InvalidOperationException("Credenciales de supervisor incorrectas.");
 
-        var tieneRolAutorizante = usuario.Roles.Any(r => RolesAutorizan.Contains(r.Rol!.Nombre));
+        var rolesQueAutorizan = RolesPorAccion.GetValueOrDefault(request.Accion, ["Supervisor", "Admin"]);
+        var tieneRolAutorizante = usuario.Roles.Any(r => rolesQueAutorizan.Contains(r.Rol!.Nombre));
         if (!tieneRolAutorizante)
-            throw new InvalidOperationException("El usuario no tiene rol de Supervisor o Admin para autorizar esta acción.");
+            throw new InvalidOperationException("El usuario no tiene un rol autorizado para esta acción.");
 
         var autorizacion = new AutorizacionSupervisor
         {

@@ -1,3 +1,5 @@
+using SaborByte.Dominio.Catalogo;
+
 namespace SaborByte.Dominio.CxcCxp;
 
 public class CuentaPorPagar
@@ -24,5 +26,7 @@ public class PagoCxP
 
     public decimal Monto { get; set; }
     public DateTime FechaPago { get; set; } = DateTime.UtcNow;
-    public required string FormaPago { get; set; }
+    public Guid CreadoPorUsuarioId { get; set; }
+    public Guid MetodoPagoId { get; set; }
+    public MetodoPago? MetodoPago { get; set; }
 }

@@ -5,12 +5,29 @@
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
 @inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
-<PageTitle>Sabor Byte — Caja</PageTitle>
+<PageTitle>SaborByte — Caja</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
     <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else if (_turnoBloqueadoOtroDia is not null)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+        <MudPaper Class="pa-8" Elevation="3">
+            <MudText Typo="Typo.h5" Class="mb-4">Turno sin cerrar de otro día</MudText>
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                Esta caja tiene un turno abierto desde el @_turnoBloqueadoOtroDia.FechaHoraApertura.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                (por @(_turnoBloqueadoOtroDia.UsuarioAperturaNombre ?? "otro usuario")). No puede seguir operando en un día
+                distinto — hay que cerrarlo primero.
+            </MudAlert>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="IrACerrarTurnoBloqueadoAsync">
+                Ir a cerrar ese turno
+            </MudButton>
+        </MudPaper>
+    </MudContainer>
 }
 else if (_turnoCajaId is null)
 {
@@ -18,23 +35,28 @@ else if (_turnoCajaId is null)
         <MudPaper Class="pa-8" Elevation="3">
             <MudText Typo="Typo.h5" Class="mb-4">Abrir turno de caja</MudText>
 
-            <MudSelect T="Guid" Label="Caja" @bind-Value="_cajaSeleccionadaId" Class="mb-3">
-                @foreach (var caja in _cajas)
-                {
-                    <MudSelectItem Value="@caja.Id">Caja @caja.Numero</MudSelectItem>
-                }
-            </MudSelect>
-
-            <MudNumericField T="decimal" Label="Monto de apertura (efectivo)" @bind-Value="_montoApertura" Class="mb-3" />
-
-            @if (!string.IsNullOrEmpty(_error))
+            @if (_cajas.Count == 0)
             {
-                <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+                <MudAlert Severity="Severity.Warning">
+                    No hay ninguna caja configurada para tu sucursal. Pide a un Admin que
+                    cree una desde Central → Administración → Cajas.
+                </MudAlert>
             }
+            else
+            {
+                <MudSelect T="Guid" Label="Caja" Value="_cajaSeleccionadaId" ValueChanged="OnCajaSeleccionadaAsync" Class="mb-3">
+                    @foreach (var caja in _cajas)
+                    {
+                        <MudSelectItem Value="@caja.Id">Caja @caja.Numero</MudSelectItem>
+                    }
+                </MudSelect>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AbrirTurnoAsync">
-                Abrir turno
-            </MudButton>
+                <MudNumericField T="decimal" Label="Monto de apertura (efectivo)" @bind-Value="_montoApertura" Class="mb-3" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AbrirTurnoAsync">
+                    Abrir turno
+                </MudButton>
+            }
         </MudPaper>
     </MudContainer>
 }
@@ -48,7 +70,7 @@ else if (_cerrando)
             @foreach (var total in _resumenCierre?.Totales ?? [])
             {
                 <div class="d-flex justify-space-between">
-                    <MudText Typo="Typo.body2">@total.FormaPago</MudText>
+                    <MudText Typo="Typo.body2">@total.MetodoPagoNombre</MudText>
                     <MudText Typo="Typo.body2">RD$ @total.Esperado.ToString("0.00")</MudText>
                 </div>
             }
@@ -71,13 +93,10 @@ else if (_cerrando)
 
             <MudDivider Class="my-3" />
             <MudText Typo="Typo.subtitle2" Class="mb-2">Otras formas de pago — monto contado/reportado</MudText>
-            <MudNumericField T="decimal" Label="Tarjeta" @bind-Value="_montoTarjetaContado" Class="mb-2" />
-            <MudNumericField T="decimal" Label="Transferencia" @bind-Value="_montoTransferenciaContado" Class="mb-2" />
-            <MudNumericField T="decimal" Label="Depósito" @bind-Value="_montoDepositoContado" Class="mb-2" />
-
-            @if (!string.IsNullOrEmpty(_error))
+            @foreach (var metodo in _metodosPago.Where(m => !m.EsEfectivo))
             {
-                <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
+                <MudNumericField T="decimal" Label="@metodo.Nombre" Value="_montoContadoPorMetodo.GetValueOrDefault(metodo.Id)"
+                                  ValueChanged="v => _montoContadoPorMetodo[metodo.Id] = v" Class="mb-2" />
             }
 
             <div class="d-flex gap-2 mt-4">
@@ -91,22 +110,55 @@ else if (_cerrando)
 }
 else
 {
-    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
-    <MudTabPanel Text="Venta directa">
+    <MudPaper Class="pa-3 mb-3 d-flex flex-wrap gap-4" Outlined="true">
+        <MudText Typo="Typo.body2"><strong>Caja:</strong> @NumeroCajaActual</MudText>
+        <MudText Typo="Typo.body2">
+            <strong>Turno abierto:</strong>
+            @(_turnoAbierto is null ? "—" : $"{_turnoAbierto.FechaHoraApertura.ToLocalTime():dd/MM/yyyy HH:mm} por {_turnoAbierto.UsuarioAperturaNombre ?? "?"}")
+        </MudText>
+        <MudText Typo="Typo.body2"><strong>Próximo N° de factura:</strong> @ProximoNumeroFacturaActual</MudText>
+    </MudPaper>
+
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4" @bind-ActivePanelIndex="_tabIndex">
+    <MudTabPanel Text="Venta">
     <MudGrid>
         <MudItem xs="8">
-            <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
-                           @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
-                           OnDebounceIntervalElapsed="BuscarAsync" Class="mb-4" />
+            <MudGrid Class="mb-4">
+                <MudItem xs="8">
+                    <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
+                                   @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
+                                   OnDebounceIntervalElapsed="BuscarAsync" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudSelect T="Guid?" Label="Categoría" Value="_categoriaId" ValueChanged="OnCategoriaCambiadaAsync" Clearable="true">
+                        <MudSelectItem Value="@((Guid?)null)">Todas</MudSelectItem>
+                        @foreach (var categoria in _categorias)
+                        {
+                            <MudSelectItem Value="@((Guid?)categoria.Id)">@categoria.Nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
 
             <MudGrid>
                 @foreach (var producto in _productos)
                 {
                     <MudItem xs="4" sm="3">
-                        <MudCard Class="cursor-pointer" @onclick="() => AgregarAlCarrito(producto)">
+                        <MudCard Class="cursor-pointer" @onclick="() => AgregarAlCarritoAsync(producto)">
+                            @if (!string.IsNullOrEmpty(producto.ImagenUrl))
+                            {
+                                <MudCardMedia Image="@producto.ImagenUrl" Height="100" />
+                            }
+                            else
+                            {
+                                <div class="d-flex align-center justify-center" style="height:100px;background-color:var(--mud-palette-primary-lighten)">
+                                    <MudIcon Icon="@Icons.Material.Filled.RestaurantMenu" Size="Size.Large" Color="Color.Surface" />
+                                </div>
+                            }
                             <MudCardContent>
                                 <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
-                                <MudText Typo="Typo.body2">RD$ @producto.Precio.ToString("0.00")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Cód. @producto.Codigo</MudText>
+                                <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -118,26 +170,68 @@ else
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" Class="mb-2">Carrito</MudText>
 
-                <MudAutocomplete T="ClienteDto" Label="Cliente (opcional)" Value="_clienteSeleccionado"
-                                  ValueChanged="OnClienteSeleccionado" SearchFunc="BuscarClientesAsync"
-                                  ToStringFunc="@(c => c is null ? string.Empty : $"{c.NombreORazonSocial} ({c.RncOCedula})")"
-                                  Clearable="true" Class="mb-2" />
+                @if (_comandaOrigen is not null)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                        <div class="d-flex justify-space-between align-center gap-2">
+                            <span>
+                                Cobrando comanda #@_comandaOrigen.NumeroComanda
+                                @(string.IsNullOrEmpty(_comandaOrigen.NumeroMesa) ? "" : $"— Mesa {_comandaOrigen.NumeroMesa}{(string.IsNullOrEmpty(_comandaOrigen.NombreSalon) ? "" : $" ({_comandaOrigen.NombreSalon})")}")
+                            </span>
+                            <MudButton Size="Size.Small" OnClick="QuitarComandaDelCarrito">Quitar</MudButton>
+                        </div>
+                    </MudAlert>
+                }
+
+                <div class="d-flex gap-1 align-end mb-2">
+                    <MudAutocomplete T="ClienteDto" Label="Cliente" Required="true" RequiredError="Debes seleccionar un cliente" Value="_clienteSeleccionado"
+                                      ValueChanged="OnClienteSeleccionado" SearchFunc="BuscarClientesAsync"
+                                      ToStringFunc="@(c => c is null ? string.Empty : $"{c.NombreORazonSocial} ({c.RncOCedula})")"
+                                      Clearable="true" Style="flex:1" />
+                    <MudTooltip Text="Nuevo cliente">
+                        <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" OnClick="AbrirNuevoClienteAsync" />
+                    </MudTooltip>
+                </div>
 
                 @foreach (var linea in _carrito)
                 {
-                    <div class="d-flex justify-space-between mb-1">
-                        <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
+                    <div class="d-flex justify-space-between align-center mb-1 gap-1">
+                        @if (linea.EsDeComanda)
+                        {
+                            <MudTooltip Text="Ya viene de la comanda — para cambiarla, cancela el ítem desde Cocina/Mesero">
+                                <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Small" Color="Color.Default" />
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small"
+                                           OnClick="() => QuitarUnidadCarrito(linea)" />
+                        }
+                        <div style="flex:1">
+                            <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
+                            @if (linea.NombresExcluidos.Count > 0)
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Sin: @string.Join(", ", linea.NombresExcluidos)</MudText>
+                            }
+                        </div>
                         <MudText Typo="Typo.body2">RD$ @((linea.Precio * linea.Cantidad).ToString("0.00"))</MudText>
+                        @if (!linea.EsDeComanda)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="() => _carrito.Remove(linea)" />
+                        }
                     </div>
                 }
 
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.body2">Subtotal: RD$ @TotalCarrito.ToString("0.00")</MudText>
+                <MudText Typo="Typo.body2">ITBIS (18%): RD$ @ItbisCarrito.ToString("0.00")</MudText>
 
                 <MudSelect T="decimal" Label="Propina" @bind-Value="_porcentajePropina" Class="my-2">
-                    <MudSelectItem Value="0m">Sin propina</MudSelectItem>
-                    <MudSelectItem Value="10m">10%</MudSelectItem>
-                    <MudSelectItem Value="15m">15%</MudSelectItem>
+                    @foreach (var porcentaje in _porcentajesPropina)
+                    {
+                        <MudSelectItem Value="@porcentaje.Valor">@(porcentaje.Valor == 0 ? "Sin propina" : $"{porcentaje.Valor}%")</MudSelectItem>
+                    }
                 </MudSelect>
 
                 @if (_descuentoAutorizado)
@@ -155,20 +249,42 @@ else
 
                 <MudText Typo="Typo.subtitle1">Total: RD$ @TotalConPropina.ToString("0.00")</MudText>
 
-                <MudSelect T="FormaPago" Label="Forma de pago" @bind-Value="_formaPago" Class="my-3">
-                    <MudSelectItem Value="FormaPago.Efectivo">Efectivo</MudSelectItem>
-                    <MudSelectItem Value="FormaPago.Tarjeta">Tarjeta</MudSelectItem>
-                    <MudSelectItem Value="FormaPago.Transferencia">Transferencia</MudSelectItem>
-                    <MudSelectItem Value="FormaPago.Deposito">Depósito</MudSelectItem>
-                </MudSelect>
-
-                @if (!string.IsNullOrEmpty(_error))
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Forma(s) de pago</MudText>
+                @foreach (var pago in _pagos)
                 {
-                    <MudAlert Severity="Severity.Error" Class="mb-2">@_error</MudAlert>
+                    <div class="d-flex gap-2 align-center mb-2">
+                        <MudSelect T="Guid" Value="pago.MetodoPagoId" ValueChanged="v => pago.MetodoPagoId = v" Style="width:140px">
+                            @foreach (var metodo in _metodosPago)
+                            {
+                                <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudNumericField T="decimal" @bind-Value="pago.Monto" Label="Monto" Style="width:110px" />
+                        @if (RequiereComprobante(pago.MetodoPagoId))
+                        {
+                            <MudTextField T="string" @bind-Value="pago.NumeroComprobante" Label="N° comprobante" Style="width:140px" />
+                        }
+                        @if (_pagos.Count > 1)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="() => _pagos.Remove(pago)" />
+                        }
+                    </div>
+                }
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-2" OnClick="() => _pagos.Add(new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId })">
+                    + Agregar otra forma de pago
+                </MudButton>
+                <MudText Typo="Typo.body2" Class="mt-1 mb-2" Color="@(FaltaPorCubrir == 0 ? Color.Success : Color.Error)">
+                    @(FaltaPorCubrir == 0 ? "Pagos completos" : $"Falta por cubrir: RD$ {FaltaPorCubrir:0.00}")
+                </MudText>
+                @if (CambioCarrito > 0)
+                {
+                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Info">
+                        Cambio: RD$ @CambioCarrito.ToString("0.00")
+                    </MudText>
                 }
 
                 <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
-                           Disabled="_carrito.Count == 0" OnClick="FacturarAsync" Class="mb-2">
+                           Disabled="_carrito.Count == 0 || _clienteSeleccionado is null" OnClick="FacturarAsync" Class="mb-2">
                     Facturar
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="IniciarCierreAsync">
@@ -180,68 +296,151 @@ else
     </MudTabPanel>
 
     <MudTabPanel Text="Comandas abiertas">
-        @if (_comandaParaFacturar is null)
-        {
-            <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-3" OnClick="CargarComandasAbiertasAsync">
-                Actualizar
-            </MudButton>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-3" OnClick="CargarComandasAbiertasAsync">
+            Actualizar
+        </MudButton>
 
-            @if (_comandasAbiertas.Count == 0)
-            {
-                <MudText Typo="Typo.body2">No hay comandas abiertas para facturar.</MudText>
-            }
-            else
-            {
-                <MudGrid>
-                    @foreach (var comanda in _comandasAbiertas)
-                    {
-                        <MudItem xs="6" sm="4" md="3">
-                            <MudCard Class="cursor-pointer" @onclick="() => SeleccionarComanda(comanda)">
-                                <MudCardContent>
-                                    <MudText Typo="Typo.subtitle1">Comanda #@comanda.NumeroComanda</MudText>
-                                    <MudText Typo="Typo.body2">@comanda.Items.Count(i => i.Estado != EstadoItemComanda.Cancelado) ítem(s)</MudText>
-                                    <MudText Typo="Typo.caption">@comanda.CreadoEn.ToLocalTime().ToString("HH:mm")</MudText>
-                                </MudCardContent>
-                            </MudCard>
-                        </MudItem>
-                    }
-                </MudGrid>
-            }
+        @if (_comandasAbiertas.Count == 0)
+        {
+            <MudText Typo="Typo.body2">No hay comandas abiertas para facturar.</MudText>
         }
         else
         {
-            <MudPaper Class="pa-4" Style="max-width:500px">
-                <MudText Typo="Typo.h6" Class="mb-2">Comanda #@_comandaParaFacturar.NumeroComanda</MudText>
-
-                @foreach (var item in _comandaParaFacturar.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
+            <MudGrid>
+                @foreach (var comanda in _comandasAbiertas)
                 {
-                    <div class="d-flex justify-space-between mb-1">
-                        <MudText Typo="Typo.body2">@item.Cantidad x @item.NombreProducto</MudText>
-                    </div>
+                    <MudItem xs="6" sm="4" md="3">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudText Typo="Typo.subtitle1">
+                                    Comanda #@comanda.NumeroComanda
+                                    @(string.IsNullOrEmpty(comanda.NumeroMesa) ? "" : $"— Mesa {comanda.NumeroMesa}{(string.IsNullOrEmpty(comanda.NombreSalon) ? "" : $" ({comanda.NombreSalon})")}")
+                                </MudText>
+                                <MudText Typo="Typo.body2">@comanda.Items.Count(i => i.Estado != EstadoItemComanda.Cancelado) ítem(s)</MudText>
+                                <MudText Typo="Typo.caption">Mesero: @(comanda.NombreMesero ?? "—")</MudText>
+                                <MudText Typo="Typo.caption">@comanda.CreadoEn.ToLocalTime().ToString("HH:mm")</MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="() => CobrarComanda(comanda)">
+                                    Cobrar
+                                </MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
                 }
+            </MudGrid>
+        }
+    </MudTabPanel>
 
-                <MudSelect T="FormaPago" Label="Forma de pago" @bind-Value="_formaPagoComanda" Class="my-3">
-                    <MudSelectItem Value="FormaPago.Efectivo">Efectivo</MudSelectItem>
-                    <MudSelectItem Value="FormaPago.Tarjeta">Tarjeta</MudSelectItem>
-                    <MudSelectItem Value="FormaPago.Transferencia">Transferencia</MudSelectItem>
-                    <MudSelectItem Value="FormaPago.Deposito">Depósito</MudSelectItem>
-                </MudSelect>
+    <MudTabPanel Text="Facturas">
+        @if (_facturaParaNota is null)
+        {
+            <MudText Typo="Typo.h6" Class="mb-2">Facturas</MudText>
+            <MudTextField T="string" Label="Buscar factura (N° o NCF)" @bind-Value="_textoBusquedaNota"
+                           Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarFacturasNotaAsync" Class="mb-3"
+                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
 
-                @if (!string.IsNullOrEmpty(_errorComanda))
+            <MudTable @ref="_tablaFacturasNota" ServerData="CargarPaginaFacturasNotaAsync" Hover="true" Dense="true" T="FacturaResumenDto">
+                <HeaderContent>
+                    <MudTh>N° Factura</MudTh>
+                    <MudTh>NCF</MudTh>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>Total</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.NumeroFactura</MudTd>
+                    <MudTd>@(context.NumeroNcf ?? "(sin NCF)")</MudTd>
+                    <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="Ver detalle">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerDetalleFacturaNotaAsync(context.Id)" />
+                        </MudTooltip>
+                        <MudTooltip Text="Reimprimir (duplicado)">
+                            <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small" OnClick="() => ReimprimirFacturaAsync(context.Id)" />
+                        </MudTooltip>
+                        <MudTooltip Text="Emitir nota de crédito">
+                            <MudIconButton Icon="@Icons.Material.Filled.AssignmentReturn" Size="Size.Small" OnClick="() => SeleccionarFacturaNotaAsync(context)" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+                </PagerContent>
+            </MudTable>
+        }
+        else
+        {
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.h6">
+                    Factura @_facturaParaNota.NumeroFactura (@(_facturaParaNota.NumeroNcf ?? "sin NCF")) — Total RD$ @_facturaParaNota.Total.ToString("0.00")
+                </MudText>
+                <MudButton Size="Size.Small" OnClick="() => _facturaParaNota = null">Cambiar factura</MudButton>
+            </div>
+
+            <MudSelect T="Guid?" Label="Motivo" Value="_motivoNotaId" ValueChanged="v => _motivoNotaId = v" Class="mb-3" Style="max-width:400px">
+                @foreach (var motivo in _motivosNota)
                 {
-                    <MudAlert Severity="Severity.Error" Class="mb-2">@_errorComanda</MudAlert>
+                    <MudSelectItem Value="@((Guid?)motivo.Id)">@motivo.Nombre</MudSelectItem>
                 }
+            </MudSelect>
 
-                <div class="d-flex gap-2">
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="FacturarComandaAsync">
-                        Facturar comanda
-                    </MudButton>
-                    <MudButton Variant="Variant.Outlined" OnClick="() => _comandaParaFacturar = null">Volver</MudButton>
-                </div>
-            </MudPaper>
+            <MudTable Items="_lineasDisponiblesNota" Hover="true" Dense="true" Class="mb-3">
+                <HeaderContent>
+                    <MudTh>Producto</MudTh>
+                    <MudTh>Vendido</MudTh>
+                    <MudTh>Ya acreditado</MudTh>
+                    <MudTh>Disponible</MudTh>
+                    <MudTh>Cantidad a acreditar</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.NombreProducto</MudTd>
+                    <MudTd>@context.Cantidad.ToString("0.###")</MudTd>
+                    <MudTd>@context.CantidadAcreditada.ToString("0.###")</MudTd>
+                    <MudTd>@context.CantidadDisponible.ToString("0.###")</MudTd>
+                    <MudTd Style="width:160px">
+                        <MudNumericField T="decimal" Value="ObtenerCantidadNota(context.FacturaDetalleId)"
+                                          ValueChanged="v => _cantidadesNota[context.FacturaDetalleId] = v"
+                                          Min="0" Max="@context.CantidadDisponible" Disabled="@(context.CantidadDisponible <= 0)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            @if (_notaAutorizada)
+            {
+                <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">Autorización obtenida — ya se puede emitir.</MudAlert>
+            }
+            else
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-2" OnClick="() => _mostrarDialogoAutorizacionNota = true">
+                    Solicitar autorización de supervisor
+                </MudButton>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!_notaAutorizada" OnClick="EmitirNotaAsync">
+                Emitir nota de crédito
+            </MudButton>
         }
     </MudTabPanel>
     </MudTabs>
+
+    @if (_mostrarDialogoAutorizacionNota)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999" @onclick="() => _mostrarDialogoAutorizacionNota = false">
+            <MudPaper Class="pa-6" @onclick:stopPropagation="true" Style="width:400px">
+                <MudText Typo="Typo.h6" Class="mb-3">Autorización de supervisor</MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">Requiere un usuario con Autorizacion.</MudText>
+                <MudTextField T="string" Label="Usuario" @bind-Value="_supervisorUsuarioNota" Class="mb-2" />
+                <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_supervisorPasswordNota" Class="mb-2" />
+
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SolicitarAutorizacionNotaAsync">Autorizar</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoAutorizacionNota = false">Cancelar</MudButton>
+                </div>
+            </MudPaper>
+        </MudOverlay>
+    }
 
     @if (_mostrarDialogoDescuento)
     {
@@ -252,11 +451,6 @@ else
                 <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_supervisorPassword" Class="mb-2" />
                 <MudNumericField T="decimal" Label="Monto del descuento" @bind-Value="_montoDescuento" Class="mb-2" />
 
-                @if (!string.IsNullOrEmpty(_errorAutorizacion))
-                {
-                    <MudAlert Severity="Severity.Error" Class="mb-2">@_errorAutorizacion</MudAlert>
-                }
-
                 <div class="d-flex gap-2 mt-3">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SolicitarAutorizacionAsync">Autorizar</MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoDescuento = false">Cancelar</MudButton>
@@ -264,24 +458,231 @@ else
             </MudPaper>
         </MudOverlay>
     }
+
+    @if (_mostrarDialogoNuevoCliente)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999" @onclick="() => _mostrarDialogoNuevoCliente = false">
+            <MudPaper Class="pa-6" @onclick:stopPropagation="true" Style="width:400px">
+                <MudText Typo="Typo.h6" Class="mb-3">Nuevo cliente</MudText>
+                <MudTextField T="string" Label="Nombre / Razón social" @bind-Value="_formNuevoCliente.NombreORazonSocial" Required="true" Class="mb-2" />
+
+                <MudSelect T="TipoCliente" Label="Tipo de cliente" @bind-Value="_formNuevoCliente.TipoCliente" Class="mb-2">
+                    <MudSelectItem Value="TipoCliente.Consumo">Consumo (sin RNC)</MudSelectItem>
+                    <MudSelectItem Value="TipoCliente.Fiscal">Fiscal (con RNC, crédito fiscal)</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField T="string" Label="RNC/Cédula" @bind-Value="_formNuevoCliente.RncOCedula"
+                               Required="@(_formNuevoCliente.TipoCliente == TipoCliente.Fiscal)"
+                               HelperText="@(_formNuevoCliente.TipoCliente == TipoCliente.Fiscal ? "Obligatorio para clientes Fiscal" : null)"
+                               Class="mb-2" />
+                <MudTextField T="string" Label="Teléfono" @bind-Value="_formNuevoCliente.Telefono" Required="true" Class="mb-2" />
+
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearClienteRapidoAsync">Crear y seleccionar</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoNuevoCliente = false">Cancelar</MudButton>
+                </div>
+            </MudPaper>
+        </MudOverlay>
+    }
+
+    @if (_productoParaPersonalizar is not null)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999" @onclick="() => _productoParaPersonalizar = null">
+            <MudPaper Class="pa-6" @onclick:stopPropagation="true" Style="width:400px">
+                <MudText Typo="Typo.h6" Class="mb-3">@_productoParaPersonalizar.Nombre</MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">Desmarca lo que no lleve:</MudText>
+
+                @foreach (var ingrediente in _ingredientesOpcionales)
+                {
+                    <MudCheckBox T="bool" Label="@ingrediente.InsumoNombre" Value="!_excluidosSeleccionados.Contains(ingrediente.InsumoId)"
+                                 ValueChanged="@((bool incluido) => AlternarExclusion(ingrediente.InsumoId, incluido))" />
+                }
+
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConfirmarPersonalizacion">Agregar al carrito</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="() => _productoParaPersonalizar = null">Cancelar</MudButton>
+                </div>
+            </MudPaper>
+        </MudOverlay>
+    }
+
+    <MudDialog @bind-Visible="_viendoDetalleFacturaNota" Options="_opcionesDialogoGrande">
+        <TitleContent>Factura @_detalleFacturaNota?.NumeroFactura</TitleContent>
+        <DialogContent>
+            @if (_detalleFacturaNota is not null)
+            {
+                <MudGrid Class="mb-3">
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">N° Factura</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">@_detalleFacturaNota.NumeroFactura</MudText>
+
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Sucursal</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">@_detalleFacturaNota.SucursalNombre (@_detalleFacturaNota.SucursalCodigo)</MudText>
+
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Cliente</MudText>
+                        <MudText Typo="Typo.body2">
+                            @_detalleFacturaNota.ClienteNombre @(string.IsNullOrEmpty(_detalleFacturaNota.ClienteRncOCedula) ? "" : $"({_detalleFacturaNota.ClienteRncOCedula})")
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">NCF</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">@(_detalleFacturaNota.NumeroNcf ?? "(sin NCF)")</MudText>
+
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Caja</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">@_detalleFacturaNota.CajaNumero</MudText>
+
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Fecha</MudText>
+                        <MudText Typo="Typo.body2">@_detalleFacturaNota.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudText>
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Líneas</MudText>
+                <MudTable Items="_detalleFacturaNota.Lineas" Hover="true" Dense="true" Class="mb-3">
+                    <HeaderContent>
+                        <MudTh>Producto</MudTh>
+                        <MudTh>Cantidad</MudTh>
+                        <MudTh>Precio</MudTh>
+                        <MudTh>Descuento</MudTh>
+                        <MudTh>ITBIS</MudTh>
+                        <MudTh>Total</MudTh>
+                        <MudTh>Acreditado</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.NombreProducto</MudTd>
+                        <MudTd>@context.Cantidad.ToString("0.###")</MudTd>
+                        <MudTd>RD$ @context.PrecioUnitario.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @context.Descuento.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @context.Itbis.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                        <MudTd>@(context.CantidadAcreditada > 0 ? context.CantidadAcreditada.ToString("0.###") : "—")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-1">Pagos</MudText>
+                <MudTable Items="_detalleFacturaNota.Pagos" Hover="true" Dense="true" Class="mb-3">
+                    <HeaderContent>
+                        <MudTh>Método</MudTh>
+                        <MudTh>Monto</MudTh>
+                        <MudTh>N° Comprobante</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.NombreMetodoPago</MudTd>
+                        <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                        <MudTd>@(context.NumeroComprobante ?? "—")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <div class="d-flex justify-end">
+                    <div style="min-width:280px">
+                        <div class="d-flex justify-space-between">
+                            <MudText Typo="Typo.body2">Subtotal</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Subtotal.ToString("0.00")</MudText>
+                        </div>
+                        <div class="d-flex justify-space-between">
+                            <MudText Typo="Typo.body2">ITBIS</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Itbis.ToString("0.00")</MudText>
+                        </div>
+                        <div class="d-flex justify-space-between">
+                            <MudText Typo="Typo.body2">Descuento</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Descuento.ToString("0.00")</MudText>
+                        </div>
+                        <div class="d-flex justify-space-between">
+                            <MudText Typo="Typo.body2">Propina</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Propina.ToString("0.00")</MudText>
+                        </div>
+                        <MudDivider Class="my-1" />
+                        <div class="d-flex justify-space-between">
+                            <MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText>
+                            <MudText Typo="Typo.subtitle1"><strong>RD$ @_detalleFacturaNota.Total.ToString("0.00")</strong></MudText>
+                        </div>
+                    </div>
+                </div>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _viendoDetalleFacturaNota = false">Cerrar</MudButton>
+        </DialogActions>
+    </MudDialog>
 }
+
+@* El recibo de abajo (.solo-imprimir) queda oculto en pantalla a propósito — solo se ve al
+   imprimir. Sin este diálogo, después de facturar no queda NADA visible en pantalla más
+   que un toast que desaparece solo: el cajero no tiene forma de confirmar que la venta se
+   registró ni de volver a ver el detalle si cerró el diálogo de impresión por error. *@
+<MudDialog Visible="_ultimaVenta is not null" VisibleChanged="v => { if (!v) _ultimaVenta = null; }" Options="_opcionesDialogo">
+    <TitleContent>Venta registrada — Factura @_ultimaVenta?.NumeroFactura</TitleContent>
+    <DialogContent>
+        @if (_ultimaVenta is not null)
+        {
+            @if (!string.IsNullOrEmpty(_ultimaVenta.MensajeDgii))
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">Envío a DGII: @_ultimaVenta.MensajeDgii</MudAlert>
+            }
+            @if (!string.IsNullOrEmpty(_ultimaVenta.NumeroNcf))
+            {
+                <MudText Typo="Typo.body2" Class="mb-2">NCF: @_ultimaVenta.NumeroNcf</MudText>
+            }
+
+            @foreach (var linea in _lineasUltimaVenta)
+            {
+                <div class="d-flex justify-space-between mb-1">
+                    <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
+                    <MudText Typo="Typo.body2">RD$ @((linea.Precio * linea.Cantidad).ToString("0.00"))</MudText>
+                </div>
+                @if (linea.NombresExcluidos.Count > 0)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">Sin: @string.Join(", ", linea.NombresExcluidos)</MudText>
+                }
+            }
+            <MudDivider Class="my-2" />
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Subtotal</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Subtotal.ToString("0.00")</MudText></div>
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">ITBIS</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Itbis.ToString("0.00")</MudText></div>
+            @if (_ultimaVenta.Descuento > 0)
+            {
+                <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Descuento</MudText><MudText Typo="Typo.body2">-RD$ @_ultimaVenta.Descuento.ToString("0.00")</MudText></div>
+            }
+            @if (_ultimaVenta.Propina > 0)
+            {
+                <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Propina</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Propina.ToString("0.00")</MudText></div>
+            }
+            <MudDivider Class="my-1" />
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText><MudText Typo="Typo.subtitle1"><strong>RD$ @_ultimaVenta.Total.ToString("0.00")</strong></MudText></div>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Forma(s) de pago</MudText>
+            @foreach (var pago in _ultimaVenta.Pagos)
+            {
+                <div class="d-flex justify-space-between">
+                    <MudText Typo="Typo.body2">@NombreMetodoPago(pago.MetodoPagoId)@(string.IsNullOrEmpty(pago.NumeroComprobante) ? "" : $" (comp. {pago.NumeroComprobante})")</MudText>
+                    <MudText Typo="Typo.body2">RD$ @pago.Monto.ToString("0.00")</MudText>
+                </div>
+            }
+            @if (CambioUltimaVenta > 0)
+            {
+                <div class="d-flex justify-space-between mt-1"><MudText Typo="Typo.subtitle2"><strong>Cambio</strong></MudText><MudText Typo="Typo.subtitle2"><strong>RD$ @CambioUltimaVenta.ToString("0.00")</strong></MudText></div>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => JS.InvokeVoidAsync("print"))">Volver a imprimir</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _ultimaVenta = null">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @if (_ultimaVenta is not null)
 {
     <div class="solo-imprimir">
-        <p style="text-align:center; margin:0">Sabor Byte</p>
-        <p style="text-align:center; margin:0">@_ultimaVenta.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-        @if (!string.IsNullOrEmpty(_ultimaVenta.NumeroNcf))
-        {
-            <p style="text-align:center; margin:0">NCF: @_ultimaVenta.NumeroNcf</p>
-        }
-        <hr />
+        @EncabezadoRecibo("FACTURA", _ultimaVenta.NumeroFactura, _ultimaVenta.NumeroNcf, _ultimaVenta.FechaEmision,
+            _ultimaVenta.ClienteNombre, _ultimaVenta.ClienteRncOCedula)
         @foreach (var linea in _lineasUltimaVenta)
         {
             <div style="display:flex; justify-content:space-between">
                 <span>@linea.Cantidad x @linea.Nombre</span>
                 <span>@((linea.Precio * linea.Cantidad).ToString("0.00"))</span>
             </div>
+            @if (linea.NombresExcluidos.Count > 0)
+            {
+                <div style="margin-left:12px; font-size:0.85em">Sin: @string.Join(", ", linea.NombresExcluidos)</div>
+            }
         }
         <hr />
         <div style="display:flex; justify-content:space-between"><span>Subtotal</span><span>@_ultimaVenta.Subtotal.ToString("0.00")</span></div>
@@ -295,23 +696,155 @@ else
             <div style="display:flex; justify-content:space-between"><span>Propina</span><span>@_ultimaVenta.Propina.ToString("0.00")</span></div>
         }
         <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_ultimaVenta.Total.ToString("0.00")</span></div>
-        <p style="text-align:center; margin-top:8px">¡Gracias por su compra!</p>
+        <hr />
+        <p style="margin:0; font-weight:bold">FORMAS DE PAGO</p>
+        @foreach (var pago in _ultimaVenta.Pagos)
+        {
+            <div style="display:flex; justify-content:space-between">
+                <span>@NombreMetodoPago(pago.MetodoPagoId)@(string.IsNullOrEmpty(pago.NumeroComprobante) ? "" : $" (comp. {pago.NumeroComprobante})")</span>
+                <span>@pago.Monto.ToString("0.00")</span>
+            </div>
+        }
+        @if (CambioUltimaVenta > 0)
+        {
+            <div style="display:flex; justify-content:space-between; font-weight:bold"><span>CAMBIO</span><span>@CambioUltimaVenta.ToString("0.00")</span></div>
+        }
+        @PieRecibo(NumeroCajaActual, _ultimaVenta.CajeroNombre, _ultimaVenta.CodigoSeguridadDgii)
+    </div>
+}
+
+<MudDialog Visible="_ultimaNota is not null" VisibleChanged="v => { if (!v) _ultimaNota = null; }" Options="_opcionesDialogo">
+    <TitleContent>Nota de crédito emitida — Nota @_ultimaNota?.NumeroNota</TitleContent>
+    <DialogContent>
+        @if (_ultimaNota is not null)
+        {
+            <MudText Typo="Typo.body2" Class="mb-2">Factura original: @_ultimaNota.NumeroFacturaOriginal</MudText>
+            @if (!string.IsNullOrEmpty(_ultimaNota.NumeroNcf))
+            {
+                <MudText Typo="Typo.body2" Class="mb-2">NCF: @_ultimaNota.NumeroNcf</MudText>
+            }
+            <MudText Typo="Typo.body2" Class="mb-2">Motivo: @_ultimaNota.Motivo</MudText>
+
+            @foreach (var linea in _ultimaNota.Detalle)
+            {
+                <div class="d-flex justify-space-between mb-1">
+                    <MudText Typo="Typo.body2">@linea.Cantidad x @linea.NombreProducto</MudText>
+                    <MudText Typo="Typo.body2">RD$ @linea.Monto.ToString("0.00")</MudText>
+                </div>
+            }
+            <MudDivider Class="my-2" />
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText><MudText Typo="Typo.subtitle1"><strong>RD$ @_ultimaNota.Monto.ToString("0.00")</strong></MudText></div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => JS.InvokeVoidAsync("print"))">Volver a imprimir</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _ultimaNota = null">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@if (_ultimaNota is not null)
+{
+    <div class="solo-imprimir">
+        @EncabezadoRecibo("NOTA DE CRÉDITO", _ultimaNota.NumeroNota, _ultimaNota.NumeroNcf, _ultimaNota.FechaEmision,
+            _ultimaNota.ClienteNombre, _ultimaNota.ClienteRncOCedula)
+        <p style="margin:0">Factura original: @_ultimaNota.NumeroFacturaOriginal</p>
+        <p style="margin:0">Motivo: @_ultimaNota.Motivo</p>
+        <hr />
+        @foreach (var linea in _ultimaNota.Detalle)
+        {
+            <div style="display:flex; justify-content:space-between">
+                <span>@linea.Cantidad x @linea.NombreProducto</span>
+                <span>@linea.Monto.ToString("0.00")</span>
+            </div>
+        }
+        <hr />
+        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_ultimaNota.Monto.ToString("0.00")</span></div>
+        @PieRecibo(NumeroCajaActual, _ultimaNota.CajeroNombre, _ultimaNota.CodigoSeguridadDgii)
+    </div>
+}
+
+@if (_facturaAReimprimir is not null)
+{
+    <div class="solo-imprimir">
+        <p style="text-align:center; margin:0; font-weight:bold; font-size:1.2em">*** DUPLICADO ***</p>
+        @EncabezadoRecibo("FACTURA", _facturaAReimprimir.NumeroFactura, _facturaAReimprimir.NumeroNcf, _facturaAReimprimir.FechaEmision,
+            _facturaAReimprimir.ClienteNombre, _facturaAReimprimir.ClienteRncOCedula)
+        @foreach (var linea in _facturaAReimprimir.Lineas)
+        {
+            <div style="display:flex; justify-content:space-between">
+                <span>@linea.Cantidad x @linea.NombreProducto</span>
+                <span>@linea.Total.ToString("0.00")</span>
+            </div>
+        }
+        <hr />
+        <div style="display:flex; justify-content:space-between"><span>Subtotal</span><span>@_facturaAReimprimir.Subtotal.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between"><span>ITBIS</span><span>@_facturaAReimprimir.Itbis.ToString("0.00")</span></div>
+        @if (_facturaAReimprimir.Descuento > 0)
+        {
+            <div style="display:flex; justify-content:space-between"><span>Descuento</span><span>-@_facturaAReimprimir.Descuento.ToString("0.00")</span></div>
+        }
+        @if (_facturaAReimprimir.Propina > 0)
+        {
+            <div style="display:flex; justify-content:space-between"><span>Propina</span><span>@_facturaAReimprimir.Propina.ToString("0.00")</span></div>
+        }
+        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_facturaAReimprimir.Total.ToString("0.00")</span></div>
+        <hr />
+        <p style="margin:0; font-weight:bold">FORMAS DE PAGO</p>
+        @foreach (var pago in _facturaAReimprimir.Pagos)
+        {
+            <div style="display:flex; justify-content:space-between">
+                <span>@pago.NombreMetodoPago@(string.IsNullOrEmpty(pago.NumeroComprobante) ? "" : $" (comp. {pago.NumeroComprobante})")</span>
+                <span>@pago.Monto.ToString("0.00")</span>
+            </div>
+        }
+        @PieRecibo(_facturaAReimprimir.CajaNumero, _facturaAReimprimir.CajeroNombre, _facturaAReimprimir.CodigoSeguridadDgii)
+        <p style="text-align:center; margin-top:8px; font-weight:bold">*** DUPLICADO — NO VÁLIDO COMO ORIGINAL ***</p>
     </div>
 }
 
 @code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
     private Guid? _turnoCajaId;
     private List<CajaResumenDto> _cajas = [];
     private Guid _cajaSeleccionadaId;
     private decimal _montoApertura;
-    private string? _error;
+    private TurnoAbiertoDto? _turnoBloqueadoOtroDia;
+    private TurnoAbiertoDto? _turnoAbierto;
+
+    private string NumeroCajaActual => _cajas.FirstOrDefault(c => c.Id == _cajaSeleccionadaId)?.Numero ?? "?";
+
+    // Mismo formato que usa la factura real al emitirse: CodigoSucursal + NumeroCaja +
+    // secuencia de 5 dígitos (ej. "010100023").
+    private string ProximoNumeroFacturaActual
+    {
+        get
+        {
+            var caja = _cajas.FirstOrDefault(c => c.Id == _cajaSeleccionadaId);
+            if (caja is null)
+                return "?";
+
+            return $"{caja.CodigoSucursal ?? "??"}{caja.Numero}{caja.ProximoNumeroFactura:D5}";
+        }
+    }
 
     private string _textoBusqueda = string.Empty;
     private List<ProductoResumenDto> _productos = [];
+    private List<CategoriaDto> _categorias = [];
+    private Guid? _categoriaId;
     private readonly List<LineaCarrito> _carrito = [];
-    private FormaPago _formaPago = FormaPago.Efectivo;
+    private List<MetodoPagoDto> _metodosPago = [];
+    private List<PagoVentaRequestDto> _pagos = [];
     private decimal _porcentajePropina;
+    private List<PorcentajePropinaDto> _porcentajesPropina = [];
     private ClienteDto? _clienteSeleccionado;
+    private bool _mostrarDialogoNuevoCliente;
+    private GuardarClienteRequestDto _formNuevoCliente = new();
+
+    private readonly Dictionary<Guid, List<RecetaItemDto>> _recetaCache = [];
+    private ProductoResumenDto? _productoParaPersonalizar;
+    private List<RecetaItemDto> _ingredientesOpcionales = [];
+    private readonly HashSet<Guid> _excluidosSeleccionados = [];
 
     private bool _mostrarDialogoDescuento;
     private string _supervisorUsuario = string.Empty;
@@ -319,31 +852,123 @@ else
     private decimal _montoDescuento;
     private bool _descuentoAutorizado;
     private Guid? _codigoAutorizacionDescuento;
-    private string? _errorAutorizacion;
 
     private VentaResultadoDto? _ultimaVenta;
     private List<LineaCarrito> _lineasUltimaVenta = [];
 
     private bool _cerrando;
     private ResumenTurnoDto? _resumenCierre;
-    private readonly int[] _denominacionesEfectivo = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
+    private List<int> _denominacionesEfectivo = [];
     private readonly Dictionary<int, int> _cantidadesPorDenominacion = [];
-    private decimal _montoTarjetaContado;
-    private decimal _montoTransferenciaContado;
-    private decimal _montoDepositoContado;
+    private readonly Dictionary<Guid, decimal> _montoContadoPorMetodo = [];
 
     private List<ComandaDto> _comandasAbiertas = [];
-    private ComandaDto? _comandaParaFacturar;
-    private FormaPago _formaPagoComanda = FormaPago.Efectivo;
-    private string? _errorComanda;
+    // La comanda que se está cobrando ahora mismo (si hay una) — sus ítems viven en
+    // _carrito como líneas de solo lectura (LineaCarrito.EsDeComanda = true); ver punto 4
+    // del rediseño: cobrar una comanda ya no factura "en el sitio" desde la pestaña de
+    // comandas, transfiere sus ítems al carrito de Venta para poder elegir cliente,
+    // aplicar descuento y agregar productos extra igual que en una venta directa.
+    private ComandaDto? _comandaOrigen;
+    private int _tabIndex;
+
+    private MudTable<FacturaResumenDto>? _tablaFacturasNota;
+    private string _textoBusquedaNota = string.Empty;
+    private FacturaResumenDto? _facturaParaNota;
+    private NotaCreditoDto? _ultimaNota;
+    private bool _viendoDetalleFacturaNota;
+    private FacturaDetalleCompletoDto? _detalleFacturaNota;
+    private FacturaDetalleCompletoDto? _facturaAReimprimir;
+    private List<MotivoNotaCreditoDto> _motivosNota = [];
+    private Guid? _motivoNotaId;
+    private List<FacturaDetalleDisponibleDto> _lineasDisponiblesNota = [];
+    private readonly Dictionary<Guid, decimal> _cantidadesNota = [];
+
+    private bool _mostrarDialogoAutorizacionNota;
+    private string _supervisorUsuarioNota = string.Empty;
+    private string _supervisorPasswordNota = string.Empty;
+    private bool _notaAutorizada;
+    private Guid? _codigoAutorizacionNota;
+
+    private Guid MetodoPagoEfectivoId => _metodosPago.FirstOrDefault(m => m.EsEfectivo)?.Id ?? Guid.Empty;
+
+    private bool RequiereComprobante(Guid metodoPagoId) =>
+        _metodosPago.FirstOrDefault(m => m.Id == metodoPagoId)?.RequiereComprobante ?? false;
+
+    private string NombreMetodoPago(Guid metodoPagoId) =>
+        _metodosPago.FirstOrDefault(m => m.Id == metodoPagoId)?.Nombre ?? "?";
+
+    // Encabezado/pie compartido por los 3 recibos impresos (venta, nota de crédito,
+    // reimpresión de factura) — siempre el nombre/RNC de la EMPRESA y los datos de la
+    // sucursal, nunca "SaborByte" (ese es el nombre del sistema, no el del negocio).
+    private RenderFragment EncabezadoRecibo(string tipoDocumento, string? numeroFactura, string? numeroNcf, DateTime fecha, string clienteNombre, string? clienteRnc) =>
+        @<text>
+            <p style="text-align:center; margin:0; font-weight:bold">@(_empresa?.Nombre ?? "")</p>
+            @if (!string.IsNullOrEmpty(_empresa?.Rnc))
+            {
+                <p style="text-align:center; margin:0">RNC: @_empresa!.Rnc</p>
+            }
+            @if (_sucursalActual is not null)
+            {
+                <p style="text-align:center; margin:0">@_sucursalActual.Nombre</p>
+                @if (!string.IsNullOrEmpty(_sucursalActual.Direccion))
+                {
+                    <p style="text-align:center; margin:0">@_sucursalActual.Direccion</p>
+                }
+                @if (!string.IsNullOrEmpty(_sucursalActual.Telefono))
+                {
+                    <p style="text-align:center; margin:0">Tel: @_sucursalActual.Telefono</p>
+                }
+            }
+            <hr />
+            <p style="margin:0">Fecha: @fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+            <p style="margin:0">No. Control: @numeroFactura</p>
+            @if (!string.IsNullOrEmpty(numeroNcf))
+            {
+                <p style="margin:0">e-NCF: @numeroNcf</p>
+            }
+            <hr />
+            <p style="margin:0">Cliente: @clienteNombre</p>
+            @if (!string.IsNullOrEmpty(clienteRnc))
+            {
+                <p style="margin:0">C.I./ID: @clienteRnc</p>
+            }
+            <hr />
+            <p style="text-align:center; margin:0; font-weight:bold">@tipoDocumento</p>
+            <hr />
+        </text>;
+
+    private RenderFragment PieRecibo(string? cajaNumero, string? cajeroNombre, string? codigoSeguridad) =>
+        @<text>
+            <hr />
+            <p style="margin:0">Caja: @cajaNumero</p>
+            <p style="margin:0">Cajero: @cajeroNombre</p>
+            <hr />
+            <p style="text-align:center; margin-top:8px">¡Gracias por su compra!</p>
+            <p style="text-align:center; margin:0">¡Vuelva pronto!</p>
+            @if (!string.IsNullOrEmpty(codigoSeguridad))
+            {
+                <hr />
+                <p style="text-align:center; margin:0; font-size:0.85em">Código de Seguridad: @codigoSeguridad</p>
+            }
+        </text>;
 
     private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
+    private decimal ItbisCarrito => TotalCarrito * 0.18m;
     // Aproximación en pantalla (con ITBIS incluido de forma simplificada); el total real, con ITBIS
     // exacto por línea y la propina aplicada sobre el total con impuestos, lo calcula el backend.
     private decimal TotalConPropina =>
         ((TotalCarrito * 1.18m) - (_descuentoAutorizado ? _montoDescuento : 0)) * (1 + _porcentajePropina / 100m);
 
+    private decimal FaltaPorCubrir => Math.Max(0, Math.Round(TotalConPropina - _pagos.Sum(p => p.Monto), 2));
+    private decimal CambioCarrito => Math.Max(0, Math.Round(_pagos.Sum(p => p.Monto) - TotalConPropina, 2));
+    private decimal CambioUltimaVenta => _ultimaVenta is null ? 0 : Math.Max(0, Math.Round(_ultimaVenta.Pagos.Sum(p => p.Monto) - _ultimaVenta.Total, 2));
+
     private decimal TotalEfectivoContado => _denominacionesEfectivo.Sum(d => d * (_cantidadesPorDenominacion.GetValueOrDefault(d)));
+
+    // Encabezado real de los recibos impresos (factura, nota de crédito, reimpresión):
+    // nunca el nombre del sistema ("SaborByte"), siempre el de la empresa/sucursal del cliente.
+    private EmpresaDto? _empresa;
+    private SucursalDto? _sucursalActual;
 
     protected override async Task OnInitializedAsync()
     {
@@ -353,118 +978,283 @@ else
             return;
         }
 
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
+        _denominacionesEfectivo = (await ApiClient.ListarDenominacionesEfectivoAsync())
+            .OrderByDescending(d => d.Valor)
+            .Select(d => d.Valor)
+            .ToList();
         foreach (var d in _denominacionesEfectivo)
             _cantidadesPorDenominacion[d] = 0;
 
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        _porcentajesPropina = await ApiClient.ListarPorcentajesPropinaAsync();
+
+        var sucursalId = Sesion.SucursalActivaId;
+        _empresa = await ApiClient.ObtenerEmpresaAsync();
+        _sucursalActual = await ApiClient.ObtenerSucursalAsync(sucursalId);
+        _categorias = await ApiClient.ListarCategoriasAsync();
         _cajas = await ApiClient.ListarCajasAsync(sucursalId);
         if (_cajas.Count > 0)
             _cajaSeleccionadaId = _cajas[0].Id;
+
+        _metodosPago = await ApiClient.ListarMetodosPagoAsync();
+        _pagos = [new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId }];
+
+        if (_cajaSeleccionadaId != Guid.Empty)
+            await VerificarTurnoAbiertoAsync();
+    }
+
+    private async Task OnCajaSeleccionadaAsync(Guid cajaId)
+    {
+        _cajaSeleccionadaId = cajaId;
+        await VerificarTurnoAbiertoAsync();
+    }
+
+    // El turno vive en la base, no en la sesión de quien lo abrió: si ya hay uno abierto
+    // en esta caja (lo haya abierto quien sea), hay que retomarlo — o, si quedó abierto
+    // de un día anterior, forzar el cierre antes de dejar operar.
+    private async Task VerificarTurnoAbiertoAsync()
+    {
+        _turnoBloqueadoOtroDia = null;
+        var turnoAbierto = await ApiClient.ObtenerTurnoAbiertoAsync(_cajaSeleccionadaId);
+        if (turnoAbierto is null)
+            return;
+
+        if (turnoAbierto.EsDeOtroDia)
+        {
+            _turnoBloqueadoOtroDia = turnoAbierto;
+            return;
+        }
+
+        _turnoCajaId = turnoAbierto.TurnoCajaId;
+        _turnoAbierto = turnoAbierto;
+        await BuscarAsync();
+        await CargarComandasAbiertasAsync();
+    }
+
+    private async Task IrACerrarTurnoBloqueadoAsync()
+    {
+        _turnoCajaId = _turnoBloqueadoOtroDia!.TurnoCajaId;
+        _turnoBloqueadoOtroDia = null;
+        await IniciarCierreAsync();
     }
 
     private async Task AbrirTurnoAsync()
     {
-        _error = null;
         var (exito, turnoId, error) = await ApiClient.AbrirTurnoAsync(_cajaSeleccionadaId, _montoApertura);
 
         if (!exito)
         {
-            _error = error;
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
 
+        Snackbar.Add("Turno abierto.", Severity.Success);
         _turnoCajaId = turnoId;
+        _turnoAbierto = new TurnoAbiertoDto
+        {
+            TurnoCajaId = turnoId!.Value,
+            FechaHoraApertura = DateTime.UtcNow,
+            MontoAperturaEfectivo = _montoApertura,
+            UsuarioAperturaNombre = Sesion.Nombre
+        };
         await BuscarAsync();
         await CargarComandasAbiertasAsync();
     }
 
     private async Task BuscarAsync()
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        _productos = await ApiClient.BuscarProductosAsync(sucursalId, _textoBusqueda);
+        _productos = await ApiClient.BuscarProductosAsync(_textoBusqueda, _categoriaId);
+    }
+
+    private async Task OnCategoriaCambiadaAsync(Guid? categoriaId)
+    {
+        _categoriaId = categoriaId;
+        await BuscarAsync();
     }
 
     private async Task CargarComandasAbiertasAsync()
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursalId = Sesion.SucursalActivaId;
         _comandasAbiertas = await ApiClient.ObtenerComandasAbiertasAsync(sucursalId);
     }
 
-    private void SeleccionarComanda(ComandaDto comanda)
+    private void CobrarComanda(ComandaDto comanda)
     {
-        _comandaParaFacturar = comanda;
-        _formaPagoComanda = FormaPago.Efectivo;
-        _errorComanda = null;
-    }
-
-    private async Task FacturarComandaAsync()
-    {
-        _errorComanda = null;
-
-        var request = new CrearVentaRequestDto
+        _comandaOrigen = comanda;
+        _carrito.Clear();
+        foreach (var item in comanda.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
         {
-            TurnoCajaId = _turnoCajaId!.Value,
-            ComandaId = _comandaParaFacturar!.Id,
-            FormaPago = _formaPagoComanda
-        };
-
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        var (exito, resultado, error) = await ApiClient.CrearVentaAsync(sucursalId, request);
-
-        if (!exito)
-        {
-            _errorComanda = error;
-            return;
+            _carrito.Add(new LineaCarrito
+            {
+                ProductoId = item.ProductoId,
+                Nombre = item.NombreProducto,
+                Precio = item.PrecioUnitario,
+                Cantidad = (int)item.Cantidad,
+                IngredientesExcluidosIds = [.. item.IngredientesExcluidosIds],
+                NombresExcluidos = item.IngredientesExcluidosNombres,
+                EsDeComanda = true
+            });
         }
 
-        _ultimaVenta = resultado;
-        _lineasUltimaVenta = _comandaParaFacturar.Items
-            .Where(i => i.Estado != EstadoItemComanda.Cancelado)
-            .Select(i => new LineaCarrito { ProductoId = i.ProductoId, Nombre = i.NombreProducto, Cantidad = (int)i.Cantidad, Precio = i.PrecioUnitario })
-            .ToList();
+        _clienteSeleccionado = null;
+        _porcentajePropina = 0;
+        _descuentoAutorizado = false;
+        _codigoAutorizacionDescuento = null;
+        _montoDescuento = 0;
+        _pagos = [new() { MetodoPagoId = MetodoPagoEfectivoId }];
+        _tabIndex = 0;
+    }
 
-        _comandaParaFacturar = null;
-        await CargarComandasAbiertasAsync();
-
-        StateHasChanged();
-        await JS.InvokeVoidAsync("print");
+    private void QuitarComandaDelCarrito()
+    {
+        _comandaOrigen = null;
+        _carrito.Clear();
+        _pagos = [new() { MetodoPagoId = MetodoPagoEfectivoId }];
     }
 
     private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct)
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursalId = Sesion.SucursalActivaId;
         return await ApiClient.BuscarClientesAsync(sucursalId, texto);
     }
 
     private void OnClienteSeleccionado(ClienteDto? cliente) => _clienteSeleccionado = cliente;
 
-    private void AgregarAlCarrito(ProductoResumenDto producto)
+    private Task AbrirNuevoClienteAsync()
     {
-        var existente = _carrito.FirstOrDefault(l => l.ProductoId == producto.Id);
+        _formNuevoCliente = new GuardarClienteRequestDto();
+        _mostrarDialogoNuevoCliente = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task CrearClienteRapidoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_formNuevoCliente.NombreORazonSocial))
+        {
+            Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_formNuevoCliente.Telefono))
+        {
+            Snackbar.Add("El teléfono del cliente es obligatorio.", Severity.Error);
+            return;
+        }
+
+        if (_formNuevoCliente.TipoCliente == TipoCliente.Fiscal && string.IsNullOrWhiteSpace(_formNuevoCliente.RncOCedula))
+        {
+            Snackbar.Add("El RNC/Cédula es obligatorio para un cliente Fiscal.", Severity.Error);
+            return;
+        }
+
+        var sucursalId = Sesion.SucursalActivaId;
+        var (exito, clienteId, error) = await ApiClient.CrearClienteAsync(sucursalId, _formNuevoCliente);
+
+        if (!exito || clienteId is null)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Cliente creado.", Severity.Success);
+        _mostrarDialogoNuevoCliente = false;
+
+        // Se recarga por nombre en vez de armar el ClienteDto a mano — así queda igual
+        // a como lo devolvería una búsqueda normal (mismo shape, sin inventar datos).
+        var resultados = await ApiClient.BuscarClientesAsync(sucursalId, _formNuevoCliente.NombreORazonSocial);
+        _clienteSeleccionado = resultados.FirstOrDefault(c => c.Id == clienteId) ?? resultados.FirstOrDefault();
+    }
+
+    private async Task<List<RecetaItemDto>> ObtenerRecetaAsync(Guid productoId)
+    {
+        if (_recetaCache.TryGetValue(productoId, out var receta))
+            return receta;
+
+        var detalle = await ApiClient.ObtenerProductoAsync(productoId);
+        receta = detalle?.Receta ?? [];
+        _recetaCache[productoId] = receta;
+        return receta;
+    }
+
+    private async Task AgregarAlCarritoAsync(ProductoResumenDto producto)
+    {
+        var receta = await ObtenerRecetaAsync(producto.Id);
+        var opcionales = receta.Where(r => r.Opcional).ToList();
+
+        if (opcionales.Count == 0)
+        {
+            AgregarLineaCarrito(producto, []);
+            return;
+        }
+
+        _productoParaPersonalizar = producto;
+        _ingredientesOpcionales = opcionales;
+        _excluidosSeleccionados.Clear();
+    }
+
+    private void AlternarExclusion(Guid insumoId, bool incluido)
+    {
+        if (incluido)
+            _excluidosSeleccionados.Remove(insumoId);
+        else
+            _excluidosSeleccionados.Add(insumoId);
+    }
+
+    private void ConfirmarPersonalizacion()
+    {
+        AgregarLineaCarrito(_productoParaPersonalizar!, [.. _excluidosSeleccionados]);
+        _productoParaPersonalizar = null;
+    }
+
+    private void AgregarLineaCarrito(ProductoResumenDto producto, List<Guid> excluidosIds)
+    {
+        var nombresExcluidos = _ingredientesOpcionales
+            .Where(i => excluidosIds.Contains(i.InsumoId))
+            .Select(i => i.InsumoNombre)
+            .ToList();
+
+        // Nunca se mezcla con una línea EsDeComanda: esas ya vinieron preparadas de cocina;
+        // un producto agregado ahora es una unidad nueva y distinta, aunque sea el mismo
+        // producto — se factura y descuenta inventario aparte (ver CrearVentaAsync).
+        var existente = _carrito.FirstOrDefault(l =>
+            !l.EsDeComanda && l.ProductoId == producto.Id && l.IngredientesExcluidosIds.SetEquals(excluidosIds));
+
         if (existente is not null)
         {
             existente.Cantidad++;
+            return;
         }
-        else
+
+        _carrito.Add(new LineaCarrito
         {
-            _carrito.Add(new LineaCarrito
-            {
-                ProductoId = producto.Id,
-                Nombre = producto.Nombre,
-                Precio = producto.Precio,
-                Cantidad = 1
-            });
-        }
+            ProductoId = producto.Id,
+            Nombre = producto.Nombre,
+            Precio = producto.Precio,
+            Cantidad = 1,
+            IngredientesExcluidosIds = [.. excluidosIds],
+            NombresExcluidos = nombresExcluidos
+        });
+    }
+
+    private void QuitarUnidadCarrito(LineaCarrito linea)
+    {
+        linea.Cantidad--;
+        if (linea.Cantidad <= 0)
+            _carrito.Remove(linea);
     }
 
     private async Task SolicitarAutorizacionAsync()
     {
-        _errorAutorizacion = null;
         var (exito, codigo, error) = await ApiClient.SolicitarAutorizacionAsync(_supervisorUsuario, _supervisorPassword, "Descuento");
 
         if (!exito)
         {
-            _errorAutorizacion = error;
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
 
@@ -474,19 +1264,163 @@ else
         _supervisorPassword = string.Empty;
     }
 
+    private async Task<TableData<FacturaResumenDto>> CargarPaginaFacturasNotaAsync(TableState estado, CancellationToken ct)
+    {
+        var resultado = await ApiClient.BuscarFacturasAsync(Sesion.SucursalActivaId, estado.Page + 1, estado.PageSize, _textoBusquedaNota);
+        return new TableData<FacturaResumenDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private Task RecargarFacturasNotaAsync() => _tablaFacturasNota?.ReloadServerData() ?? Task.CompletedTask;
+
+    private async Task VerDetalleFacturaNotaAsync(Guid facturaId)
+    {
+        _detalleFacturaNota = await ApiClient.ObtenerFacturaDetalleAsync(Sesion.SucursalActivaId, facturaId);
+        _viendoDetalleFacturaNota = _detalleFacturaNota is not null;
+    }
+
+    private async Task ReimprimirFacturaAsync(Guid facturaId)
+    {
+        _facturaAReimprimir = await ApiClient.ObtenerFacturaDetalleAsync(Sesion.SucursalActivaId, facturaId);
+        if (_facturaAReimprimir is null)
+        {
+            Snackbar.Add("No se pudo cargar la factura.", Severity.Error);
+            return;
+        }
+
+        StateHasChanged();
+        // Mismo motivo que en la venta: sin esta espera, "print" a veces se dispara antes
+        // de que el navegador termine de pintar el recibo.
+        await Task.Delay(50);
+        await JS.InvokeVoidAsync("print");
+        _facturaAReimprimir = null;
+    }
+
+    private async Task SeleccionarFacturaNotaAsync(FacturaResumenDto factura)
+    {
+        _facturaParaNota = factura;
+        _motivoNotaId = null;
+        _notaAutorizada = false;
+        _codigoAutorizacionNota = null;
+        _cantidadesNota.Clear();
+
+        if (_motivosNota.Count == 0)
+            _motivosNota = await ApiClient.ListarMotivosNotaCreditoAsync();
+
+        _lineasDisponiblesNota = await ApiClient.ObtenerDetalleDisponibleAsync(Sesion.SucursalActivaId, factura.Id);
+    }
+
+    private decimal ObtenerCantidadNota(Guid facturaDetalleId) => _cantidadesNota.GetValueOrDefault(facturaDetalleId);
+
+    private async Task SolicitarAutorizacionNotaAsync()
+    {
+        var (exito, codigo, error) = await ApiClient.SolicitarAutorizacionAsync(_supervisorUsuarioNota, _supervisorPasswordNota, "EmitirNotaCredito");
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        _codigoAutorizacionNota = codigo;
+        _notaAutorizada = true;
+        _mostrarDialogoAutorizacionNota = false;
+        _supervisorPasswordNota = string.Empty;
+    }
+
+    private async Task EmitirNotaAsync()
+    {
+        if (_motivoNotaId is null)
+        {
+            Snackbar.Add("Selecciona un motivo.", Severity.Error);
+            return;
+        }
+
+        var detalle = _cantidadesNota
+            .Where(kv => kv.Value > 0)
+            .Select(kv => new DetalleNotaRequestDto { FacturaDetalleId = kv.Key, Cantidad = kv.Value })
+            .ToList();
+
+        if (detalle.Count == 0)
+        {
+            Snackbar.Add("Indica al menos una cantidad a acreditar.", Severity.Error);
+            return;
+        }
+
+        if (_codigoAutorizacionNota is null)
+        {
+            Snackbar.Add("Falta la autorización de supervisor.", Severity.Error);
+            return;
+        }
+
+        var request = new CrearNotaRequestDto
+        {
+            FacturaOriginalId = _facturaParaNota!.Id,
+            MotivoId = _motivoNotaId.Value,
+            Detalle = detalle,
+            CodigoAutorizacion = _codigoAutorizacionNota.Value
+        };
+
+        var (exito, nota, error) = await ApiClient.CrearNotaAsync(Sesion.SucursalActivaId, request);
+
+        // El código de autorización es de un solo uso — falle o no, hay que pedir uno nuevo.
+        _notaAutorizada = false;
+        _codigoAutorizacionNota = null;
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Nota de crédito emitida.", Severity.Success);
+        _ultimaNota = nota;
+        _facturaParaNota = null;
+        _textoBusquedaNota = string.Empty;
+        await RecargarFacturasNotaAsync();
+
+        StateHasChanged();
+        // Mismo motivo que en la venta: sin esta espera, "print" a veces se dispara antes
+        // de que el navegador termine de pintar el recibo de la nota.
+        await Task.Delay(50);
+        await JS.InvokeVoidAsync("print");
+    }
+
     private async Task FacturarAsync()
     {
-        _error = null;
+        // Caso común (un solo pago): se ajusta solo al total, sin obligar a escribirlo.
+        // Si el usuario agregó una segunda forma de pago (split), ahí sí escribe los montos.
+        if (_pagos.Count == 1)
+            _pagos[0].Monto = TotalConPropina;
+
+        // Si se está cobrando una comanda, sus líneas (EsDeComanda = true) NO viajan en
+        // Items: el backend las toma de la comanda directo de la base de datos (ver
+        // VentaAppService.CrearVentaAsync). Solo los productos agregados aparte durante
+        // el cobro van en Items.
+        var itemsAEnviar = _comandaOrigen is null ? _carrito : _carrito.Where(l => !l.EsDeComanda).ToList();
+
+        if (_clienteSeleccionado is null)
+        {
+            Snackbar.Add("Selecciona un cliente antes de facturar.", Severity.Error);
+            return;
+        }
+
+        if (_descuentoAutorizado && itemsAEnviar.Count == 0)
+        {
+            Snackbar.Add("El descuento necesita al menos un producto agregado aparte de la comanda para aplicarse — o quita el descuento.", Severity.Error);
+            return;
+        }
 
         var request = new CrearVentaRequestDto
         {
             TurnoCajaId = _turnoCajaId!.Value,
             ClienteId = _clienteSeleccionado?.Id,
-            FormaPago = _formaPago,
-            Items = _carrito.Select((l, indice) => new ItemVentaDto
+            ComandaId = _comandaOrigen?.Id,
+            Pagos = _pagos,
+            Items = itemsAEnviar.Select((l, indice) => new ItemVentaDto
             {
                 ProductoId = l.ProductoId,
                 Cantidad = l.Cantidad,
+                IngredientesExcluidosIds = [.. l.IngredientesExcluidosIds],
                 // El descuento autorizado se aplica a la primera línea; simple y suficiente para v1.
                 Descuento = indice == 0 ? (_descuentoAutorizado ? _montoDescuento : 0) : 0
             }).ToList(),
@@ -494,26 +1428,34 @@ else
             CodigoAutorizacionDescuento = _codigoAutorizacionDescuento
         };
 
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursalId = Sesion.SucursalActivaId;
         var (exito, resultado, error) = await ApiClient.CrearVentaAsync(sucursalId, request);
 
         if (!exito)
         {
-            _error = error;
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
 
+        Snackbar.Add("Venta registrada.", Severity.Success);
         _ultimaVenta = resultado;
         _lineasUltimaVenta = [.. _carrito];
 
         _carrito.Clear();
+        _comandaOrigen = null;
         _porcentajePropina = 0;
         _descuentoAutorizado = false;
         _codigoAutorizacionDescuento = null;
         _montoDescuento = 0;
         _clienteSeleccionado = null;
+        _pagos = [new() { MetodoPagoId = MetodoPagoEfectivoId }];
+        _cajas = await ApiClient.ListarCajasAsync(sucursalId);
+        await CargarComandasAbiertasAsync();
 
         StateHasChanged();
+        // Sin esta espera, "print" a veces se dispara antes de que el navegador termine de
+        // pintar el recibo — sale la hoja con el encabezado pero sin las líneas.
+        await Task.Delay(50);
         await JS.InvokeVoidAsync("print");
     }
 
@@ -525,19 +1467,17 @@ else
 
     private async Task ConfirmarCierreAsync()
     {
-        _error = null;
-
         var denominaciones = _denominacionesEfectivo
             .Where(d => _cantidadesPorDenominacion.GetValueOrDefault(d) > 0)
-            .Select(d => new DenominacionCierreDto { FormaPago = FormaPago.Efectivo, Denominacion = d, Cantidad = _cantidadesPorDenominacion[d] })
+            .Select(d => new DenominacionCierreDto { MetodoPagoId = MetodoPagoEfectivoId, Denominacion = d, Cantidad = _cantidadesPorDenominacion[d] })
             .ToList();
 
-        if (_montoTarjetaContado > 0)
-            denominaciones.Add(new DenominacionCierreDto { FormaPago = FormaPago.Tarjeta, Denominacion = null, Cantidad = 1 * (int)_montoTarjetaContado });
-        if (_montoTransferenciaContado > 0)
-            denominaciones.Add(new DenominacionCierreDto { FormaPago = FormaPago.Transferencia, Denominacion = null, Cantidad = 1 * (int)_montoTransferenciaContado });
-        if (_montoDepositoContado > 0)
-            denominaciones.Add(new DenominacionCierreDto { FormaPago = FormaPago.Deposito, Denominacion = null, Cantidad = 1 * (int)_montoDepositoContado });
+        foreach (var metodo in _metodosPago.Where(m => !m.EsEfectivo))
+        {
+            var monto = _montoContadoPorMetodo.GetValueOrDefault(metodo.Id);
+            if (monto > 0)
+                denominaciones.Add(new DenominacionCierreDto { MetodoPagoId = metodo.Id, Denominacion = null, Cantidad = 1 * (int)monto });
+        }
 
         var (exito, error) = await ApiClient.CerrarTurnoAsync(new CerrarTurnoRequestDto
         {
@@ -547,16 +1487,17 @@ else
 
         if (!exito)
         {
-            _error = error;
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
 
+        Snackbar.Add("Turno cerrado.", Severity.Success);
         _turnoCajaId = null;
         _cerrando = false;
         _resumenCierre = null;
         foreach (var d in _denominacionesEfectivo)
             _cantidadesPorDenominacion[d] = 0;
-        _montoTarjetaContado = _montoTransferenciaContado = _montoDepositoContado = 0;
+        _montoContadoPorMetodo.Clear();
     }
 
     private class LineaCarrito
@@ -565,5 +1506,13 @@ else
         public string Nombre { get; set; } = string.Empty;
         public decimal Precio { get; set; }
         public int Cantidad { get; set; }
+        public HashSet<Guid> IngredientesExcluidosIds { get; set; } = [];
+        public List<string> NombresExcluidos { get; set; } = [];
+        // true si esta línea viene de una comanda (ya se preparó en cocina y ya descontó
+        // inventario) — esas líneas son de solo lectura en el carrito (no +/-/quitar) y
+        // nunca se envían en Items al facturar (el backend las toma de la comanda en la
+        // base de datos, no de lo que mande el cliente). Solo las líneas agregadas
+        // "extra" durante el cobro (EsDeComanda = false) viajan en Items.
+        public bool EsDeComanda { get; set; }
     }
 }

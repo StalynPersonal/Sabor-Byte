@@ -10,7 +10,7 @@ namespace SaborByte.Infraestructura.Identidad;
 
 public class GeneradorTokenJwt(IConfiguration configuracion) : IGeneradorTokenJwt
 {
-    public string Generar(Usuario usuario, IEnumerable<string> roles, IEnumerable<Guid> sucursalesPermitidas)
+    public string Generar(Usuario usuario, IEnumerable<string> roles, IEnumerable<Guid> sucursalesPermitidas, Guid sesionActivaId)
     {
         var clave = configuracion["Jwt:Key"]
             ?? throw new InvalidOperationException("Falta configurar Jwt:Key.");
@@ -21,7 +21,8 @@ public class GeneradorTokenJwt(IConfiguration configuracion) : IGeneradorTokenJw
         {
             new(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
             new(ClaimTypes.Name, usuario.NombreUsuario),
-            new("nombre", usuario.Nombre)
+            new("nombre", usuario.Nombre),
+            new("sesion", sesionActivaId.ToString())
         };
 
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));

@@ -2,11 +2,26 @@
   {
     "Name": "Todos los proyectos",
     "Projects": [
-      { "Path": "Api\\SaborByte.Api.csproj", "Action": "Start" },
-      { "Path": "Web\\Apps\\SaborByte.Web.Central\\SaborByte.Web.Central.csproj", "Action": "Start" },
-      { "Path": "Web\\Apps\\SaborByte.Web.Caja\\SaborByte.Web.Caja.csproj", "Action": "Start" },
-      { "Path": "Web\\Apps\\SaborByte.Web.Cocina\\SaborByte.Web.Cocina.csproj", "Action": "Start" },
-      { "Path": "Web\\Apps\\SaborByte.Web.Mesero\\SaborByte.Web.Mesero.csproj", "Action": "Start" }
+      {
+        "Path": "Api\\SaborByte.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Web\\Apps\\SaborByte.Web.Central\\SaborByte.Web.Central.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Web\\Apps\\SaborByte.Web.Caja\\SaborByte.Web.Caja.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Web\\Apps\\SaborByte.Web.Cocina\\SaborByte.Web.Cocina.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Web\\Apps\\SaborByte.Web.Mesero\\SaborByte.Web.Mesero.csproj",
+        "Action": "Start"
+      }
     ]
   }
 ]

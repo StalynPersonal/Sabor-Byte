@@ -8,4 +8,6 @@ public class Proveedor
     public string? Rnc { get; set; }
     public string? Telefono { get; set; }
     public bool Activo { get; set; } = true;
+    public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    public Guid CreadoPorUsuarioId { get; set; }
 }

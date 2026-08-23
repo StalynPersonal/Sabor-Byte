@@ -1,8 +1,28 @@
 @inherits LayoutComponentBase
 
-<MudThemeProvider />
+<MudThemeProvider Theme="_tema" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 @Body
+
+@code {
+    // Mismo tema que MainLayout — si no se repite aquí, el login se ve con el morado
+    // por defecto de MudBlazor aunque el resto de la app ya esté en verde.
+    private readonly MudTheme _tema = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#3D8B5F",
+            PrimaryDarken = "#2F6E4B",
+            PrimaryLighten = "#66AB84"
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#66AB84",
+            PrimaryDarken = "#3D8B5F",
+            PrimaryLighten = "#8FC5A6"
+        }
+    };
+}

@@ -1,0 +1,180 @@
+@page "/secuencias-ncf"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Secuencias NCF</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaSecuencia" Disabled="_sucursalId == Guid.Empty">
+            Nueva secuencia
+        </MudButton>
+    </div>
+
+    <MudText Typo="Typo.body2" Class="mb-4">
+        Estas secuencias numeran las Facturas (tipo 31/32/41/43/44/45) y las Notas de Crédito/Débito
+        (tipo 34/33). Sin una secuencia activa y vigente para un tipo de comprobante, esas ventas o
+        notas se emiten igual pero sin NCF.
+    </MudText>
+
+    <MudSelect T="Guid" Label="Sucursal" Value="_sucursalId" ValueChanged="OnSucursalCambiadaAsync" Class="mb-4" Style="max-width:400px">
+        @foreach (var sucursal in _sucursales)
+        {
+            <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudTable Items="_secuencias" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Serie</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Inicial</MudTh>
+            <MudTh>Próxima</MudTh>
+            <MudTh>Final</MudTh>
+            <MudTh>Vencimiento</MudTh>
+            <MudTh>Activa</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Serie</MudTd>
+            <MudTd>@context.TipoComprobante</MudTd>
+            <MudTd>@context.SecuenciaInicial</MudTd>
+            <MudTd>@context.SecuenciaProxima</MudTd>
+            <MudTd>@context.SecuenciaFinal</MudTd>
+            <MudTd>@context.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>@(context.Activa ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarSecuencia(context)" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_secuenciaId is null ? "Nueva secuencia NCF" : "Editar secuencia NCF")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Serie (ej. E)" @bind-Value="_form.Serie" Class="mb-2" />
+        <MudSelect T="string" Label="Tipo de comprobante" @bind-Value="_form.TipoComprobante" Class="mb-2">
+            <MudSelectItem Value="@("31")">31 — Crédito Fiscal</MudSelectItem>
+            <MudSelectItem Value="@("32")">32 — Consumo</MudSelectItem>
+            <MudSelectItem Value="@("33")">33 — Nota de Débito</MudSelectItem>
+            <MudSelectItem Value="@("34")">34 — Nota de Crédito</MudSelectItem>
+            <MudSelectItem Value="@("41")">41 — Compras</MudSelectItem>
+            <MudSelectItem Value="@("43")">43 — Gastos Menores</MudSelectItem>
+            <MudSelectItem Value="@("44")">44 — Régimen Especial</MudSelectItem>
+            <MudSelectItem Value="@("45")">45 — Gubernamental</MudSelectItem>
+        </MudSelect>
+
+        <MudNumericField T="long" Label="Secuencia inicial" @bind-Value="_form.SecuenciaInicial" Class="mb-2" />
+        <MudNumericField T="long" Label="Secuencia próxima" @bind-Value="_form.SecuenciaProxima" Class="mb-2" />
+        <MudNumericField T="long" Label="Secuencia final" @bind-Value="_form.SecuenciaFinal" Class="mb-2" />
+        <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimiento" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.Activa" Label="Activa" Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<SecuenciaNcfDto> _secuencias = [];
+    private bool _editando;
+    private Guid? _secuenciaId;
+    private GuardarSecuenciaNcfRequestDto _form = new();
+    private DateTime? _fechaVencimiento;
+
+    private List<SucursalResumenDto> _sucursales = [];
+    private Guid _sucursalId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _sucursalId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
+            ? Sesion.SucursalActivaId
+            : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        await CargarAsync();
+    }
+
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
+    {
+        _sucursalId = sucursalId;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (_sucursalId == Guid.Empty)
+        {
+            _secuencias = [];
+            return;
+        }
+
+        _secuencias = await ApiClient.ListarSecuenciasNcfAsync(_sucursalId);
+    }
+
+    private void NuevaSecuencia()
+    {
+        _secuenciaId = null;
+        _form = new GuardarSecuenciaNcfRequestDto { SecuenciaInicial = 1, SecuenciaProxima = 1, SecuenciaFinal = 500 };
+        _fechaVencimiento = DateTime.Today.AddYears(1);
+        _editando = true;
+    }
+
+    private void EditarSecuencia(SecuenciaNcfDto secuencia)
+    {
+        _secuenciaId = secuencia.Id;
+        _form = new GuardarSecuenciaNcfRequestDto
+        {
+            Serie = secuencia.Serie,
+            TipoComprobante = secuencia.TipoComprobante,
+            SecuenciaInicial = secuencia.SecuenciaInicial,
+            SecuenciaProxima = secuencia.SecuenciaProxima,
+            SecuenciaFinal = secuencia.SecuenciaFinal,
+            FechaVencimiento = secuencia.FechaVencimiento,
+            Activa = secuencia.Activa
+        };
+        _fechaVencimiento = secuencia.FechaVencimiento;
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _form.FechaVencimiento = _fechaVencimiento ?? DateTime.Today.AddYears(1);
+
+        var (exito, error) = _secuenciaId is null
+            ? await ApiClient.CrearSecuenciaNcfAsync(_sucursalId, _form)
+            : await ApiClient.ActualizarSecuenciaNcfAsync(_sucursalId, _secuenciaId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_secuenciaId is null ? "Secuencia creada." : "Secuencia actualizada.", Severity.Success);
+        _editando = false;
+        await CargarAsync();
+    }
+}

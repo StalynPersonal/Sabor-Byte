@@ -4,69 +4,117 @@
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
 
-<PageTitle>Sabor Byte — Central — Sucursal</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
     <MudText>Redirigiendo al inicio de sesión...</MudText>
 }
-else if (_form is null)
-{
-    <MudText>Cargando...</MudText>
-}
 else
 {
-    <MudContainer MaxWidth="MaxWidth.Medium">
-        <MudText Typo="Typo.h5" Class="mb-4">Configuración de la sucursal</MudText>
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Sucursales</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirNuevaAsync">
+            Nueva sucursal
+        </MudButton>
+    </div>
 
-        <MudPaper Class="pa-4 mb-4">
-            <MudText Typo="Typo.h6" Class="mb-2">Datos generales</MudText>
-            <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
-            <MudTextField T="string" Label="RNC" @bind-Value="_form.Rnc" Class="mb-2" />
-            <MudTextField T="string" Label="Dirección" @bind-Value="_form.Direccion" Class="mb-2" />
-            <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
-        </MudPaper>
+    <MudText Typo="Typo.body2" Class="mb-4">
+        Al crear una sucursal nueva, quedas asignado a ella automáticamente — para verla
+        reflejada en el selector de sucursal de las 4 apps, tienes que cerrar sesión y
+        volver a entrar.
+    </MudText>
 
-        <MudPaper Class="pa-4 mb-4">
-            <MudText Typo="Typo.h6" Class="mb-2">Módulos opcionales</MudText>
-            <MudCheckBox T="bool" @bind-Value="_form.ModuloMeseroActivo" Label="Módulo de Mesero" />
-            <MudCheckBox T="bool" @bind-Value="_form.ModuloCocinaActivo" Label="Módulo de Cocina (KDS)" />
-            <MudCheckBox T="bool" @bind-Value="_form.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" />
-        </MudPaper>
-
-        <MudPaper Class="pa-4 mb-4">
-            <MudText Typo="Typo.h6" Class="mb-2">Correo saliente (SMTP) — opcional</MudText>
-            <MudCheckBox T="bool" @bind-Value="_form.SmtpActivo" Label="Activar envío de correo" Class="mb-2" />
-            @if (_form.SmtpActivo)
-            {
-                <MudTextField T="string" Label="Servidor SMTP" @bind-Value="_form.SmtpHost" Class="mb-2" />
-                <MudNumericField T="int?" Label="Puerto" @bind-Value="_form.SmtpPuerto" Class="mb-2" />
-                <MudTextField T="string" Label="Usuario" @bind-Value="_form.SmtpUsuario" Class="mb-2" />
-                <MudTextField T="string" Label="Contraseña (dejar en blanco para no cambiarla)" InputType="InputType.Password" @bind-Value="_form.SmtpPassword" Class="mb-2" />
-                <MudTextField T="string" Label="Remitente" @bind-Value="_form.SmtpRemitente" Class="mb-2" />
-                <MudCheckBox T="bool" @bind-Value="_form.SmtpUsaSsl" Label="Usar SSL/TLS" />
-            }
-        </MudPaper>
-
-        @if (!string.IsNullOrEmpty(_error))
-        {
-            <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
-        }
-        @if (_guardado)
-        {
-            <MudAlert Severity="Severity.Success" Class="mb-3">Guardado correctamente.</MudAlert>
-        }
-
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
-    </MudContainer>
+    <MudTable Items="_sucursales" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Código</MudTh>
+            <MudTh>Activa</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@context.Codigo</MudTd>
+            <MudTd>@(context.Activa ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirEditarAsync(context)" />
+                </MudTooltip>
+                @if (context.Activa)
+                {
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => AlternarActivaAsync(context)" />
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Activar">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" OnClick="() => AlternarActivaAsync(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
+<MudDialog @bind-Visible="_creando" Options="_opcionesDialogoGrande">
+    <TitleContent>Nueva sucursal</TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Datos generales</MudText>
+        <MudTextField T="string" Label="Nombre de la sucursal" @bind-Value="_formCrear.Nombre" Class="mb-2" />
+        <MudTextField T="string" Label="Código (2 dígitos, ej. 02)" @bind-Value="_formCrear.Codigo" MaxLength="2" Class="mb-2" />
+        <MudTextField T="string" Label="Dirección (opcional)" @bind-Value="_formCrear.Direccion" Class="mb-2" />
+        <MudTextField T="string" Label="Teléfono (opcional)" @bind-Value="_formCrear.Telefono" Class="mb-4" />
+
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Módulos opcionales</MudText>
+        <MudCheckBox T="bool" @bind-Value="_formCrear.ModuloMeseroActivo" Label="Módulo de Mesero" />
+        <MudCheckBox T="bool" @bind-Value="_formCrear.ModuloCocinaActivo" Label="Módulo de Cocina (KDS)" />
+        <MudCheckBox T="bool" @bind-Value="_formCrear.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _creando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearAsync">Crear</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogoGrande">
+    <TitleContent>Editar sucursal</TitleContent>
+    <DialogContent>
+        @if (_formEditar is not null)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Datos generales</MudText>
+            <MudTextField T="string" Label="Nombre" @bind-Value="_formEditar.Nombre" Class="mb-2" />
+            <MudTextField T="string" Label="Código (2 dígitos, ej. 01)" @bind-Value="_formEditar.Codigo" MaxLength="2" Class="mb-2" />
+            <MudTextField T="string" Label="Dirección" @bind-Value="_formEditar.Direccion" Class="mb-2" />
+            <MudTextField T="string" Label="Teléfono" @bind-Value="_formEditar.Telefono" Class="mb-2" />
+            <MudCheckBox T="bool" @bind-Value="_formEditar.Activa" Label="Activa" Class="mb-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Módulos opcionales</MudText>
+            <MudCheckBox T="bool" @bind-Value="_formEditar.ModuloMeseroActivo" Label="Módulo de Mesero" />
+            <MudCheckBox T="bool" @bind-Value="_formEditar.ModuloCocinaActivo" Label="Módulo de Cocina (KDS)" />
+            <MudCheckBox T="bool" @bind-Value="_formEditar.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarEdicionAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
-    private ActualizarSucursalRequestDto? _form;
-    private Guid _sucursalId;
-    private string? _error;
-    private bool _guardado;
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private List<SucursalResumenDto> _sucursales = [];
+
+    private bool _creando;
+    private CrearSucursalRequestDto _formCrear = new();
+
+    private bool _editando;
+    private Guid _sucursalEditandoId;
+    private ActualizarSucursalRequestDto? _formEditar;
 
     protected override async Task OnInitializedAsync()
     {
@@ -76,42 +124,94 @@ else
             return;
         }
 
-        _sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        var sucursal = await ApiClient.ObtenerSucursalAsync(_sucursalId);
-        if (sucursal is null)
-            return;
-
-        _form = new ActualizarSucursalRequestDto
-        {
-            Nombre = sucursal.Nombre,
-            Rnc = sucursal.Rnc,
-            Direccion = sucursal.Direccion,
-            Telefono = sucursal.Telefono,
-            ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
-            ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
-            EcfActivo = sucursal.EcfActivo,
-            SmtpActivo = sucursal.SmtpActivo,
-            SmtpHost = sucursal.SmtpHost,
-            SmtpPuerto = sucursal.SmtpPuerto,
-            SmtpUsuario = sucursal.SmtpUsuario,
-            SmtpRemitente = sucursal.SmtpRemitente,
-            SmtpUsaSsl = sucursal.SmtpUsaSsl
-        };
+        await CargarAsync();
     }
 
-    private async Task GuardarAsync()
+    private async Task CargarAsync() => _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+
+    private void AbrirNuevaAsync()
     {
-        _error = null;
-        _guardado = false;
+        _formCrear = new CrearSucursalRequestDto();
+        _creando = true;
+    }
 
-        var (exito, error) = await ApiClient.ActualizarSucursalAsync(_sucursalId, _form!);
-
+    private async Task CrearAsync()
+    {
+        var (exito, error) = await ApiClient.CrearSucursalAsync(_formCrear);
         if (!exito)
         {
-            _error = error;
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
 
-        _guardado = true;
+        Snackbar.Add("Sucursal creada.", Severity.Success);
+        _creando = false;
+        await CargarAsync();
+    }
+
+    private async Task AbrirEditarAsync(SucursalResumenDto resumen)
+    {
+        _sucursalEditandoId = resumen.Id;
+
+        var sucursal = await ApiClient.ObtenerSucursalAsync(resumen.Id);
+        if (sucursal is null)
+            return;
+
+        _formEditar = new ActualizarSucursalRequestDto
+        {
+            Nombre = sucursal.Nombre,
+            Codigo = sucursal.Codigo,
+            Direccion = sucursal.Direccion,
+            Telefono = sucursal.Telefono,
+            Activa = sucursal.Activa,
+            ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
+            ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
+            EcfActivo = sucursal.EcfActivo
+        };
+
+        _editando = true;
+    }
+
+    private async Task AlternarActivaAsync(SucursalResumenDto resumen)
+    {
+        var sucursal = await ApiClient.ObtenerSucursalAsync(resumen.Id);
+        if (sucursal is null)
+            return;
+
+        var request = new ActualizarSucursalRequestDto
+        {
+            Nombre = sucursal.Nombre,
+            Codigo = sucursal.Codigo,
+            Direccion = sucursal.Direccion,
+            Telefono = sucursal.Telefono,
+            Activa = !sucursal.Activa,
+            ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
+            ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
+            EcfActivo = sucursal.EcfActivo
+        };
+
+        var (exito, error) = await ApiClient.ActualizarSucursalAsync(resumen.Id, request);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(request.Activa ? "Sucursal activada." : "Sucursal desactivada.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task GuardarEdicionAsync()
+    {
+        var (exito, error) = await ApiClient.ActualizarSucursalAsync(_sucursalEditandoId, _formEditar!);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Sucursal actualizada.", Severity.Success);
+        _editando = false;
+        await CargarAsync();
     }
 }

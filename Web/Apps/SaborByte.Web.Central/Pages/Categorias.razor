@@ -1,0 +1,127 @@
+@page "/categorias"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Categorías de Productos</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaCategoria">
+            Nueva categoría
+        </MudButton>
+    </div>
+
+    <MudTable Items="_categorias" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Orden</MudTh>
+            <MudTh>Activo</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@context.Orden</MudTd>
+            <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarCategoria(context)" />
+                </MudTooltip>
+                @if (context.Activo)
+                {
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Activar">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_categoriaId is null ? "Nueva categoría" : "Editar categoría")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+        <MudNumericField T="int" Label="Orden" @bind-Value="_form.Orden" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<CategoriaDto> _categorias = [];
+    private bool _editando;
+    private Guid? _categoriaId;
+    private GuardarCategoriaRequestDto _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync() => _categorias = await ApiClient.ListarCategoriasAsync(incluirInactivos: true);
+
+    private void NuevaCategoria()
+    {
+        _categoriaId = null;
+        _form = new GuardarCategoriaRequestDto();
+        _editando = true;
+    }
+
+    private void EditarCategoria(CategoriaDto categoria)
+    {
+        _categoriaId = categoria.Id;
+        _form = new GuardarCategoriaRequestDto { Nombre = categoria.Nombre, Orden = categoria.Orden, Activo = categoria.Activo };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        var (exito, error) = _categoriaId is null
+            ? await ApiClient.CrearCategoriaAsync(_form)
+            : await ApiClient.ActualizarCategoriaAsync(_categoriaId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_categoriaId is null ? "Categoría creada." : "Categoría actualizada.", Severity.Success);
+        _editando = false;
+        await CargarAsync();
+    }
+
+    private async Task AlternarActivoAsync(CategoriaDto categoria)
+    {
+        var request = new GuardarCategoriaRequestDto { Nombre = categoria.Nombre, Orden = categoria.Orden, Activo = !categoria.Activo };
+        await ApiClient.ActualizarCategoriaAsync(categoria.Id, request);
+        await CargarAsync();
+    }
+}

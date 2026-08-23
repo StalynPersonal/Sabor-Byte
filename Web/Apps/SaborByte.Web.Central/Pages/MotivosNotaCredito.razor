@@ -1,0 +1,124 @@
+@page "/motivos-nota-credito"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Motivos de Nota de Crédito/Débito</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoMotivo">
+            Nuevo motivo
+        </MudButton>
+    </div>
+
+    <MudTable Items="_motivos" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Activo</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarMotivo(context)" />
+                </MudTooltip>
+                @if (context.Activo)
+                {
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Activar">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_motivoId is null ? "Nuevo motivo" : "Editar motivo")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<MotivoNotaCreditoDto> _motivos = [];
+    private bool _editando;
+    private Guid? _motivoId;
+    private GuardarMotivoNotaCreditoRequestDto _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync() => _motivos = await ApiClient.ListarMotivosNotaCreditoAsync(incluirInactivos: true);
+
+    private void NuevoMotivo()
+    {
+        _motivoId = null;
+        _form = new GuardarMotivoNotaCreditoRequestDto();
+        _editando = true;
+    }
+
+    private void EditarMotivo(MotivoNotaCreditoDto motivo)
+    {
+        _motivoId = motivo.Id;
+        _form = new GuardarMotivoNotaCreditoRequestDto { Nombre = motivo.Nombre, Activo = motivo.Activo };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        var (exito, error) = _motivoId is null
+            ? await ApiClient.CrearMotivoNotaCreditoAsync(_form)
+            : await ApiClient.ActualizarMotivoNotaCreditoAsync(_motivoId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_motivoId is null ? "Motivo creado." : "Motivo actualizado.", Severity.Success);
+        _editando = false;
+        await CargarAsync();
+    }
+
+    private async Task AlternarActivoAsync(MotivoNotaCreditoDto motivo)
+    {
+        var request = new GuardarMotivoNotaCreditoRequestDto { Nombre = motivo.Nombre, Activo = !motivo.Activo };
+        await ApiClient.ActualizarMotivoNotaCreditoAsync(motivo.Id, request);
+        await CargarAsync();
+    }
+}

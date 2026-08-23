@@ -1,0 +1,60 @@
+@using SaborByte.Web.Api.Dtos
+
+<MudPaper Class="pa-4" Elevation="4">
+    <div class="d-flex justify-space-between align-center">
+        <MudText Typo="Typo.h6">
+            Comanda #@Comanda.NumeroComanda
+            @(string.IsNullOrEmpty(Comanda.NumeroMesa) ? "" : $"— Mesa {Comanda.NumeroMesa}{(string.IsNullOrEmpty(Comanda.NombreSalon) ? "" : $" ({Comanda.NombreSalon})")}")
+        </MudText>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => OnImprimir.InvokeAsync(Comanda)">
+            Imprimir
+        </MudButton>
+    </div>
+    <MudText Typo="Typo.caption" Class="d-block">Mesero: @(Comanda.NombreMesero ?? "—")</MudText>
+    <MudText Typo="Typo.caption" Class="mb-2">@Comanda.CreadoEn.ToLocalTime().ToString("HH:mm")</MudText>
+
+    @foreach (var item in Comanda.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
+    {
+        <MudPaper Class="pa-2 mb-2" Outlined="true">
+            <MudText Typo="Typo.subtitle2">@item.Cantidad x @item.NombreProducto</MudText>
+            @if (item.IngredientesExcluidosNombres.Count > 0)
+            {
+                <MudText Typo="Typo.caption" Class="d-block">Sin: @string.Join(", ", item.IngredientesExcluidosNombres)</MudText>
+            }
+            @if (!string.IsNullOrEmpty(item.Notas))
+            {
+                <MudText Typo="Typo.caption" Class="d-block">Nota: @item.Notas</MudText>
+            }
+            <MudText Typo="Typo.caption" Class="d-block mb-1">Estado: @item.Estado</MudText>
+
+            <MudButtonGroup Variant="Variant.Filled" Size="Size.Small">
+                @if (item.Estado == EstadoItemComanda.Pendiente)
+                {
+                    <MudButton Color="Color.Warning" OnClick="() => OnPreparar.InvokeAsync(item)">
+                        Preparar
+                    </MudButton>
+                }
+                @if (item.Estado == EstadoItemComanda.EnPreparacion)
+                {
+                    <MudButton Color="Color.Success" OnClick="() => OnListo.InvokeAsync(item)">
+                        Listo
+                    </MudButton>
+                }
+                @if (item.Estado != EstadoItemComanda.Listo && item.Estado != EstadoItemComanda.Entregado)
+                {
+                    <MudButton Color="Color.Error" OnClick="() => OnCancelar.InvokeAsync(item)">
+                        Cancelar
+                    </MudButton>
+                }
+            </MudButtonGroup>
+        </MudPaper>
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public ComandaDto Comanda { get; set; } = null!;
+    [Parameter] public EventCallback<ComandaDto> OnImprimir { get; set; }
+    [Parameter] public EventCallback<ComandaItemDto> OnPreparar { get; set; }
+    [Parameter] public EventCallback<ComandaItemDto> OnListo { get; set; }
+    [Parameter] public EventCallback<ComandaItemDto> OnCancelar { get; set; }
+}

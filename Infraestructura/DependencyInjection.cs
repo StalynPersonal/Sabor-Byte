@@ -28,10 +28,16 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Identidad.AutenticacionAppService>();
         services.AddScoped<Aplicacion.Catalogo.ProductoAppService>();
         services.AddScoped<Aplicacion.Catalogo.CategoriaAppService>();
+        services.AddScoped<Aplicacion.Catalogo.MetodoPagoAppService>();
+        services.AddScoped<Aplicacion.Catalogo.UnidadMedidaAppService>();
         services.AddScoped<Aplicacion.Inventario.InventarioAppService>();
         services.AddScoped<Aplicacion.Facturacion.VentaAppService>();
-        services.AddScoped<Aplicacion.Facturacion.NotaCreditoDebitoAppService>();
+        services.AddScoped<Aplicacion.Facturacion.FacturaAppService>();
+        services.AddScoped<Aplicacion.Facturacion.NotaCreditoAppService>();
+        services.AddScoped<Aplicacion.Facturacion.SecuenciaNcfAppService>();
+        services.AddScoped<Aplicacion.Facturacion.MotivoNotaCreditoAppService>();
         services.AddScoped<Aplicacion.Caja.CajaAppService>();
+        services.AddScoped<Aplicacion.Caja.ConfiguracionCajaAppService>();
         services.AddScoped<Aplicacion.Pedidos.ComandaAppService>();
         services.AddScoped<Aplicacion.Pedidos.MesaAppService>();
         services.AddScoped<Aplicacion.Clientes.ClienteAppService>();
@@ -39,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Reportes.ReporteAppService>();
         services.AddScoped<Aplicacion.Identidad.UsuarioAppService>();
         services.AddScoped<Aplicacion.Sucursales.SucursalAppService>();
+        services.AddScoped<Aplicacion.Sucursales.EmpresaAppService>();
         services.AddScoped<IEmailSender, Email.SmtpEmailSender>();
         services.AddScoped<IAuditoriaService, Auditoria.AuditoriaService>();
         services.AddScoped<Aplicacion.Identidad.AutorizacionAppService>();

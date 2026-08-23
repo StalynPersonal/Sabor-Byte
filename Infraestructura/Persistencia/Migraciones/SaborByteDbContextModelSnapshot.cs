@@ -32,6 +32,22 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("ActualizadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ActualizadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CodigoSucursal")
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("HostnamePermitido")
                         .HasColumnType("nvarchar(max)");
 
@@ -42,6 +58,11 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<long>("ProximoNumeroFactura")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
 
                     b.Property<Guid>("SucursalId")
                         .HasColumnType("uniqueidentifier");
@@ -63,11 +84,19 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<int>("Cantidad")
                         .HasColumnType("int");
 
+                    b.Property<string>("CodigoCaja")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CodigoSucursal")
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
                     b.Property<decimal?>("Denominacion")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("FormaPago")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MetodoPagoId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Subtotal")
                         .HasColumnType("decimal(18,2)");
@@ -77,9 +106,31 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MetodoPagoId");
+
                     b.HasIndex("TurnoCajaId");
 
                     b.ToTable("DenominacionesCierre", "caja");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Caja.DenominacionEfectivo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Valor")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Valor")
+                        .IsUnique();
+
+                    b.ToTable("DenominacionesEfectivo", "caja");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Caja.MovimientoCaja", b =>
@@ -97,8 +148,8 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid?>("FacturaId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("FormaPago")
-                        .HasColumnType("int");
+                    b.Property<Guid>("MetodoPagoId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Monto")
                         .HasColumnType("decimal(18,2)");
@@ -111,9 +162,31 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MetodoPagoId");
+
                     b.HasIndex("TurnoCajaId");
 
                     b.ToTable("MovimientosCaja", "caja");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Caja.PorcentajePropina", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Valor")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Valor")
+                        .IsUnique();
+
+                    b.ToTable("PorcentajesPropina", "caja");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Caja.TurnoCaja", b =>
@@ -124,6 +197,14 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<Guid>("CajaId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CodigoCaja")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CodigoSucursal")
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
 
                     b.Property<int>("Estado")
                         .HasColumnType("int");
@@ -158,6 +239,9 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("ActualizadoEn")
                         .HasColumnType("datetime2");
 
@@ -167,7 +251,7 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<DateTime>("CreadoEn")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("CreadoPorUsuarioId")
+                    b.Property<Guid>("CreadoPorUsuarioId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Nombre")
@@ -178,12 +262,32 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<int>("Orden")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("SucursalId")
+                    b.HasKey("Id");
+
+                    b.ToTable("Categorias", "catalogo");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Catalogo.CodigoBarraProducto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CodigoBarra")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("ProductoId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categorias", "catalogo");
+                    b.HasIndex("CodigoBarra");
+
+                    b.HasIndex("ProductoId");
+
+                    b.ToTable("CodigosBarraProducto", "catalogo");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Catalogo.ComboItem", b =>
@@ -210,6 +314,34 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.ToTable("ComboItems", "catalogo");
                 });
 
+            modelBuilder.Entity("SaborByte.Dominio.Catalogo.MetodoPago", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EsEfectivo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("RequiereComprobante")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
+
+                    b.ToTable("MetodosPago", "catalogo");
+                });
+
             modelBuilder.Entity("SaborByte.Dominio.Catalogo.Producto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -225,22 +357,23 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid?>("ActualizadoPorUsuarioId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool>("AplicaItbis")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid?>("CategoriaId")
+                    b.Property<Guid>("CategoriaId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("CodigoBarra")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
-                    b.Property<decimal?>("CostoUnitario")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<decimal>("CostoUnitario")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<DateTime>("CreadoEn")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("CreadoPorUsuarioId")
+                    b.Property<Guid>("CreadoPorUsuarioId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Descripcion")
@@ -260,18 +393,6 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<decimal>("Precio")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("StockActual")
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<decimal?>("StockMaximo")
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<decimal?>("StockMinimo")
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<decimal>("TasaItbis")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(5,4)")
@@ -280,13 +401,15 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<int>("TipoProducto")
                         .HasColumnType("int");
 
-                    b.Property<string>("UnidadMedida")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("UnidadMedidaId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CodigoBarra");
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("UnidadMedidaId");
 
                     b.ToTable("Productos", "catalogo");
                 });
@@ -321,6 +444,57 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.ToTable("ProductoIngredientes", "catalogo");
                 });
 
+            modelBuilder.Entity("SaborByte.Dominio.Catalogo.StockSucursal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("StockActual")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("StockMaximo")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("StockMinimo")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("SucursalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductoId", "SucursalId")
+                        .IsUnique();
+
+                    b.ToTable("StockSucursal", "catalogo");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Catalogo.UnidadMedida", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
+
+                    b.ToTable("UnidadesMedida", "catalogo");
+                });
+
             modelBuilder.Entity("SaborByte.Dominio.Clientes.Cliente", b =>
                 {
                     b.Property<Guid>("Id")
@@ -333,11 +507,19 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<DateTime>("CreadoEn")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Direccion")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("EsGenerico")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("NombreORazonSocial")
                         .IsRequired()
@@ -359,7 +541,9 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SucursalId", "RncOCedula");
+                    b.HasIndex("SucursalId", "RncOCedula")
+                        .IsUnique()
+                        .HasFilter("[RncOCedula] IS NOT NULL");
 
                     b.ToTable("Clientes", "clientes");
                 });
@@ -479,16 +663,17 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("CuentaPorCobrarId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("FechaPago")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FormaPago")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                    b.Property<Guid>("MetodoPagoId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Monto")
                         .HasColumnType("decimal(18,2)");
@@ -496,6 +681,8 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.HasKey("Id");
 
                     b.HasIndex("CuentaPorCobrarId");
+
+                    b.HasIndex("MetodoPagoId");
 
                     b.ToTable("PagosCxC", "cxccxp");
                 });
@@ -506,16 +693,17 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("CuentaPorPagarId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("FechaPago")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FormaPago")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                    b.Property<Guid>("MetodoPagoId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Monto")
                         .HasColumnType("decimal(18,2)");
@@ -523,6 +711,8 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.HasKey("Id");
 
                     b.HasIndex("CuentaPorPagarId");
+
+                    b.HasIndex("MetodoPagoId");
 
                     b.ToTable("PagosCxP", "cxccxp");
                 });
@@ -535,6 +725,12 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("NombreORazonSocial")
                         .IsRequired()
@@ -562,11 +758,24 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CajaCodigo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<Guid>("CajaTurnoId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ClienteId")
+                    b.Property<Guid>("ClienteId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClienteNombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ClienteRncOCedula")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("CodigoSeguridadDgii")
                         .HasMaxLength(6)
@@ -599,6 +808,10 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<string>("MensajeDgii")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("NumeroFactura")
+                        .HasMaxLength(9)
+                        .HasColumnType("nvarchar(9)");
+
                     b.Property<string>("NumeroNcf")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -608,6 +821,10 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<decimal>("Subtotal")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SucursalCodigo")
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
 
                     b.Property<Guid>("SucursalId")
                         .HasColumnType("uniqueidentifier");
@@ -628,6 +845,10 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
+                    b.HasIndex("NumeroFactura")
+                        .IsUnique()
+                        .HasFilter("[NumeroFactura] IS NOT NULL");
+
                     b.ToTable("Facturas", "facturacion");
                 });
 
@@ -639,6 +860,16 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<decimal>("Cantidad")
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("CantidadAcreditada")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("Descuento")
                         .HasColumnType("decimal(18,2)");
@@ -660,11 +891,18 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("ProductoId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<decimal?>("TasaItbis")
-                        .HasColumnType("decimal(5,4)");
+                    b.Property<decimal>("TasaItbis")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(5,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("Total")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UnidadMedida")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
 
@@ -673,7 +911,57 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.ToTable("FacturaDetalles", "facturacion");
                 });
 
-            modelBuilder.Entity("SaborByte.Dominio.Facturacion.NotaCreditoDebito", b =>
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.FacturaPago", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FacturaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MetodoPagoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NumeroComprobante")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacturaId");
+
+                    b.HasIndex("MetodoPagoId");
+
+                    b.ToTable("FacturaPagos", "facturacion");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.MotivoNotaCredito", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
+
+                    b.ToTable("MotivosNotaCredito", "facturacion");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.NotaCredito", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -699,15 +987,19 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<Guid?>("MotivoId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("NumeroNcf")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("NumeroNota")
+                        .HasMaxLength(9)
+                        .HasColumnType("nvarchar(9)");
+
                     b.Property<Guid>("SucursalId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Tipo")
-                        .HasColumnType("int");
 
                     b.Property<string>("TipoComprobante")
                         .HasMaxLength(10)
@@ -715,7 +1007,40 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
-                    b.ToTable("NotasCreditoDebito", "facturacion");
+                    b.HasIndex("MotivoId");
+
+                    b.HasIndex("NumeroNota")
+                        .IsUnique()
+                        .HasFilter("[NumeroNota] IS NOT NULL");
+
+                    b.ToTable("NotasCredito", "facturacion");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.NotaCreditoDetalle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Cantidad")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("FacturaDetalleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("NotaCreditoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacturaDetalleId");
+
+                    b.HasIndex("NotaCreditoId");
+
+                    b.ToTable("NotasCreditoDetalle", "facturacion");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Facturacion.SecuenciaNcf", b =>
@@ -726,6 +1051,15 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ActualizadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ActualizadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("FechaRegistro")
                         .HasColumnType("datetime2");
@@ -840,6 +1174,40 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.ToTable("RolPermisos", "identidad");
                 });
 
+            modelBuilder.Entity("SaborByte.Dominio.Identidad.SesionActiva", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("FechaCierre")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaUltimaActividad")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IpOrigen")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<Guid?>("SucursalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FechaCierre");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("SesionesActivas", "identidad");
+                });
+
             modelBuilder.Entity("SaborByte.Dominio.Identidad.Usuario", b =>
                 {
                     b.Property<Guid>("Id")
@@ -848,6 +1216,18 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ActualizadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ActualizadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
@@ -897,6 +1277,8 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("UsuarioId", "SucursalId");
+
+                    b.HasIndex("SucursalId");
 
                     b.ToTable("UsuarioSucursales", "identidad");
                 });
@@ -959,14 +1341,20 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid?>("MeseroId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("NombreMesero")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NombreSalon")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("NumeroComanda")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NumeroComanda"));
 
-                    b.Property<int>("OrigenCreacion")
-                        .HasColumnType("int");
+                    b.Property<string>("NumeroMesa")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("SucursalId")
                         .HasColumnType("uniqueidentifier");
@@ -1064,6 +1452,10 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("IngredienteId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("NombreIngrediente")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ComandaItemId");
@@ -1100,6 +1492,29 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.ToTable("Mesas", "pedidos");
                 });
 
+            modelBuilder.Entity("SaborByte.Dominio.Sucursales.Empresa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Rnc")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Empresas", "sucursales");
+                });
+
             modelBuilder.Entity("SaborByte.Dominio.Sucursales.Sucursal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1109,14 +1524,30 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("ActualizadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ActualizadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Codigo")
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
                     b.Property<DateTime>("CreadoEn")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreadoPorUsuarioId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Direccion")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("EcfActivo")
                         .HasColumnType("bit");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("ModuloCocinaActivo")
                         .HasColumnType("bit");
@@ -1129,9 +1560,10 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("Rnc")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<long>("ProximoNumeroNota")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
 
                     b.Property<bool>("SmtpActivo")
                         .HasColumnType("bit");
@@ -1159,27 +1591,49 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Codigo")
+                        .IsUnique()
+                        .HasFilter("[Codigo] IS NOT NULL");
+
+                    b.HasIndex("EmpresaId");
+
                     b.ToTable("Sucursales", "sucursales");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Caja.DenominacionCierre", b =>
                 {
+                    b.HasOne("SaborByte.Dominio.Catalogo.MetodoPago", "MetodoPago")
+                        .WithMany()
+                        .HasForeignKey("MetodoPagoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("SaborByte.Dominio.Caja.TurnoCaja", "TurnoCaja")
                         .WithMany("DenominacionesCierre")
                         .HasForeignKey("TurnoCajaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("MetodoPago");
+
                     b.Navigation("TurnoCaja");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Caja.MovimientoCaja", b =>
                 {
+                    b.HasOne("SaborByte.Dominio.Catalogo.MetodoPago", "MetodoPago")
+                        .WithMany()
+                        .HasForeignKey("MetodoPagoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("SaborByte.Dominio.Caja.TurnoCaja", "TurnoCaja")
                         .WithMany("Movimientos")
                         .HasForeignKey("TurnoCajaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("MetodoPago");
 
                     b.Navigation("TurnoCaja");
                 });
@@ -1193,6 +1647,17 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
 
                     b.Navigation("Caja");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Catalogo.CodigoBarraProducto", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Catalogo.Producto", "Producto")
+                        .WithMany("CodigosBarra")
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Producto");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Catalogo.ComboItem", b =>
@@ -1214,6 +1679,17 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Navigation("ProductoIncluido");
                 });
 
+            modelBuilder.Entity("SaborByte.Dominio.Catalogo.Producto", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Catalogo.UnidadMedida", "UnidadMedida")
+                        .WithMany()
+                        .HasForeignKey("UnidadMedidaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UnidadMedida");
+                });
+
             modelBuilder.Entity("SaborByte.Dominio.Catalogo.ProductoIngrediente", b =>
                 {
                     b.HasOne("SaborByte.Dominio.Catalogo.Producto", "Insumo")
@@ -1233,6 +1709,17 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Navigation("Producto");
                 });
 
+            modelBuilder.Entity("SaborByte.Dominio.Catalogo.StockSucursal", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Catalogo.Producto", "Producto")
+                        .WithMany("StockPorSucursal")
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Producto");
+                });
+
             modelBuilder.Entity("SaborByte.Dominio.CxcCxp.PagoCxC", b =>
                 {
                     b.HasOne("SaborByte.Dominio.CxcCxp.CuentaPorCobrar", "Cuenta")
@@ -1241,7 +1728,15 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SaborByte.Dominio.Catalogo.MetodoPago", "MetodoPago")
+                        .WithMany()
+                        .HasForeignKey("MetodoPagoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Cuenta");
+
+                    b.Navigation("MetodoPago");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.CxcCxp.PagoCxP", b =>
@@ -1252,7 +1747,15 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SaborByte.Dominio.Catalogo.MetodoPago", "MetodoPago")
+                        .WithMany()
+                        .HasForeignKey("MetodoPagoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Cuenta");
+
+                    b.Navigation("MetodoPago");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Facturacion.FacturaDetalle", b =>
@@ -1264,6 +1767,52 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
 
                     b.Navigation("Factura");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.FacturaPago", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Facturacion.Factura", "Factura")
+                        .WithMany("Pagos")
+                        .HasForeignKey("FacturaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SaborByte.Dominio.Catalogo.MetodoPago", "MetodoPago")
+                        .WithMany()
+                        .HasForeignKey("MetodoPagoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Factura");
+
+                    b.Navigation("MetodoPago");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.NotaCredito", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Facturacion.MotivoNotaCredito", null)
+                        .WithMany()
+                        .HasForeignKey("MotivoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.NotaCreditoDetalle", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Facturacion.FacturaDetalle", "FacturaDetalle")
+                        .WithMany()
+                        .HasForeignKey("FacturaDetalleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SaborByte.Dominio.Facturacion.NotaCredito", "Nota")
+                        .WithMany("Detalle")
+                        .HasForeignKey("NotaCreditoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FacturaDetalle");
+
+                    b.Navigation("Nota");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Identidad.RolPermiso", b =>
@@ -1283,6 +1832,17 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Navigation("Permiso");
 
                     b.Navigation("Rol");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Identidad.SesionActiva", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Identidad.Usuario", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Identidad.UsuarioRol", b =>
@@ -1306,11 +1866,19 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("SaborByte.Dominio.Identidad.UsuarioSucursal", b =>
                 {
+                    b.HasOne("SaborByte.Dominio.Sucursales.Sucursal", "Sucursal")
+                        .WithMany()
+                        .HasForeignKey("SucursalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SaborByte.Dominio.Identidad.Usuario", "Usuario")
                         .WithMany("SucursalesAsignadas")
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Sucursal");
 
                     b.Navigation("Usuario");
                 });
@@ -1335,6 +1903,17 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("SaborByte.Dominio.Sucursales.Sucursal", b =>
+                {
+                    b.HasOne("SaborByte.Dominio.Sucursales.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
             modelBuilder.Entity("SaborByte.Dominio.Caja.TurnoCaja", b =>
                 {
                     b.Navigation("DenominacionesCierre");
@@ -1344,9 +1923,13 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("SaborByte.Dominio.Catalogo.Producto", b =>
                 {
+                    b.Navigation("CodigosBarra");
+
                     b.Navigation("ComponentesCombo");
 
                     b.Navigation("Receta");
+
+                    b.Navigation("StockPorSucursal");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.CxcCxp.CuentaPorCobrar", b =>
@@ -1360,6 +1943,13 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.Facturacion.Factura", b =>
+                {
+                    b.Navigation("Detalle");
+
+                    b.Navigation("Pagos");
+                });
+
+            modelBuilder.Entity("SaborByte.Dominio.Facturacion.NotaCredito", b =>
                 {
                     b.Navigation("Detalle");
                 });

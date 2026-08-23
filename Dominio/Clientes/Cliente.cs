@@ -20,4 +20,11 @@ public class Cliente
 
     public bool Activo { get; set; } = true;
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    // Nullable: el "Cliente Contado" genérico de cada sucursal lo crea el sistema, no un usuario.
+    public Guid? CreadoPorUsuarioId { get; set; }
+
+    // Marca el cliente "Cliente Contado" genérico que usa cada sucursal cuando una venta
+    // no identifica un cliente real (Factura.ClienteId es obligatorio) — distingue este
+    // registro de uno que un admin haya creado a mano con el mismo nombre por coincidencia.
+    public bool EsGenerico { get; set; }
 }

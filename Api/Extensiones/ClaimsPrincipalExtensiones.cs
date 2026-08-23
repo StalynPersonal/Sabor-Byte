@@ -19,4 +19,10 @@ public static class ClaimsPrincipalExtensiones
 
     public static bool TieneAccesoASucursal(this ClaimsPrincipal usuario, Guid sucursalId) =>
         usuario.ObtenerSucursalesPermitidas().Contains(sucursalId);
+
+    public static Guid ObtenerSesionActivaId(this ClaimsPrincipal usuario)
+    {
+        var valor = usuario.FindFirstValue("sesion");
+        return Guid.TryParse(valor, out var id) ? id : throw new InvalidOperationException("Token sin sesión activa válida.");
+    }
 }

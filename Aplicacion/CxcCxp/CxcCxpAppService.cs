@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SaborByte.Aplicacion.Comun;
 using SaborByte.Aplicacion.CxcCxp.Dtos;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.CxcCxp;
@@ -16,14 +17,15 @@ public class CxcCxpAppService(IAppDbContext db)
             .Select(p => new ProveedorDto { Id = p.Id, NombreORazonSocial = p.NombreORazonSocial, Rnc = p.Rnc, Telefono = p.Telefono, Activo = p.Activo })
             .ToListAsync(ct);
 
-    public async Task<Guid> CrearProveedorAsync(Guid sucursalId, GuardarProveedorRequestDto request, CancellationToken ct = default)
+    public async Task<Guid> CrearProveedorAsync(Guid sucursalId, Guid usuarioId, GuardarProveedorRequestDto request, CancellationToken ct = default)
     {
         var proveedor = new Proveedor
         {
             SucursalId = sucursalId,
             NombreORazonSocial = request.NombreORazonSocial,
             Rnc = request.Rnc,
-            Telefono = request.Telefono
+            Telefono = request.Telefono,
+            CreadoPorUsuarioId = usuarioId
         };
 
         db.Proveedores.Add(proveedor);
@@ -50,10 +52,19 @@ public class CxcCxpAppService(IAppDbContext db)
         return cuenta.Id;
     }
 
-    public async Task<List<CuentaPorCobrarDto>> ListarPorCobrarAsync(Guid sucursalId, CancellationToken ct = default) =>
-        await db.CuentasPorCobrar
-            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada)
+    public async Task<ResultadoPaginado<CuentaPorCobrarDto>> ListarPorCobrarAsync(
+        Guid sucursalId, int pagina, int tamanoPagina, CancellationToken ct = default)
+    {
+        pagina = pagina < 1 ? 1 : pagina;
+        tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
+
+        var query = db.CuentasPorCobrar.Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada);
+        var total = await query.CountAsync(ct);
+
+        var items = await query
             .OrderBy(c => c.FechaVencimiento)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
             .Select(c => new CuentaPorCobrarDto
             {
                 Id = c.Id,
@@ -65,7 +76,10 @@ public class CxcCxpAppService(IAppDbContext db)
             })
             .ToListAsync(ct);
 
-    public async Task RegistrarPagoCxCAsync(Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct = default)
+        return new ResultadoPaginado<CuentaPorCobrarDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
+    public async Task RegistrarPagoCxCAsync(Guid sucursalId, Guid cuentaId, Guid usuarioId, RegistrarPagoRequestDto request, CancellationToken ct = default)
     {
         var cuenta = await db.CuentasPorCobrar.FirstOrDefaultAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La cuenta por cobrar no existe.");
@@ -73,7 +87,7 @@ public class CxcCxpAppService(IAppDbContext db)
         if (request.Monto <= 0 || request.Monto > cuenta.SaldoPendiente)
             throw new InvalidOperationException("El monto del pago no es válido para el saldo pendiente.");
 
-        db.PagosCxC.Add(new PagoCxC { CuentaPorCobrarId = cuenta.Id, Monto = request.Monto, FormaPago = request.FormaPago });
+        db.PagosCxC.Add(new PagoCxC { CuentaPorCobrarId = cuenta.Id, Monto = request.Monto, MetodoPagoId = request.MetodoPagoId, CreadoPorUsuarioId = usuarioId });
 
         cuenta.SaldoPendiente -= request.Monto;
         cuenta.Estado = cuenta.SaldoPendiente == 0 ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial;
@@ -100,10 +114,19 @@ public class CxcCxpAppService(IAppDbContext db)
         return cuenta.Id;
     }
 
-    public async Task<List<CuentaPorPagarDto>> ListarPorPagarAsync(Guid sucursalId, CancellationToken ct = default) =>
-        await db.CuentasPorPagar
-            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada)
+    public async Task<ResultadoPaginado<CuentaPorPagarDto>> ListarPorPagarAsync(
+        Guid sucursalId, int pagina, int tamanoPagina, CancellationToken ct = default)
+    {
+        pagina = pagina < 1 ? 1 : pagina;
+        tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
+
+        var query = db.CuentasPorPagar.Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada);
+        var total = await query.CountAsync(ct);
+
+        var items = await query
             .OrderBy(c => c.FechaVencimiento)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
             .Select(c => new CuentaPorPagarDto
             {
                 Id = c.Id,
@@ -116,7 +139,10 @@ public class CxcCxpAppService(IAppDbContext db)
             })
             .ToListAsync(ct);
 
-    public async Task RegistrarPagoCxPAsync(Guid sucursalId, Guid cuentaId, RegistrarPagoRequestDto request, CancellationToken ct = default)
+        return new ResultadoPaginado<CuentaPorPagarDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
+    public async Task RegistrarPagoCxPAsync(Guid sucursalId, Guid cuentaId, Guid usuarioId, RegistrarPagoRequestDto request, CancellationToken ct = default)
     {
         var cuenta = await db.CuentasPorPagar.FirstOrDefaultAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La cuenta por pagar no existe.");
@@ -124,7 +150,7 @@ public class CxcCxpAppService(IAppDbContext db)
         if (request.Monto <= 0 || request.Monto > cuenta.SaldoPendiente)
             throw new InvalidOperationException("El monto del pago no es válido para el saldo pendiente.");
 
-        db.PagosCxP.Add(new PagoCxP { CuentaPorPagarId = cuenta.Id, Monto = request.Monto, FormaPago = request.FormaPago });
+        db.PagosCxP.Add(new PagoCxP { CuentaPorPagarId = cuenta.Id, Monto = request.Monto, MetodoPagoId = request.MetodoPagoId, CreadoPorUsuarioId = usuarioId });
 
         cuenta.SaldoPendiente -= request.Monto;
         cuenta.Estado = cuenta.SaldoPendiente == 0 ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial;

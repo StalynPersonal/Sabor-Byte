@@ -22,23 +22,39 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
     public async Task<IActionResult> CrearProveedor([FromQuery] Guid sucursalId, GuardarProveedorRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        var id = await cxcCxp.CrearProveedorAsync(sucursalId, request, ct);
-        return Ok(new { id });
+
+        try
+        {
+            var id = await cxcCxp.CrearProveedorAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
+            return Ok(new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
     }
 
     [HttpGet("porcobrar")]
-    public async Task<IActionResult> ListarPorCobrar([FromQuery] Guid sucursalId, CancellationToken ct)
+    public async Task<IActionResult> ListarPorCobrar([FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        return Ok(await cxcCxp.ListarPorCobrarAsync(sucursalId, ct));
+        return Ok(await cxcCxp.ListarPorCobrarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
     }
 
     [HttpPost("porcobrar")]
     public async Task<IActionResult> CrearPorCobrar([FromQuery] Guid sucursalId, CrearCuentaPorCobrarRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        var id = await cxcCxp.CrearCuentaPorCobrarAsync(sucursalId, request, ct);
-        return Ok(new { id });
+
+        try
+        {
+            var id = await cxcCxp.CrearCuentaPorCobrarAsync(sucursalId, request, ct);
+            return Ok(new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPost("porcobrar/{cuentaId:guid}/pagos")]
@@ -48,7 +64,7 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 
         try
         {
-            await cxcCxp.RegistrarPagoCxCAsync(sucursalId, cuentaId, request, ct);
+            await cxcCxp.RegistrarPagoCxCAsync(sucursalId, cuentaId, User.ObtenerUsuarioId(), request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -58,18 +74,26 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
     }
 
     [HttpGet("porpagar")]
-    public async Task<IActionResult> ListarPorPagar([FromQuery] Guid sucursalId, CancellationToken ct)
+    public async Task<IActionResult> ListarPorPagar([FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        return Ok(await cxcCxp.ListarPorPagarAsync(sucursalId, ct));
+        return Ok(await cxcCxp.ListarPorPagarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
     }
 
     [HttpPost("porpagar")]
     public async Task<IActionResult> CrearPorPagar([FromQuery] Guid sucursalId, CrearCuentaPorPagarRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        var id = await cxcCxp.CrearCuentaPorPagarAsync(sucursalId, request, ct);
-        return Ok(new { id });
+
+        try
+        {
+            var id = await cxcCxp.CrearCuentaPorPagarAsync(sucursalId, request, ct);
+            return Ok(new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPost("porpagar/{cuentaId:guid}/pagos")]
@@ -79,7 +103,7 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 
         try
         {
-            await cxcCxp.RegistrarPagoCxPAsync(sucursalId, cuentaId, request, ct);
+            await cxcCxp.RegistrarPagoCxPAsync(sucursalId, cuentaId, User.ObtenerUsuarioId(), request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

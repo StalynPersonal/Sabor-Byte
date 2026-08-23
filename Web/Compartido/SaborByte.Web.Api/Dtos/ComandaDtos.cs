@@ -49,6 +49,7 @@ public class ComandaItemDto
     public EstadoItemComanda Estado { get; set; }
     public string? Notas { get; set; }
     public List<Guid> IngredientesExcluidosIds { get; set; } = [];
+    public List<string> IngredientesExcluidosNombres { get; set; } = [];
 }
 
 public class ComandaDto
@@ -56,7 +57,10 @@ public class ComandaDto
     public Guid Id { get; set; }
     public int NumeroComanda { get; set; }
     public Guid? MesaId { get; set; }
+    public string? NumeroMesa { get; set; }
+    public string? NombreSalon { get; set; }
     public Guid? MeseroId { get; set; }
+    public string? NombreMesero { get; set; }
     public EstadoComanda Estado { get; set; }
     public DateTime CreadoEn { get; set; }
     public List<ComandaItemDto> Items { get; set; } = [];

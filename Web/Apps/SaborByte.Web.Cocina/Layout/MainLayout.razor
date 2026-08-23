@@ -1,13 +1,28 @@
 @inherits LayoutComponentBase
+@implements IDisposable
+@using SaborByte.Web.Api
+@inject SesionCliente Sesion
+@inject SaborByteApiClient ApiClient
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
 
-<MudThemeProvider IsDarkMode="true" />
+<MudThemeProvider Theme="_tema" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1">
-        <MudText Typo="Typo.h6">Sabor Byte — Cocina</MudText>
+    <MudAppBar Elevation="1" Color="Color.Primary">
+        <MudText Typo="Typo.h6">SaborByte — Cocina</MudText>
+        <MudSpacer />
+        <MudTooltip Text="Cambiar contraseña">
+            <MudButton Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Person" OnClick="AbrirCambiarPasswordAsync">
+                @Sesion.Nombre
+            </MudButton>
+        </MudTooltip>
+        <MudTooltip Text="Cerrar sesión">
+            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="CerrarSesionAsync" />
+        </MudTooltip>
     </MudAppBar>
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.False" Class="my-4">
@@ -15,3 +30,98 @@
         </MudContainer>
     </MudMainContent>
 </MudLayout>
+
+<MudDialog @bind-Visible="_cambiandoPassword" Options="_opcionesDialogo">
+    <TitleContent>Cambiar contraseña</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Contraseña actual" InputType="InputType.Password" @bind-Value="_passwordActual" Class="mb-2" />
+        <MudTextField T="string" Label="Contraseña nueva (mínimo 8 caracteres)" InputType="InputType.Password" @bind-Value="_passwordNueva" Class="mb-2" />
+        <MudTextField T="string" Label="Confirmar contraseña nueva" InputType="InputType.Password" @bind-Value="_passwordConfirmacion" Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _cambiandoPassword = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarPasswordAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private bool _cambiandoPassword;
+    private string _passwordActual = string.Empty;
+    private string _passwordNueva = string.Empty;
+    private string _passwordConfirmacion = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Navegacion.LocationChanged += VerificarSucursalSeleccionada;
+        VerificarSucursalSeleccionada(this, null);
+    }
+
+    // Guarda central de "no dejar operar sin sucursal elegida": se revisa en cada cambio
+    // de ruta porque MainLayout no se vuelve a instanciar por navegación dentro de la app.
+    private void VerificarSucursalSeleccionada(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs? e)
+    {
+        if (!Sesion.EstaAutenticado || !Sesion.RequiereSeleccionSucursal)
+            return;
+
+        var ruta = Navegacion.ToBaseRelativePath(Navegacion.Uri).ToLowerInvariant();
+        if (ruta.StartsWith("seleccionar-sucursal") || ruta.StartsWith("login"))
+            return;
+
+        Navegacion.NavigateTo("/seleccionar-sucursal");
+    }
+
+    private async Task CerrarSesionAsync()
+    {
+        await ApiClient.CerrarSesionAsync();
+        Navegacion.NavigateTo("/login", forceLoad: true);
+    }
+
+    private Task AbrirCambiarPasswordAsync()
+    {
+        _passwordActual = string.Empty;
+        _passwordNueva = string.Empty;
+        _passwordConfirmacion = string.Empty;
+        _cambiandoPassword = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task GuardarPasswordAsync()
+    {
+        if (_passwordNueva != _passwordConfirmacion)
+        {
+            Snackbar.Add("La confirmación no coincide con la contraseña nueva.", Severity.Error);
+            return;
+        }
+
+        var (exito, error) = await ApiClient.CambiarPasswordAsync(_passwordActual, _passwordNueva);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Contraseña actualizada.", Severity.Success);
+        _cambiandoPassword = false;
+    }
+
+    public void Dispose() => Navegacion.LocationChanged -= VerificarSucursalSeleccionada;
+
+    // Naranja, para distinguir esta app de un vistazo entre las 4 ventanas abiertas
+    // (Central es rojo, Caja es azul, Mesero es verde).
+    private readonly MudTheme _tema = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#D98A3D",
+            PrimaryDarken = "#B56F2C",
+            PrimaryLighten = "#E5A868"
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#D98A3D",
+            PrimaryDarken = "#B56F2C",
+            PrimaryLighten = "#E5A868"
+        }
+    };
+}

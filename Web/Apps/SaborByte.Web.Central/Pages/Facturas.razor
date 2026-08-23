@@ -1,0 +1,257 @@
+@page "/facturas"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">Facturas</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">
+        Solo consulta — las facturas se emiten desde Caja, aquí no se pueden crear.
+    </MudText>
+
+    @if (_sucursalId == Guid.Empty)
+    {
+        <MudText Typo="Typo.body2">Cargando...</MudText>
+    }
+    else
+    {
+        <MudPaper Class="pa-3 mb-3">
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField T="string" Label="Buscar por N° de factura o NCF" @bind-Value="_textoBusqueda"
+                                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarTablaAsync"
+                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudSelect T="Guid" Label="Sucursal" Value="_sucursalId" ValueChanged="OnSucursalCambiadaAsync">
+                        @foreach (var sucursal in _sucursales)
+                        {
+                            <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudSelect T="Guid?" Label="Caja" Value="_cajaId" ValueChanged="v => OnFiltroCambiado(() => _cajaId = v)">
+                        <MudSelectItem Value="@((Guid?)null)">Todas</MudSelectItem>
+                        @foreach (var caja in _cajas)
+                        {
+                            <MudSelectItem Value="@((Guid?)caja.Id)">Caja @caja.Numero</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudDatePicker Label="Desde" Date="_desde" DateChanged="v => OnFiltroCambiado(() => _desde = v)" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudDatePicker Label="Hasta" Date="_hasta" DateChanged="v => OnFiltroCambiado(() => _hasta = v)" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudNumericField T="decimal?" Label="Monto mínimo" Value="_montoMinimo" ValueChanged="v => OnFiltroCambiado(() => _montoMinimo = v)" Min="0" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudNumericField T="decimal?" Label="Monto máximo" Value="_montoMaximo" ValueChanged="v => OnFiltroCambiado(() => _montoMaximo = v)" Min="0" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="FacturaResumenDto">
+            <HeaderContent>
+                <MudTh>N° Factura</MudTh>
+                <MudTh>NCF</MudTh>
+                <MudTh>Sucursal</MudTh>
+                <MudTh>Caja</MudTh>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Total</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.NumeroFactura</MudTd>
+                <MudTd>@(context.NumeroNcf ?? "(sin NCF)")</MudTd>
+                <MudTd>@context.SucursalCodigo</MudTd>
+                <MudTd>@context.CajaNumero</MudTd>
+                <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                <MudTd>
+                    <MudTooltip Text="Ver detalle">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerDetalleAsync(context.Id)" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+            </PagerContent>
+        </MudTable>
+    }
+}
+
+<MudDialog @bind-Visible="_viendoDetalle" Options="_opcionesDialogo">
+    <TitleContent>Factura @_detalle?.NumeroFactura</TitleContent>
+    <DialogContent>
+        @if (_detalle is not null)
+        {
+            <MudGrid Class="mb-3">
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">N° Factura</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">@_detalle.NumeroFactura</MudText>
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Sucursal</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">@_detalle.SucursalNombre (@_detalle.SucursalCodigo)</MudText>
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Cliente</MudText>
+                    <MudText Typo="Typo.body2">
+                        @_detalle.ClienteNombre @(string.IsNullOrEmpty(_detalle.ClienteRncOCedula) ? "" : $"({_detalle.ClienteRncOCedula})")
+                    </MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">NCF</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">@(_detalle.NumeroNcf ?? "(sin NCF)")</MudText>
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Caja</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">@_detalle.CajaNumero</MudText>
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Fecha</MudText>
+                    <MudText Typo="Typo.body2">@_detalle.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudText>
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Líneas</MudText>
+            <MudTable Items="_detalle.Lineas" Hover="true" Dense="true" Class="mb-3">
+                <HeaderContent>
+                    <MudTh>Producto</MudTh>
+                    <MudTh>Cantidad</MudTh>
+                    <MudTh>Precio</MudTh>
+                    <MudTh>Descuento</MudTh>
+                    <MudTh>ITBIS</MudTh>
+                    <MudTh>Total</MudTh>
+                    <MudTh>Acreditado</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.NombreProducto</MudTd>
+                    <MudTd>@context.Cantidad.ToString("0.###")</MudTd>
+                    <MudTd>RD$ @context.PrecioUnitario.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Descuento.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Itbis.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                    <MudTd>@(context.CantidadAcreditada > 0 ? context.CantidadAcreditada.ToString("0.###") : "—")</MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Pagos</MudText>
+            <MudTable Items="_detalle.Pagos" Hover="true" Dense="true" Class="mb-3">
+                <HeaderContent>
+                    <MudTh>Método</MudTh>
+                    <MudTh>Monto</MudTh>
+                    <MudTh>N° Comprobante</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.NombreMetodoPago</MudTd>
+                    <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                    <MudTd>@(context.NumeroComprobante ?? "—")</MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            <div class="d-flex justify-end">
+                <div style="min-width:280px">
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.body2">Subtotal</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Subtotal.ToString("0.00")</MudText>
+                    </div>
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.body2">ITBIS</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Itbis.ToString("0.00")</MudText>
+                    </div>
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.body2">Descuento</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Descuento.ToString("0.00")</MudText>
+                    </div>
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.body2">Propina</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Propina.ToString("0.00")</MudText>
+                    </div>
+                    <MudDivider Class="my-1" />
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText>
+                        <MudText Typo="Typo.subtitle1"><strong>RD$ @_detalle.Total.ToString("0.00")</strong></MudText>
+                    </div>
+                </div>
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _viendoDetalle = false">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private MudTable<FacturaResumenDto>? _tabla;
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private string _textoBusqueda = string.Empty;
+    private bool _viendoDetalle;
+    private FacturaDetalleCompletoDto? _detalle;
+
+    private List<SucursalResumenDto> _sucursales = [];
+    private Guid _sucursalId;
+    private List<CajaResumenDto> _cajas = [];
+    private Guid? _cajaId;
+    private DateTime? _desde;
+    private DateTime? _hasta;
+    private decimal? _montoMinimo;
+    private decimal? _montoMaximo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _sucursalId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
+            ? Sesion.SucursalActivaId
+            : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        if (_sucursalId != Guid.Empty)
+            _cajas = await ApiClient.ListarCajasAsync(_sucursalId);
+    }
+
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
+    {
+        _sucursalId = sucursalId;
+        _cajaId = null;
+        _cajas = await ApiClient.ListarCajasAsync(_sucursalId);
+        await RecargarTablaAsync();
+    }
+
+    private async Task OnFiltroCambiado(Action aplicar)
+    {
+        aplicar();
+        await RecargarTablaAsync();
+    }
+
+    private async Task<TableData<FacturaResumenDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
+    {
+        var resultado = await ApiClient.BuscarFacturasAsync(
+            _sucursalId, estado.Page + 1, estado.PageSize, _textoBusqueda,
+            _desde, _hasta?.AddDays(1).AddSeconds(-1), _montoMinimo, _montoMaximo, _cajaId);
+        return new TableData<FacturaResumenDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private Task RecargarTablaAsync() => _tabla?.ReloadServerData() ?? Task.CompletedTask;
+
+    private async Task VerDetalleAsync(Guid facturaId)
+    {
+        _detalle = await ApiClient.ObtenerFacturaDetalleAsync(_sucursalId, facturaId);
+        _viendoDetalle = _detalle is not null;
+    }
+}

@@ -17,6 +17,13 @@ public class RegistrarAjusteRequestDto
     public required string Motivo { get; set; }
 }
 
+public class ConfigurarUmbralesRequestDto
+{
+    public Guid ProductoId { get; set; }
+    public decimal? StockMinimo { get; set; }
+    public decimal? StockMaximo { get; set; }
+}
+
 public class MovimientoInventarioDto
 {
     public Guid Id { get; set; }

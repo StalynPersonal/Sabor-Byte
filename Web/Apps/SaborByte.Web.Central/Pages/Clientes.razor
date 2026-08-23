@@ -4,8 +4,9 @@
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
 
-<PageTitle>Sabor Byte — Central — Clientes</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
@@ -13,78 +14,73 @@
 }
 else
 {
-    <MudGrid>
-        <MudItem xs="12" md="@(_editando ? 7 : 12)">
-            <div class="d-flex justify-space-between align-center mb-4">
-                <MudText Typo="Typo.h5">Clientes</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoCliente">
-                    Nuevo cliente
-                </MudButton>
-            </div>
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Clientes</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoCliente">
+            Nuevo cliente
+        </MudButton>
+    </div>
 
-            <MudTextField T="string" Label="Buscar por nombre o RNC/Cédula" @bind-Value="_textoBusqueda"
-                           Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Class="mb-4" />
+    <MudTextField T="string" Label="Buscar por nombre o RNC/Cédula" @bind-Value="_textoBusqueda"
+                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Class="mb-4" />
 
-            <MudTable Items="_clientes" Hover="true" Dense="true">
-                <HeaderContent>
-                    <MudTh>Nombre / Razón social</MudTh>
-                    <MudTh>RNC/Cédula</MudTh>
-                    <MudTh>Tipo</MudTh>
-                    <MudTh>Teléfono</MudTh>
-                    <MudTh></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.NombreORazonSocial</MudTd>
-                    <MudTd>@context.RncOCedula</MudTd>
-                    <MudTd>@(context.TipoCliente == TipoCliente.Fiscal ? "Fiscal" : "Consumo")</MudTd>
-                    <MudTd>@context.Telefono</MudTd>
-                    <MudTd>
-                        <MudButton Size="Size.Small" OnClick="() => EditarCliente(context)">Editar</MudButton>
-                        <MudButton Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)">Desactivar</MudButton>
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudItem>
-
-        @if (_editando)
-        {
-            <MudItem xs="12" md="5">
-                <MudPaper Class="pa-4">
-                    <MudText Typo="Typo.h6" Class="mb-3">@(_clienteId is null ? "Nuevo cliente" : "Editar cliente")</MudText>
-
-                    <MudTextField T="string" Label="Nombre / Razón social" @bind-Value="_form.NombreORazonSocial" Class="mb-2" />
-                    <MudTextField T="string" Label="RNC/Cédula" @bind-Value="_form.RncOCedula" Class="mb-2" />
-                    <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
-                    <MudTextField T="string" Label="Email" @bind-Value="_form.Email" Class="mb-2" />
-                    <MudTextField T="string" Label="Dirección" @bind-Value="_form.Direccion" Class="mb-2" />
-
-                    <MudSelect T="TipoCliente" Label="Tipo de cliente" @bind-Value="_form.TipoCliente" Class="mb-2">
-                        <MudSelectItem Value="TipoCliente.Consumo">Consumo (sin RNC)</MudSelectItem>
-                        <MudSelectItem Value="TipoCliente.Fiscal">Fiscal (con RNC, crédito fiscal)</MudSelectItem>
-                    </MudSelect>
-
-                    @if (!string.IsNullOrEmpty(_error))
-                    {
-                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
-                    }
-
-                    <div class="d-flex gap-2 mt-4">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
-                        <MudButton Variant="Variant.Outlined" OnClick="() => _editando = false">Cancelar</MudButton>
-                    </div>
-                </MudPaper>
-            </MudItem>
-        }
-    </MudGrid>
+    <MudTable Items="_clientes" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre / Razón social</MudTh>
+            <MudTh>RNC/Cédula</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Teléfono</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.NombreORazonSocial</MudTd>
+            <MudTd>@context.RncOCedula</MudTd>
+            <MudTd>@(context.TipoCliente == TipoCliente.Fiscal ? "Fiscal" : "Consumo")</MudTd>
+            <MudTd>@context.Telefono</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarCliente(context)" />
+                </MudTooltip>
+                <MudTooltip Text="Desactivar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_clienteId is null ? "Nuevo cliente" : "Editar cliente")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre / Razón social" @bind-Value="_form.NombreORazonSocial" Required="true" Class="mb-2" />
+
+        <MudSelect T="TipoCliente" Label="Tipo de cliente" @bind-Value="_form.TipoCliente" Class="mb-2">
+            <MudSelectItem Value="TipoCliente.Consumo">Consumo (sin RNC)</MudSelectItem>
+            <MudSelectItem Value="TipoCliente.Fiscal">Fiscal (con RNC, crédito fiscal)</MudSelectItem>
+        </MudSelect>
+
+        <MudTextField T="string" Label="RNC/Cédula" @bind-Value="_form.RncOCedula"
+                       Required="@(_form.TipoCliente == TipoCliente.Fiscal)"
+                       HelperText="@(_form.TipoCliente == TipoCliente.Fiscal ? "Obligatorio para clientes Fiscal" : null)"
+                       Class="mb-2" />
+        <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
+        <MudTextField T="string" Label="Email" @bind-Value="_form.Email" Class="mb-2" />
+        <MudTextField T="string" Label="Dirección" @bind-Value="_form.Direccion" Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
     private List<ClienteDto> _clientes = [];
     private string _textoBusqueda = string.Empty;
     private bool _editando;
     private Guid? _clienteId;
     private GuardarClienteRequestDto _form = new();
-    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,20 +90,40 @@ else
             return;
         }
 
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
         await CargarAsync();
     }
 
     private async Task CargarAsync()
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        _clientes = await ApiClient.BuscarClientesAsync(sucursalId, _textoBusqueda);
+        var sucursalId = Sesion.SucursalActivaId;
+        if (sucursalId == Guid.Empty)
+        {
+            _clientes = [];
+            return;
+        }
+
+        try
+        {
+            _clientes = await ApiClient.BuscarClientesAsync(sucursalId, _textoBusqueda);
+        }
+        catch (HttpRequestException)
+        {
+            // Sesión vencida (ver SesionExpiradaHandler) u otro problema de red: no tumbar
+            // toda la pantalla, simplemente dejar el listado en blanco.
+            _clientes = [];
+        }
     }
 
     private void NuevoCliente()
     {
         _clienteId = null;
         _form = new GuardarClienteRequestDto();
-        _error = null;
         _editando = true;
     }
 
@@ -123,33 +139,36 @@ else
             Direccion = cliente.Direccion,
             TipoCliente = cliente.TipoCliente
         };
-        _error = null;
         _editando = true;
     }
 
     private async Task GuardarAsync()
     {
-        _error = null;
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursalId = Sesion.SucursalActivaId;
 
-        var (exito, error) = _clienteId is null
-            ? await ApiClient.CrearClienteAsync(sucursalId, _form)
-            : await ApiClient.ActualizarClienteAsync(sucursalId, _clienteId.Value, _form);
+        bool exito;
+        string? error;
+        if (_clienteId is null)
+            (exito, _, error) = await ApiClient.CrearClienteAsync(sucursalId, _form);
+        else
+            (exito, error) = await ApiClient.ActualizarClienteAsync(sucursalId, _clienteId.Value, _form);
 
         if (!exito)
         {
-            _error = error;
+            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
             return;
         }
 
+        Snackbar.Add(_clienteId is null ? "Cliente creado." : "Cliente actualizado.", Severity.Success);
         _editando = false;
         await CargarAsync();
     }
 
     private async Task DesactivarAsync(Guid id)
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursalId = Sesion.SucursalActivaId;
         await ApiClient.DesactivarClienteAsync(sucursalId, id);
+        Snackbar.Add("Cliente desactivado.", Severity.Success);
         await CargarAsync();
     }
 }

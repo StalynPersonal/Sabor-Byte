@@ -12,6 +12,11 @@ public class TurnoCaja
     public Guid CajaId { get; set; }
     public Caja? Caja { get; set; }
 
+    // Snapshot tomado al abrir el turno (no join en caliente): si el código de la caja o
+    // de la sucursal cambia después, este turno histórico no debe cambiar de significado.
+    public string? CodigoSucursal { get; set; }
+    public string? CodigoCaja { get; set; }
+
     public Guid UsuarioAperturaId { get; set; }
     public Guid? UsuarioCierreId { get; set; }
 

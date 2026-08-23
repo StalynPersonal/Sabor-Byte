@@ -58,4 +58,25 @@ public class InventarioController(InventarioAppService inventario) : ControllerB
             return BadRequest(new { mensaje = ex.Message });
         }
     }
+
+    // Configura el Stock Mínimo/Máximo (umbral de alerta) de un insumo para UNA
+    // sucursal puntual — el stock, y por lo tanto sus umbrales, son por sucursal.
+    [HttpPut("umbrales")]
+    [Authorize(Roles = "Admin,Supervisor")]
+    public async Task<IActionResult> ConfigurarUmbrales(
+        [FromQuery] Guid sucursalId, ConfigurarUmbralesRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        try
+        {
+            await inventario.ConfigurarUmbralesAsync(sucursalId, request.ProductoId, request.StockMinimo, request.StockMaximo, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
 }

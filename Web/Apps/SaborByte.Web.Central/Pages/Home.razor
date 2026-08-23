@@ -1,6 +1,352 @@
 @page "/inicio"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@implements IDisposable
 
-<PageTitle>Sabor Byte — Central</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
-<MudText Typo="Typo.h4">Sabor Byte — Central</MudText>
-<MudText Typo="Typo.body1" Class="mt-2">Módulo de administración, catálogos y reportes.</MudText>
+
+<MudText Typo="Typo.body1" Class="mt-2 mb-4">Módulo de administración, catálogos y reportes.</MudText>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Ventas de hoy</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.VentasHoyTotal.ToString("0.00")</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                @_dashboard.VentasHoyCantidadFacturas factura(s) — ticket prom. RD$ @_dashboard.TicketPromedioHoy.ToString("0.00")
+            </MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Turnos de caja abiertos</MudText>
+            <MudText Typo="Typo.h5">@_dashboard.TurnosAbiertos</MudText>
+            <MudButton Href="cajas" Size="Size.Small" Class="mt-1 pl-0">Ver cajas</MudButton>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Por cobrar pendiente</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.CxCPendienteTotal.ToString("0.00")</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@_dashboard.CxCPendienteCantidad cuenta(s)</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Por pagar pendiente</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.CxPPendienteTotal.ToString("0.00")</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@_dashboard.CxPPendienteCantidad cuenta(s)</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@if (_dashboard.ProductosStockBajo > 0)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        @_dashboard.ProductosStockBajo insumo(s) con stock por debajo del mínimo.
+        <MudButton Href="inventario" Size="Size.Small" Class="ml-2">Revisar inventario</MudButton>
+    </MudAlert>
+}
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" md="7">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Ventas de hoy por hora</MudText>
+            @if (_dashboard.VentasPorHoraHoy.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Todavía no hay ventas registradas hoy.</MudText>
+            }
+            else
+            {
+                <MudChart ChartType="ChartType.Bar" ChartSeries="_serieHoras" ChartLabels="_etiquetasHoras"
+                          Width="100%" Height="260px" />
+            }
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="5">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Top productos de hoy</MudText>
+            @if (_dashboard.TopProductosHoy.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Todavía no hay ventas registradas hoy.</MudText>
+            }
+            else
+            {
+                <MudTable Items="_dashboard.TopProductosHoy" Hover="true" Dense="true" T="VentaPorProductoDto">
+                    <HeaderContent>
+                        <MudTh>Producto</MudTh>
+                        <MudTh>Cant.</MudTh>
+                        <MudTh>Total</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>@item.NombreProducto</MudTd>
+                        <MudTd>@item.CantidadVendida.ToString("0.##")</MudTd>
+                        <MudTd>RD$ @item.TotalVendido.ToString("0.00")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudDivider Class="my-6" />
+
+<div class="d-flex flex-wrap justify-end align-center mb-4 gap-2">
+    <div class="d-flex flex-wrap gap-2 align-center">
+        @if (Sesion.SucursalesPermitidas.Count > 1)
+        {
+            <MudSelect T="Guid" Label="Sucursal" Value="_sucursalIdReporte" ValueChanged="OnSucursalReporteCambiadaAsync" Style="min-width:200px">
+                @foreach (var sucursal in Sesion.SucursalesPermitidas)
+                {
+                    <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        <MudDatePicker Label="Desde" @bind-Date="_desdeReporte" Style="min-width:180px" />
+        <MudDatePicker Label="Hasta" @bind-Date="_hastaReporte" Style="min-width:180px" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarReporteAsync">Aplicar</MudButton>
+    </div>
+</div>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.caption">Total vendido (sucursal)</MudText>
+            <MudText Typo="Typo.h4">RD$ @_totalVendidoReporte.ToString("N2")</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.caption">Facturas emitidas</MudText>
+            <MudText Typo="Typo.h4">@_cantidadFacturasReporte</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.caption">Ticket promedio</MudText>
+            <MudText Typo="Typo.h4">RD$ @_ticketPromedioReporte.ToString("N2")</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Top productos vendidos</MudText>
+            @if (_ventasPorProductoReporte.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+            }
+            else
+            {
+                <MudChart ChartType="ChartType.Bar" ChartSeries="_serieProductosReporte" ChartLabels="_etiquetasProductosReporte"
+                          Width="100%" Height="300px" />
+            }
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Ventas por hora del día</MudText>
+            @if (_ventasPorHoraReporte.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+            }
+            else
+            {
+                <MudChart ChartType="ChartType.Bar" ChartSeries="_serieHorasReporte" ChartLabels="_etiquetasHorasReporte"
+                          Width="100%" Height="300px" />
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Class="mt-1">
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Ventas por método de pago</MudText>
+            @if (_ventasPorMetodoPagoReporte.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+            }
+            else
+            {
+                <MudChart ChartType="ChartType.Donut" ChartSeries="_serieMetodoPagoReporte" ChartLabels="_etiquetasMetodoPagoReporte"
+                          Width="100%" Height="260px" LegendPosition="Position.Bottom" />
+            }
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Ventas por categoría</MudText>
+            @if (_ventasPorCategoriaReporte.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+            }
+            else
+            {
+                <MudChart ChartType="ChartType.Donut" ChartSeries="_serieCategoriaReporte" ChartLabels="_etiquetasCategoriaReporte"
+                          Width="100%" Height="260px" LegendPosition="Position.Bottom" />
+            }
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Insumos con stock bajo</MudText>
+            @if (_insumosStockBajo.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Ningún insumo está por debajo de su mínimo.</MudText>
+            }
+            else
+            {
+                <MudTable Items="_insumosStockBajo" Hover="true" Dense="true" T="ProductoDetalleDto">
+                    <HeaderContent>
+                        <MudTh>Insumo</MudTh>
+                        <MudTh>Stock</MudTh>
+                        <MudTh>Mínimo</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="p">
+                        <MudTd>@p.Nombre</MudTd>
+                        <MudTd Style="color:var(--mud-palette-error); font-weight:bold">@p.StockActual.ToString("0.###")</MudTd>
+                        <MudTd>@p.StockMinimo?.ToString("0.###")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+                <MudButton Href="inventario" Size="Size.Small" Class="mt-2">Ir a inventario</MudButton>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private DashboardResumenDto _dashboard = new();
+    private List<ChartSeries<double>> _serieHoras = [];
+    private string[] _etiquetasHoras = [];
+    private Timer? _temporizador;
+
+    private DateTime? _desdeReporte = DateTime.Today.AddDays(-30);
+    private DateTime? _hastaReporte = DateTime.Today;
+
+    private decimal _totalVendidoReporte;
+    private int _cantidadFacturasReporte;
+    private decimal _ticketPromedioReporte;
+
+    private List<VentaPorProductoDto> _ventasPorProductoReporte = [];
+    private List<VentaPorHoraDto> _ventasPorHoraReporte = [];
+
+    private List<ChartSeries<double>> _serieProductosReporte = [];
+    private string[] _etiquetasProductosReporte = [];
+    private List<ChartSeries<double>> _serieHorasReporte = [];
+    private string[] _etiquetasHorasReporte = [];
+
+    private List<VentaPorMetodoPagoDto> _ventasPorMetodoPagoReporte = [];
+    private List<ChartSeries<double>> _serieMetodoPagoReporte = [];
+    private string[] _etiquetasMetodoPagoReporte = [];
+
+    private List<VentaPorCategoriaDto> _ventasPorCategoriaReporte = [];
+    private List<ChartSeries<double>> _serieCategoriaReporte = [];
+    private string[] _etiquetasCategoriaReporte = [];
+
+    private List<ProductoDetalleDto> _insumosStockBajo = [];
+
+    private Guid _sucursalIdReporte;
+    private Guid SucursalId => _sucursalIdReporte;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
+        _sucursalIdReporte = Sesion.SucursalActivaId;
+        await CargarAsync();
+        await CargarReporteAsync();
+        _temporizador = new Timer(async _ => await InvokeAsync(CargarAsync), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task OnSucursalReporteCambiadaAsync(Guid sucursalId)
+    {
+        _sucursalIdReporte = sucursalId;
+        await CargarReporteAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (Sesion.SucursalActivaId != Guid.Empty)
+        {
+            try
+            {
+                _dashboard = await ApiClient.ObtenerDashboardAsync(Sesion.SucursalActivaId) ?? new DashboardResumenDto();
+                _etiquetasHoras = _dashboard.VentasPorHoraHoy.Select(h => $"{h.Hora}:00").ToArray();
+                _serieHoras = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = _dashboard.VentasPorHoraHoy.Select(h => (double)h.TotalVendido).ToArray() }];
+            }
+            catch (HttpRequestException) { _dashboard = new DashboardResumenDto(); }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task CargarReporteAsync()
+    {
+        var rango = new RangoFechasRequestDto
+        {
+            Desde = _desdeReporte ?? DateTime.Today.AddDays(-30),
+            Hasta = (_hastaReporte ?? DateTime.Today).AddDays(1).AddSeconds(-1)
+        };
+
+        try
+        {
+            var porSucursal = await ApiClient.VentasPorSucursalAsync([SucursalId], rango.Desde, rango.Hasta);
+            var propia = porSucursal.PorSucursal.FirstOrDefault(p => p.SucursalId == SucursalId);
+            _totalVendidoReporte = propia?.TotalVendido ?? 0m;
+            _cantidadFacturasReporte = propia?.CantidadFacturas ?? 0;
+            _ticketPromedioReporte = propia?.TicketPromedio ?? 0m;
+
+            _ventasPorProductoReporte = await ApiClient.VentasPorProductoAsync(SucursalId, rango);
+            _ventasPorHoraReporte = await ApiClient.VentasPorHoraAsync(SucursalId, rango);
+
+            // Top 10 por total vendido, para que el grafico de barras no se sature.
+            var top = _ventasPorProductoReporte.Take(10).ToList();
+            _etiquetasProductosReporte = top.Select(p => p.NombreProducto).ToArray();
+            _serieProductosReporte = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = top.Select(p => (double)p.TotalVendido).ToArray() }];
+
+            var horas = _ventasPorHoraReporte.OrderBy(h => h.Hora).ToList();
+            _etiquetasHorasReporte = horas.Select(h => $"{h.Hora}:00").ToArray();
+            _serieHorasReporte = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = horas.Select(h => (double)h.TotalVendido).ToArray() }];
+
+            _ventasPorMetodoPagoReporte = await ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
+            _etiquetasMetodoPagoReporte = _ventasPorMetodoPagoReporte.Select(v => v.NombreMetodo).ToArray();
+            _serieMetodoPagoReporte = [new ChartSeries<double> { Name = "Total (RD$)", Data = _ventasPorMetodoPagoReporte.Select(v => (double)v.TotalCobrado).ToArray() }];
+
+            _ventasPorCategoriaReporte = await ApiClient.VentasPorCategoriaAsync(SucursalId, rango);
+            _etiquetasCategoriaReporte = _ventasPorCategoriaReporte.Select(v => v.NombreCategoria).ToArray();
+            _serieCategoriaReporte = [new ChartSeries<double> { Name = "Total (RD$)", Data = _ventasPorCategoriaReporte.Select(v => (double)v.TotalVendido).ToArray() }];
+
+            var insumos = await ApiClient.ListarProductosAsync(1, 500, tipo: TipoProducto.Insumo, sucursalId: SucursalId);
+            _insumosStockBajo = insumos.Items
+                .Where(p => p.StockMinimo is decimal min && p.StockActual < min)
+                .OrderBy(p => p.Nombre)
+                .ToList();
+        }
+        catch (HttpRequestException)
+        {
+            // Sesión vencida (ver SesionExpiradaHandler) u otro problema de red: no tumbar
+            // toda la pantalla, simplemente dejar los totales del reporte en blanco.
+        }
+    }
+
+    public void Dispose() => _temporizador?.Dispose();
+}

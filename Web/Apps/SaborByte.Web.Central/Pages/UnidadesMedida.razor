@@ -1,0 +1,124 @@
+@page "/unidades-medida"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Unidades de Medida</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaUnidad">
+            Nueva unidad
+        </MudButton>
+    </div>
+
+    <MudTable Items="_unidades" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Activo</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarUnidad(context)" />
+                </MudTooltip>
+                @if (context.Activo)
+                {
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Activar">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" OnClick="() => AlternarActivoAsync(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_unidadId is null ? "Nueva unidad de medida" : "Editar unidad de medida")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<UnidadMedidaDto> _unidades = [];
+    private bool _editando;
+    private Guid? _unidadId;
+    private GuardarUnidadMedidaRequestDto _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync() => _unidades = await ApiClient.ListarUnidadesMedidaAsync(incluirInactivos: true);
+
+    private void NuevaUnidad()
+    {
+        _unidadId = null;
+        _form = new GuardarUnidadMedidaRequestDto();
+        _editando = true;
+    }
+
+    private void EditarUnidad(UnidadMedidaDto unidad)
+    {
+        _unidadId = unidad.Id;
+        _form = new GuardarUnidadMedidaRequestDto { Nombre = unidad.Nombre, Activo = unidad.Activo };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        var (exito, error) = _unidadId is null
+            ? await ApiClient.CrearUnidadMedidaAsync(_form)
+            : await ApiClient.ActualizarUnidadMedidaAsync(_unidadId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_unidadId is null ? "Unidad creada." : "Unidad actualizada.", Severity.Success);
+        _editando = false;
+        await CargarAsync();
+    }
+
+    private async Task AlternarActivoAsync(UnidadMedidaDto unidad)
+    {
+        var request = new GuardarUnidadMedidaRequestDto { Nombre = unidad.Nombre, Activo = !unidad.Activo };
+        await ApiClient.ActualizarUnidadMedidaAsync(unidad.Id, request);
+        await CargarAsync();
+    }
+}

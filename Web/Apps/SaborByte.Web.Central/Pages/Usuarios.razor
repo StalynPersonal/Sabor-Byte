@@ -4,8 +4,9 @@
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
 
-<PageTitle>Sabor Byte — Central — Usuarios</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
@@ -13,74 +14,89 @@
 }
 else
 {
-    <MudGrid>
-        <MudItem xs="12" md="@(_editando ? 7 : 12)">
-            <div class="d-flex justify-space-between align-center mb-4">
-                <MudText Typo="Typo.h5">Usuarios</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoUsuario">
-                    Nuevo usuario
-                </MudButton>
-            </div>
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Usuarios</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoUsuario">
+            Nuevo usuario
+        </MudButton>
+    </div>
 
-            <MudTable Items="_usuarios" Hover="true" Dense="true">
-                <HeaderContent>
-                    <MudTh>Usuario</MudTh>
-                    <MudTh>Nombre</MudTh>
-                    <MudTh>Roles</MudTh>
-                    <MudTh>Activo</MudTh>
-                    <MudTh></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.NombreUsuario</MudTd>
-                    <MudTd>@context.Nombre</MudTd>
-                    <MudTd>@string.Join(", ", context.Roles)</MudTd>
-                    <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
-                    <MudTd>
-                        <MudButton Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)">Desactivar</MudButton>
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudItem>
-
-        @if (_editando)
-        {
-            <MudItem xs="12" md="5">
-                <MudPaper Class="pa-4">
-                    <MudText Typo="Typo.h6" Class="mb-3">Nuevo usuario</MudText>
-
-                    <MudTextField T="string" Label="Nombre de usuario" @bind-Value="_form.NombreUsuario" Class="mb-2" />
-                    <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_form.Password" Class="mb-2" />
-                    <MudTextField T="string" Label="Nombre completo" @bind-Value="_form.Nombre" Class="mb-2" />
-                    <MudTextField T="string" Label="Email (opcional)" @bind-Value="_form.Email" Class="mb-2" />
-
-                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Roles</MudText>
-                    @foreach (var rol in _rolesDisponibles)
-                    {
-                        <MudCheckBox T="bool" Label="@rol" Value="_form.Roles.Contains(rol)"
-                                     ValueChanged="@((bool marcado) => AlternarRol(rol, marcado))" />
-                    }
-
-                    @if (!string.IsNullOrEmpty(_error))
-                    {
-                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
-                    }
-
-                    <div class="d-flex gap-2 mt-4">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
-                        <MudButton Variant="Variant.Outlined" OnClick="() => _editando = false">Cancelar</MudButton>
-                    </div>
-                </MudPaper>
-            </MudItem>
-        }
-    </MudGrid>
+    <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="UsuarioDto">
+        <HeaderContent>
+            <MudTh>Usuario</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Roles</MudTh>
+            <MudTh>Activo</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.NombreUsuario</MudTd>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@string.Join(", ", context.Roles)</MudTd>
+            <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarUsuario(context)" />
+                </MudTooltip>
+                <MudTooltip Text="Desactivar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 10, 20, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
+    </MudTable>
 }
 
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_usuarioId is null ? "Nuevo usuario" : "Editar usuario")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre de usuario" @bind-Value="_form.NombreUsuario" Required="true" Class="mb-2" />
+        <MudTextField T="string" Label="@(_usuarioId is null ? "Contraseña" : "Nueva contraseña (dejar vacío para no cambiarla)")"
+                       InputType="InputType.Password" @bind-Value="_form.Password" Required="_usuarioId is null" Class="mb-2" />
+        <MudTextField T="string" Label="Nombre completo" @bind-Value="_form.Nombre" Required="true" Class="mb-2" />
+        <MudTextField T="string" Label="Email (opcional)" @bind-Value="_form.Email" Class="mb-2" />
+
+        @if (_usuarioId is not null)
+        {
+            <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" Class="mb-2" />
+        }
+
+        <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Roles</MudText>
+        @foreach (var rol in _rolesDisponibles)
+        {
+            <MudCheckBox T="bool" Label="@rol" Value="_form.Roles.Contains(rol)"
+                         ValueChanged="@((bool marcado) => AlternarRol(rol, marcado))" />
+        }
+
+        <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Sucursales con acceso</MudText>
+        @foreach (var sucursal in _sucursales)
+        {
+            <MudCheckBox T="bool" Label="@sucursal.Nombre" Value="_form.SucursalesAsignadas.Contains(sucursal.Id)"
+                         ValueChanged="@((bool marcado) => AlternarSucursal(sucursal.Id, marcado))" />
+        }
+        @if (_sucursales.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">No hay sucursales creadas todavía.</MudText>
+        }
+
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
-    private List<UsuarioDto> _usuarios = [];
-    private readonly string[] _rolesDisponibles = ["Admin", "Supervisor", "Cajero", "Mesero", "Cocina"];
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private MudTable<UsuarioDto>? _tabla;
+    private readonly string[] _rolesDisponibles = ["Admin", "Supervisor", "Cajero", "Mesero", "Cocina", "AutorizaNotaCredito"];
+    private List<SucursalResumenDto> _sucursales = [];
     private bool _editando;
-    private CrearUsuarioRequestDto _form = new();
-    private string? _error;
+    private Guid? _usuarioId;
+    private ActualizarUsuarioRequestDto _form = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,15 +106,36 @@ else
             return;
         }
 
-        await CargarAsync();
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
     }
 
-    private async Task CargarAsync() => _usuarios = await ApiClient.ListarUsuariosAsync();
+    private async Task<TableData<UsuarioDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
+    {
+        var resultado = await ApiClient.ListarUsuariosAsync(estado.Page + 1, estado.PageSize);
+        return new TableData<UsuarioDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private Task RecargarTablaAsync() => _tabla?.ReloadServerData() ?? Task.CompletedTask;
 
     private void NuevoUsuario()
     {
-        _form = new CrearUsuarioRequestDto { SucursalesAsignadas = [Sesion.SucursalesPermitidas.FirstOrDefault()] };
-        _error = null;
+        _usuarioId = null;
+        _form = new ActualizarUsuarioRequestDto { Activo = true };
+        _editando = true;
+    }
+
+    private void EditarUsuario(UsuarioDto usuario)
+    {
+        _usuarioId = usuario.Id;
+        _form = new ActualizarUsuarioRequestDto
+        {
+            NombreUsuario = usuario.NombreUsuario,
+            Nombre = usuario.Nombre,
+            Email = usuario.Email,
+            Activo = usuario.Activo,
+            Roles = [.. usuario.Roles],
+            SucursalesAsignadas = [.. usuario.SucursalesAsignadas]
+        };
         _editando = true;
     }
 
@@ -110,24 +147,67 @@ else
             _form.Roles.Remove(rol);
     }
 
+    private void AlternarSucursal(Guid sucursalId, bool marcado)
+    {
+        if (marcado && !_form.SucursalesAsignadas.Contains(sucursalId))
+            _form.SucursalesAsignadas.Add(sucursalId);
+        else if (!marcado)
+            _form.SucursalesAsignadas.Remove(sucursalId);
+    }
+
     private async Task GuardarAsync()
     {
-        _error = null;
-        var (exito, error) = await ApiClient.CrearUsuarioAsync(_form);
-
-        if (!exito)
+        if (string.IsNullOrWhiteSpace(_form.NombreUsuario))
         {
-            _error = error;
+            Snackbar.Add("El nombre de usuario es obligatorio.", Severity.Error);
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(_form.Nombre))
+        {
+            Snackbar.Add("El nombre completo es obligatorio.", Severity.Error);
+            return;
+        }
+
+        if (_usuarioId is null && string.IsNullOrWhiteSpace(_form.Password))
+        {
+            Snackbar.Add("La contraseña es obligatoria.", Severity.Error);
+            return;
+        }
+
+        if (_form.SucursalesAsignadas.Count == 0)
+        {
+            Snackbar.Add("Debes seleccionar al menos una sucursal para el usuario.", Severity.Error);
+            return;
+        }
+
+        var (exito, error) = _usuarioId is null
+            ? await ApiClient.CrearUsuarioAsync(new CrearUsuarioRequestDto
+            {
+                NombreUsuario = _form.NombreUsuario,
+                Password = _form.Password ?? string.Empty,
+                Nombre = _form.Nombre,
+                Email = _form.Email,
+                Roles = _form.Roles,
+                SucursalesAsignadas = _form.SucursalesAsignadas
+            })
+            : await ApiClient.ActualizarUsuarioAsync(_usuarioId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_usuarioId is null ? "Usuario creado." : "Usuario actualizado.", Severity.Success);
         _editando = false;
-        await CargarAsync();
+        await RecargarTablaAsync();
     }
 
     private async Task DesactivarAsync(Guid id)
     {
         await ApiClient.DesactivarUsuarioAsync(id);
-        await CargarAsync();
+        Snackbar.Add("Usuario desactivado.", Severity.Success);
+        await RecargarTablaAsync();
     }
 }

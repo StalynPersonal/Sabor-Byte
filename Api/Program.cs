@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SaborByte.Api.Hubs;
 using SaborByte.Api.Salud;
+using SaborByte.Aplicacion.Identidad;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Infraestructura;
 using SaborByte.Infraestructura.Persistencia;
@@ -112,6 +113,8 @@ if (app.Environment.IsDevelopment())
     var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     await db.Database.MigrateAsync();
     await SeedData.EjecutarAsync(db, passwordHasher);
+    await SeedData.SeedCatalogoDemoAsync(db);
+    await SeedData.SeedConfiguracionCajaAsync(db);
 }
 
 app.UseHttpsRedirection();
@@ -122,6 +125,24 @@ app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Heartbeat de presencia: en cada request autenticado, refresca FechaUltimaActividad de la
+// sesión (con throttling de 60s dentro de RegistrarActividadAsync) para que "usuarios activos
+// ahora" en Central refleje uso real y no solo el instante del login.
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var sesionClaim = context.User.FindFirst("sesion")?.Value;
+        if (Guid.TryParse(sesionClaim, out var sesionActivaId))
+        {
+            var autenticacion = context.RequestServices.GetRequiredService<AutenticacionAppService>();
+            await autenticacion.RegistrarActividadAsync(sesionActivaId, context.RequestAborted);
+        }
+    }
+
+    await next();
+});
 
 app.MapControllers();
 app.MapHub<ComandaHub>("/hubs/comandas");

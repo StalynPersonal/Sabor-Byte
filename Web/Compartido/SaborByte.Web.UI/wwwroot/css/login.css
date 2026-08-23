@@ -15,7 +15,11 @@
     align-items: flex-start;
     padding: 4rem;
     color: #fff;
-    background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+    /* Cada app fija --login-gradient-inicio/--login-gradient-fin en su propio app.css
+       (ver wwwroot/css/app.css) para que el panel de marca del login combine con su
+       color — este archivo es compartido por las 4 apps, así que no puede tener el
+       color fijo de una sola. */
+    background: linear-gradient(135deg, var(--login-gradient-inicio, #4338ca) 0%, var(--login-gradient-fin, #6d28d9) 100%);
     position: relative;
     overflow: hidden;
 }

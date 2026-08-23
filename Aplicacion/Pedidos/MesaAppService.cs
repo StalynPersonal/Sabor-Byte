@@ -19,6 +19,9 @@ public class MesaAppService(IAppDbContext db)
 
     public async Task<Guid> CrearAsync(Guid sucursalId, GuardarMesaRequestDto request, CancellationToken ct = default)
     {
+        ValidarDatos(request);
+        await ValidarNumeroUnicoEnSalonAsync(sucursalId, request.Numero, request.Salon, mesaId: null, ct);
+
         var mesa = new Mesa
         {
             SucursalId = sucursalId,
@@ -39,10 +42,41 @@ public class MesaAppService(IAppDbContext db)
         var mesa = await db.Mesas.FirstOrDefaultAsync(m => m.Id == mesaId && m.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La mesa no existe.");
 
+        ValidarDatos(request);
+        await ValidarNumeroUnicoEnSalonAsync(sucursalId, request.Numero, request.Salon, mesaId, ct);
+
         mesa.Numero = request.Numero;
         mesa.Salon = request.Salon;
         mesa.Capacidad = request.Capacidad;
         await db.SaveChangesAsync(ct);
+    }
+
+    private static void ValidarDatos(GuardarMesaRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Numero))
+            throw new InvalidOperationException("El número de mesa es obligatorio.");
+
+        if (string.IsNullOrWhiteSpace(request.Salon))
+            throw new InvalidOperationException("El salón es obligatorio.");
+
+        if (request.Capacidad <= 0)
+            throw new InvalidOperationException("La capacidad debe ser mayor a cero.");
+    }
+
+    // Dos mesas del mismo salón no pueden compartir número (dos mesas "05" en el salón
+    // Terraza sería ambiguo para el mesero/cliente); mesas en salones distintos sí pueden
+    // repetir número.
+    private async Task ValidarNumeroUnicoEnSalonAsync(
+        Guid sucursalId, string numero, string? salon, Guid? mesaId, CancellationToken ct)
+    {
+        var yaExiste = await db.Mesas.AnyAsync(m =>
+            m.SucursalId == sucursalId && m.Numero == numero && m.Salon == salon && m.Id != mesaId, ct);
+
+        if (yaExiste)
+        {
+            var descripcionSalon = string.IsNullOrWhiteSpace(salon) ? "sin salón asignado" : $"el salón '{salon}'";
+            throw new InvalidOperationException($"Ya existe una mesa con el número '{numero}' en {descripcionSalon}.");
+        }
     }
 
     public async Task LiberarAsync(Guid sucursalId, Guid mesaId, CancellationToken ct = default)

@@ -11,10 +11,33 @@ namespace SaborByte.Api.Controllers;
 [Authorize]
 public class SucursalesController(SucursalAppService sucursales) : ControllerBase
 {
+    // Admin: gestión global, no está atado a una sucursal en particular — es lo que
+    // permite crear la primera sucursal y ver todas para dar de alta la siguiente.
+    [HttpGet("gestion")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ListarTodas(CancellationToken ct) => Ok(await sucursales.ListarTodasAsync(ct));
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Crear(CrearSucursalRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            var id = await sucursales.CrearAsync(User.ObtenerUsuarioId(), request, ct);
+            return Ok(new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
     [HttpGet("{sucursalId:guid}")]
     public async Task<IActionResult> Obtener(Guid sucursalId, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
+        // Admin gestiona cualquier sucursal desde "Sucursales" (no solo las suyas);
+        // otros roles solo pueden leer la(s) sucursal(es) que tienen asignada(s).
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
         try
@@ -31,12 +54,24 @@ public class SucursalesController(SucursalAppService sucursales) : ControllerBas
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Actualizar(Guid sucursalId, ActualizarSucursalRequestDto request, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
-            return Forbid();
-
         try
         {
             await sucursales.ActualizarAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { mensaje = ex.Message });
+        }
+    }
+
+    [HttpPut("{sucursalId:guid}/smtp")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ActualizarSmtp(Guid sucursalId, ActualizarSmtpRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            await sucursales.ActualizarSmtpAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

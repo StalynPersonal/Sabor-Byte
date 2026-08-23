@@ -4,8 +4,9 @@
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
 
-<PageTitle>Sabor Byte — Central — Mesas</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
@@ -17,10 +18,17 @@ else
         <MudItem xs="12" md="@(_editando ? 7 : 12)">
             <div class="d-flex justify-space-between align-center mb-4">
                 <MudText Typo="Typo.h5">Mesas</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaMesa">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaMesa" Disabled="_sucursalSeleccionadaId == Guid.Empty">
                     Nueva mesa
                 </MudButton>
             </div>
+
+            <MudSelect T="Guid" Label="Sucursal" Value="_sucursalSeleccionadaId" ValueChanged="OnSucursalCambiadaAsync" Class="mb-4" Style="max-width:400px">
+                @foreach (var sucursal in _sucursales)
+                {
+                    <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
 
             @if (_mesas.Count == 0)
             {
@@ -64,14 +72,9 @@ else
                 <MudPaper Class="pa-4">
                     <MudText Typo="Typo.h6" Class="mb-3">@(_mesaId is null ? "Nueva mesa" : "Editar mesa")</MudText>
 
-                    <MudTextField T="string" Label="Número" @bind-Value="_form.Numero" Class="mb-2" />
-                    <MudTextField T="string" Label="Salón (opcional)" @bind-Value="_form.Salon" Class="mb-2" />
-                    <MudNumericField T="int" Label="Capacidad" @bind-Value="_form.Capacidad" Min="0" Class="mb-2" />
-
-                    @if (!string.IsNullOrEmpty(_error))
-                    {
-                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
-                    }
+                    <MudTextField T="string" Label="Número" @bind-Value="_form.Numero" Required="true" Class="mb-2" />
+                    <MudTextField T="string" Label="Salón" @bind-Value="_form.Salon" Required="true" Class="mb-2" />
+                    <MudNumericField T="int" Label="Capacidad" @bind-Value="_form.Capacidad" Min="1" Required="true" Class="mb-2" />
 
                     <div class="d-flex gap-2 mt-4">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
@@ -85,10 +88,11 @@ else
 
 @code {
     private List<MesaDto> _mesas = [];
+    private List<SucursalResumenDto> _sucursales = [];
+    private Guid _sucursalSeleccionadaId;
     private bool _editando;
     private Guid? _mesaId;
     private GuardarMesaRequestDto _form = new();
-    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,13 +102,30 @@ else
             return;
         }
 
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _sucursalSeleccionadaId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
+            ? Sesion.SucursalActivaId
+            : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        await CargarAsync();
+    }
+
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
+    {
+        _sucursalSeleccionadaId = sucursalId;
+        _editando = false;
         await CargarAsync();
     }
 
     private async Task CargarAsync()
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        _mesas = await ApiClient.ListarMesasAsync(sucursalId);
+        if (_sucursalSeleccionadaId == Guid.Empty)
+        {
+            _mesas = [];
+            return;
+        }
+
+        _mesas = await ApiClient.ListarMesasAsync(_sucursalSeleccionadaId);
     }
 
     private static string EstiloTarjeta(MesaDto mesa) =>
@@ -114,7 +135,6 @@ else
     {
         _mesaId = null;
         _form = new GuardarMesaRequestDto();
-        _error = null;
         _editando = true;
     }
 
@@ -127,33 +147,48 @@ else
             Salon = mesa.Salon,
             Capacidad = mesa.Capacidad
         };
-        _error = null;
         _editando = true;
     }
 
     private async Task GuardarAsync()
     {
-        _error = null;
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-
-        var (exito, error) = _mesaId is null
-            ? await ApiClient.CrearMesaAsync(sucursalId, _form)
-            : await ApiClient.ActualizarMesaAsync(sucursalId, _mesaId.Value, _form);
-
-        if (!exito)
+        if (string.IsNullOrWhiteSpace(_form.Numero))
         {
-            _error = error;
+            Snackbar.Add("El número es obligatorio.", Severity.Error);
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(_form.Salon))
+        {
+            Snackbar.Add("El salón es obligatorio.", Severity.Error);
+            return;
+        }
+
+        if (_form.Capacidad <= 0)
+        {
+            Snackbar.Add("La capacidad debe ser mayor a cero.", Severity.Error);
+            return;
+        }
+
+        var (exito, error) = _mesaId is null
+            ? await ApiClient.CrearMesaAsync(_sucursalSeleccionadaId, _form)
+            : await ApiClient.ActualizarMesaAsync(_sucursalSeleccionadaId, _mesaId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_mesaId is null ? "Mesa creada." : "Mesa actualizada.", Severity.Success);
         _editando = false;
         await CargarAsync();
     }
 
     private async Task LiberarAsync(Guid mesaId)
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        await ApiClient.LiberarMesaAsync(sucursalId, mesaId);
+        await ApiClient.LiberarMesaAsync(_sucursalSeleccionadaId, mesaId);
+        Snackbar.Add("Mesa liberada.", Severity.Success);
         await CargarAsync();
     }
 }

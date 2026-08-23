@@ -4,8 +4,9 @@
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
 
-<PageTitle>Sabor Byte — Central — CxC / CxP</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
@@ -17,151 +18,185 @@ else
 
     <MudTabs>
         <MudTabPanel Text="Por Cobrar">
-            <MudGrid Class="mt-2">
-                <MudItem xs="12" md="7">
-                    <MudTable Items="_cuentasPorCobrar" Hover="true" Dense="true" T="CuentaPorCobrarDto">
-                        <HeaderContent>
-                            <MudTh>Vencimiento</MudTh>
-                            <MudTh>Monto original</MudTh>
-                            <MudTh>Saldo pendiente</MudTh>
-                            <MudTh>Estado</MudTh>
-                            <MudTh></MudTh>
-                        </HeaderContent>
-                        <RowTemplate Context="cuenta">
-                            <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
-                            <MudTd>RD$ @cuenta.MontoOriginal.ToString("0.00")</MudTd>
-                            <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
-                            <MudTd>@cuenta.Estado</MudTd>
-                            <MudTd>
-                                <MudButton Size="Size.Small" OnClick="() => AbrirPagoCxC(cuenta)">Registrar pago</MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudItem>
+            <div class="d-flex justify-end mt-2 mb-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirNuevaCxC">
+                    Nueva cuenta por cobrar
+                </MudButton>
+            </div>
 
-                <MudItem xs="12" md="5">
-                    <MudPaper Class="pa-4">
-                        <MudText Typo="Typo.h6" Class="mb-2">Nueva cuenta por cobrar</MudText>
-
-                        <MudAutocomplete T="ClienteDto" Label="Cliente" Value="_clienteCxC" ValueChanged="c => _clienteCxC = c"
-                                          SearchFunc="BuscarClientesAsync" ToStringFunc="@(c => c?.NombreORazonSocial ?? string.Empty)" Class="mb-2" />
-
-                        <MudAutocomplete T="FacturaResumenDto" Label="Factura" Value="_facturaCxC" ValueChanged="f => _facturaCxC = f"
-                                          SearchFunc="BuscarFacturasAsync" ToStringFunc="@(f => f is null ? string.Empty : $"{f.NumeroNcf} - RD$ {f.Total:0.00}")" Class="mb-2" />
-
-                        <MudNumericField T="decimal" Label="Monto" @bind-Value="_formCxC.MontoOriginal" Class="mb-2" />
-                        <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimientoCxC" Class="mb-2" />
-
-                        @if (!string.IsNullOrEmpty(_errorCxC))
-                        {
-                            <MudAlert Severity="Severity.Error" Class="my-2">@_errorCxC</MudAlert>
-                        }
-
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxCAsync">Crear</MudButton>
-                    </MudPaper>
-
-                    @if (_cuentaPagoCxC is not null)
-                    {
-                        <MudPaper Class="pa-4 mt-4">
-                            <MudText Typo="Typo.h6" Class="mb-2">Registrar pago — saldo RD$ @_cuentaPagoCxC.SaldoPendiente.ToString("0.00")</MudText>
-                            <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxC.Monto" Class="mb-2" />
-                            <MudTextField T="string" Label="Forma de pago" @bind-Value="_formPagoCxC.FormaPago" Class="mb-2" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxCAsync">Confirmar pago</MudButton>
-                        </MudPaper>
-                    }
-                </MudItem>
-            </MudGrid>
+            <MudTable @ref="_tablaCxC" ServerData="CargarPaginaCxCAsync" Hover="true" Dense="true" T="CuentaPorCobrarDto">
+                <HeaderContent>
+                    <MudTh>Vencimiento</MudTh>
+                    <MudTh>Monto original</MudTh>
+                    <MudTh>Saldo pendiente</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate Context="cuenta">
+                    <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>RD$ @cuenta.MontoOriginal.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
+                    <MudTd>@cuenta.Estado</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="Registrar pago">
+                            <MudIconButton Icon="@Icons.Material.Filled.Payments" Size="Size.Small" Color="Color.Primary" OnClick="() => AbrirPagoCxC(cuenta)" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new[] { 10, 20, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+                </PagerContent>
+            </MudTable>
         </MudTabPanel>
 
         <MudTabPanel Text="Por Pagar">
-            <MudGrid Class="mt-2">
-                <MudItem xs="12" md="7">
-                    <MudTable Items="_cuentasPorPagar" Hover="true" Dense="true" T="CuentaPorPagarDto">
-                        <HeaderContent>
-                            <MudTh>Documento</MudTh>
-                            <MudTh>Vencimiento</MudTh>
-                            <MudTh>Saldo pendiente</MudTh>
-                            <MudTh>Estado</MudTh>
-                            <MudTh></MudTh>
-                        </HeaderContent>
-                        <RowTemplate Context="cuenta">
-                            <MudTd>@cuenta.DocumentoReferencia</MudTd>
-                            <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
-                            <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
-                            <MudTd>@cuenta.Estado</MudTd>
-                            <MudTd>
-                                <MudButton Size="Size.Small" OnClick="() => AbrirPagoCxP(cuenta)">Registrar pago</MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudItem>
+            <div class="d-flex justify-end gap-2 mt-2 mb-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="AbrirNuevoProveedor">
+                    Nuevo proveedor
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirNuevaCxP">
+                    Nueva cuenta por pagar
+                </MudButton>
+            </div>
 
-                <MudItem xs="12" md="5">
-                    <MudPaper Class="pa-4 mb-4">
-                        <MudText Typo="Typo.h6" Class="mb-2">Nuevo proveedor</MudText>
-                        <MudTextField T="string" Label="Nombre" @bind-Value="_formProveedor.NombreORazonSocial" Class="mb-2" />
-                        <MudTextField T="string" Label="RNC" @bind-Value="_formProveedor.Rnc" Class="mb-2" />
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="CrearProveedorAsync">Agregar proveedor</MudButton>
-                    </MudPaper>
-
-                    <MudPaper Class="pa-4">
-                        <MudText Typo="Typo.h6" Class="mb-2">Nueva cuenta por pagar</MudText>
-
-                        <MudSelect T="Guid" Label="Proveedor" @bind-Value="_formCxP.ProveedorId" Class="mb-2">
-                            @foreach (var proveedor in _proveedores)
-                            {
-                                <MudSelectItem Value="@proveedor.Id">@proveedor.NombreORazonSocial</MudSelectItem>
-                            }
-                        </MudSelect>
-
-                        <MudTextField T="string" Label="Documento de referencia" @bind-Value="_formCxP.DocumentoReferencia" Class="mb-2" />
-                        <MudNumericField T="decimal" Label="Monto" @bind-Value="_formCxP.MontoOriginal" Class="mb-2" />
-                        <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimientoCxP" Class="mb-2" />
-
-                        @if (!string.IsNullOrEmpty(_errorCxP))
-                        {
-                            <MudAlert Severity="Severity.Error" Class="my-2">@_errorCxP</MudAlert>
-                        }
-
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxPAsync">Crear</MudButton>
-                    </MudPaper>
-
-                    @if (_cuentaPagoCxP is not null)
-                    {
-                        <MudPaper Class="pa-4 mt-4">
-                            <MudText Typo="Typo.h6" Class="mb-2">Registrar pago — saldo RD$ @_cuentaPagoCxP.SaldoPendiente.ToString("0.00")</MudText>
-                            <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxP.Monto" Class="mb-2" />
-                            <MudTextField T="string" Label="Forma de pago" @bind-Value="_formPagoCxP.FormaPago" Class="mb-2" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxPAsync">Confirmar pago</MudButton>
-                        </MudPaper>
-                    }
-                </MudItem>
-            </MudGrid>
+            <MudTable @ref="_tablaCxP" ServerData="CargarPaginaCxPAsync" Hover="true" Dense="true" T="CuentaPorPagarDto">
+                <HeaderContent>
+                    <MudTh>Documento</MudTh>
+                    <MudTh>Vencimiento</MudTh>
+                    <MudTh>Saldo pendiente</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate Context="cuenta">
+                    <MudTd>@cuenta.DocumentoReferencia</MudTd>
+                    <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
+                    <MudTd>@cuenta.Estado</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="Registrar pago">
+                            <MudIconButton Icon="@Icons.Material.Filled.Payments" Size="Size.Small" Color="Color.Primary" OnClick="() => AbrirPagoCxP(cuenta)" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new[] { 10, 20, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+                </PagerContent>
+            </MudTable>
         </MudTabPanel>
     </MudTabs>
 }
 
-@code {
-    private List<CuentaPorCobrarDto> _cuentasPorCobrar = [];
-    private List<CuentaPorPagarDto> _cuentasPorPagar = [];
-    private List<ProveedorDto> _proveedores = [];
+<MudDialog @bind-Visible="_creandoCxC" Options="_opcionesDialogo">
+    <TitleContent>Nueva cuenta por cobrar</TitleContent>
+    <DialogContent>
+        <MudAutocomplete T="ClienteDto" Label="Cliente" Value="_clienteCxC" ValueChanged="c => _clienteCxC = c"
+                          SearchFunc="BuscarClientesAsync" ToStringFunc="@(c => c?.NombreORazonSocial ?? string.Empty)" Class="mb-2" />
 
+        <MudAutocomplete T="FacturaResumenDto" Label="Factura" Value="_facturaCxC" ValueChanged="f => _facturaCxC = f"
+                          SearchFunc="BuscarFacturasAsync" ToStringFunc="@(f => f is null ? string.Empty : $"{f.NumeroNcf} - RD$ {f.Total:0.00}")" Class="mb-2" />
+
+        <MudNumericField T="decimal" Label="Monto" @bind-Value="_formCxC.MontoOriginal" Class="mb-2" />
+        <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimientoCxC" Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _creandoCxC = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxCAsync">Crear</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_pagandoCxC" Options="_opcionesDialogo">
+    <TitleContent>Registrar pago — saldo RD$ @(_cuentaPagoCxC?.SaldoPendiente.ToString("0.00"))</TitleContent>
+    <DialogContent>
+        <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxC.Monto" Class="mb-2" />
+        <MudSelect T="Guid" Label="Forma de pago" @bind-Value="_formPagoCxC.MetodoPagoId" Class="mb-2">
+            @foreach (var metodo in _metodosPago)
+            {
+                <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _pagandoCxC = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxCAsync">Confirmar pago</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_creandoProveedor" Options="_opcionesDialogo">
+    <TitleContent>Nuevo proveedor</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_formProveedor.NombreORazonSocial" Class="mb-2" />
+        <MudTextField T="string" Label="RNC" @bind-Value="_formProveedor.Rnc" Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _creandoProveedor = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearProveedorAsync">Agregar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_creandoCxP" Options="_opcionesDialogo">
+    <TitleContent>Nueva cuenta por pagar</TitleContent>
+    <DialogContent>
+        <MudSelect T="Guid" Label="Proveedor" @bind-Value="_formCxP.ProveedorId" Class="mb-2">
+            @foreach (var proveedor in _proveedores)
+            {
+                <MudSelectItem Value="@proveedor.Id">@proveedor.NombreORazonSocial</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudTextField T="string" Label="Documento de referencia" @bind-Value="_formCxP.DocumentoReferencia" Class="mb-2" />
+        <MudNumericField T="decimal" Label="Monto" @bind-Value="_formCxP.MontoOriginal" Class="mb-2" />
+        <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimientoCxP" Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _creandoCxP = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxPAsync">Crear</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_pagandoCxP" Options="_opcionesDialogo">
+    <TitleContent>Registrar pago — saldo RD$ @(_cuentaPagoCxP?.SaldoPendiente.ToString("0.00"))</TitleContent>
+    <DialogContent>
+        <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxP.Monto" Class="mb-2" />
+        <MudSelect T="Guid" Label="Forma de pago" @bind-Value="_formPagoCxP.MetodoPagoId" Class="mb-2">
+            @foreach (var metodo in _metodosPago)
+            {
+                <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _pagandoCxP = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxPAsync">Confirmar pago</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private MudTable<CuentaPorCobrarDto>? _tablaCxC;
+    private MudTable<CuentaPorPagarDto>? _tablaCxP;
+    private List<ProveedorDto> _proveedores = [];
+    private List<MetodoPagoDto> _metodosPago = [];
+
+    private bool _creandoCxC;
     private ClienteDto? _clienteCxC;
     private FacturaResumenDto? _facturaCxC;
     private CrearCuentaPorCobrarRequestDto _formCxC = new();
     private DateTime? _fechaVencimientoCxC = DateTime.Today.AddDays(30);
-    private string? _errorCxC;
+    private bool _pagandoCxC;
     private CuentaPorCobrarDto? _cuentaPagoCxC;
     private RegistrarPagoRequestDto _formPagoCxC = new();
 
+    private bool _creandoProveedor;
     private GuardarProveedorRequestDto _formProveedor = new();
+    private bool _creandoCxP;
     private CrearCuentaPorPagarRequestDto _formCxP = new();
     private DateTime? _fechaVencimientoCxP = DateTime.Today.AddDays(30);
-    private string? _errorCxP;
+    private bool _pagandoCxP;
     private CuentaPorPagarDto? _cuentaPagoCxP;
     private RegistrarPagoRequestDto _formPagoCxP = new();
 
-    private Guid SucursalId => Sesion.SucursalesPermitidas.FirstOrDefault();
+    private Guid SucursalId => Sesion.SucursalActivaId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -171,29 +206,48 @@ else
             return;
         }
 
-        await CargarAsync();
+        _proveedores = await ApiClient.ListarProveedoresAsync(SucursalId);
+        _metodosPago = await ApiClient.ListarMetodosPagoAsync();
     }
 
-    private async Task CargarAsync()
+    private async Task<TableData<CuentaPorCobrarDto>> CargarPaginaCxCAsync(TableState estado, CancellationToken ct)
     {
-        _cuentasPorCobrar = await ApiClient.ListarPorCobrarAsync(SucursalId);
-        _cuentasPorPagar = await ApiClient.ListarPorPagarAsync(SucursalId);
-        _proveedores = await ApiClient.ListarProveedoresAsync(SucursalId);
+        var resultado = await ApiClient.ListarPorCobrarAsync(SucursalId, estado.Page + 1, estado.PageSize);
+        return new TableData<CuentaPorCobrarDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
+
+    private async Task<TableData<CuentaPorPagarDto>> CargarPaginaCxPAsync(TableState estado, CancellationToken ct)
+    {
+        var resultado = await ApiClient.ListarPorPagarAsync(SucursalId, estado.Page + 1, estado.PageSize);
+        return new TableData<CuentaPorPagarDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private Task RecargarCxCAsync() => _tablaCxC?.ReloadServerData() ?? Task.CompletedTask;
+    private Task RecargarCxPAsync() => _tablaCxP?.ReloadServerData() ?? Task.CompletedTask;
 
     private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct) =>
         await ApiClient.BuscarClientesAsync(SucursalId, texto);
 
-    private async Task<IEnumerable<FacturaResumenDto>> BuscarFacturasAsync(string texto, CancellationToken ct) =>
-        await ApiClient.BuscarFacturasAsync(SucursalId, texto);
+    private async Task<IEnumerable<FacturaResumenDto>> BuscarFacturasAsync(string texto, CancellationToken ct)
+    {
+        var resultado = await ApiClient.BuscarFacturasAsync(SucursalId, 1, 20, texto);
+        return resultado.Items;
+    }
+
+    private void AbrirNuevaCxC()
+    {
+        _formCxC = new CrearCuentaPorCobrarRequestDto();
+        _clienteCxC = null;
+        _facturaCxC = null;
+        _fechaVencimientoCxC = DateTime.Today.AddDays(30);
+        _creandoCxC = true;
+    }
 
     private async Task CrearCxCAsync()
     {
-        _errorCxC = null;
-
         if (_clienteCxC is null || _facturaCxC is null)
         {
-            _errorCxC = "Selecciona un cliente y una factura.";
+            Snackbar.Add("Selecciona un cliente y una factura.", Severity.Error);
             return;
         }
 
@@ -204,47 +258,63 @@ else
         var (exito, error) = await ApiClient.CrearCuentaPorCobrarAsync(SucursalId, _formCxC);
         if (!exito)
         {
-            _errorCxC = error;
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
 
-        _formCxC = new CrearCuentaPorCobrarRequestDto();
-        _clienteCxC = null;
-        _facturaCxC = null;
-        await CargarAsync();
+        Snackbar.Add("Cuenta por cobrar creada.", Severity.Success);
+        _creandoCxC = false;
+        await RecargarCxCAsync();
     }
 
     private void AbrirPagoCxC(CuentaPorCobrarDto cuenta)
     {
         _cuentaPagoCxC = cuenta;
-        _formPagoCxC = new RegistrarPagoRequestDto();
+        _formPagoCxC = new RegistrarPagoRequestDto { MetodoPagoId = _metodosPago.FirstOrDefault()?.Id ?? Guid.Empty };
+        _pagandoCxC = true;
     }
 
     private async Task ConfirmarPagoCxCAsync()
     {
         if (_cuentaPagoCxC is null) return;
         await ApiClient.PagarCuentaPorCobrarAsync(SucursalId, _cuentaPagoCxC.Id, _formPagoCxC);
-        _cuentaPagoCxC = null;
-        await CargarAsync();
+        Snackbar.Add("Pago registrado.", Severity.Success);
+        _pagandoCxC = false;
+        await RecargarCxCAsync();
+    }
+
+    private void AbrirNuevoProveedor()
+    {
+        _formProveedor = new GuardarProveedorRequestDto();
+        _creandoProveedor = true;
     }
 
     private async Task CrearProveedorAsync()
     {
         if (string.IsNullOrWhiteSpace(_formProveedor.NombreORazonSocial))
+        {
+            Snackbar.Add("El nombre del proveedor es obligatorio.", Severity.Error);
             return;
+        }
 
         await ApiClient.CrearProveedorAsync(SucursalId, _formProveedor);
-        _formProveedor = new GuardarProveedorRequestDto();
         _proveedores = await ApiClient.ListarProveedoresAsync(SucursalId);
+        Snackbar.Add("Proveedor creado.", Severity.Success);
+        _creandoProveedor = false;
+    }
+
+    private void AbrirNuevaCxP()
+    {
+        _formCxP = new CrearCuentaPorPagarRequestDto();
+        _fechaVencimientoCxP = DateTime.Today.AddDays(30);
+        _creandoCxP = true;
     }
 
     private async Task CrearCxPAsync()
     {
-        _errorCxP = null;
-
         if (_formCxP.ProveedorId == Guid.Empty)
         {
-            _errorCxP = "Selecciona un proveedor.";
+            Snackbar.Add("Selecciona un proveedor.", Severity.Error);
             return;
         }
 
@@ -253,25 +323,28 @@ else
         var (exito, error) = await ApiClient.CrearCuentaPorPagarAsync(SucursalId, _formCxP);
         if (!exito)
         {
-            _errorCxP = error;
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
 
-        _formCxP = new CrearCuentaPorPagarRequestDto();
-        await CargarAsync();
+        Snackbar.Add("Cuenta por pagar creada.", Severity.Success);
+        _creandoCxP = false;
+        await RecargarCxPAsync();
     }
 
     private void AbrirPagoCxP(CuentaPorPagarDto cuenta)
     {
         _cuentaPagoCxP = cuenta;
-        _formPagoCxP = new RegistrarPagoRequestDto();
+        _formPagoCxP = new RegistrarPagoRequestDto { MetodoPagoId = _metodosPago.FirstOrDefault()?.Id ?? Guid.Empty };
+        _pagandoCxP = true;
     }
 
     private async Task ConfirmarPagoCxPAsync()
     {
         if (_cuentaPagoCxP is null) return;
         await ApiClient.PagarCuentaPorPagarAsync(SucursalId, _cuentaPagoCxP.Id, _formPagoCxP);
-        _cuentaPagoCxP = null;
-        await CargarAsync();
+        Snackbar.Add("Pago registrado.", Severity.Success);
+        _pagandoCxP = false;
+        await RecargarCxPAsync();
     }
 }

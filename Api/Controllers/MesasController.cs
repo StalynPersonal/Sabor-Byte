@@ -14,7 +14,9 @@ public class MesasController(MesaAppService mesas) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Listar([FromQuery] Guid sucursalId, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
+        // Admin ve/gestiona las mesas de CUALQUIER sucursal desde Central (no solo la
+        // suya); Mesero/Cocina/Cajero siguen acotados a la(s) sucursal(es) asignada(s).
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
         return Ok(await mesas.ListarAsync(sucursalId, ct));
@@ -24,20 +26,21 @@ public class MesasController(MesaAppService mesas) : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Crear([FromQuery] Guid sucursalId, GuardarMesaRequestDto request, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
-            return Forbid();
-
-        var id = await mesas.CrearAsync(sucursalId, request, ct);
-        return Ok(new { id });
+        try
+        {
+            var id = await mesas.CrearAsync(sucursalId, request, ct);
+            return Ok(new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPut("{mesaId:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Actualizar([FromQuery] Guid sucursalId, Guid mesaId, GuardarMesaRequestDto request, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
-            return Forbid();
-
         try
         {
             await mesas.ActualizarAsync(sucursalId, mesaId, request, ct);
@@ -45,7 +48,7 @@ public class MesasController(MesaAppService mesas) : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { mensaje = ex.Message });
+            return BadRequest(new { mensaje = ex.Message });
         }
     }
 
@@ -53,7 +56,7 @@ public class MesasController(MesaAppService mesas) : ControllerBase
     [Authorize(Roles = "Admin,Supervisor")]
     public async Task<IActionResult> Liberar([FromQuery] Guid sucursalId, Guid mesaId, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
         try

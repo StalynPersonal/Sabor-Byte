@@ -1,3 +1,5 @@
+using SaborByte.Dominio.Catalogo;
+
 namespace SaborByte.Dominio.Caja;
 
 public enum TipoMovimientoCaja
@@ -8,14 +10,6 @@ public enum TipoMovimientoCaja
     Ajuste
 }
 
-public enum FormaPago
-{
-    Efectivo,
-    Tarjeta,
-    Transferencia,
-    Deposito
-}
-
 public class MovimientoCaja
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -24,7 +18,8 @@ public class MovimientoCaja
 
     public TipoMovimientoCaja Tipo { get; set; }
     public Guid? FacturaId { get; set; }
-    public FormaPago FormaPago { get; set; }
+    public Guid MetodoPagoId { get; set; }
+    public MetodoPago? MetodoPago { get; set; }
     public decimal Monto { get; set; }
     public string? Descripcion { get; set; }
 

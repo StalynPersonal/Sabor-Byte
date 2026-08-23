@@ -6,41 +6,39 @@ using SaborByte.Aplicacion.Catalogo.Dtos;
 
 namespace SaborByte.Api.Controllers;
 
+// Catálogo de toda la empresa, igual que Productos — cualquier usuario autenticado
+// puede consultarlo; solo Admin lo modifica.
 [ApiController]
 [Route("api/categorias")]
 [Authorize]
 public class CategoriasController(CategoriaAppService categorias) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Listar([FromQuery] Guid sucursalId, CancellationToken ct)
-    {
-        if (!User.TieneAccesoASucursal(sucursalId))
-            return Forbid();
-
-        return Ok(await categorias.ListarAsync(sucursalId, ct));
-    }
+    public async Task<IActionResult> Listar([FromQuery] bool incluirInactivos, CancellationToken ct) =>
+        Ok(await categorias.ListarAsync(incluirInactivos, ct));
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Crear([FromQuery] Guid sucursalId, GuardarCategoriaRequestDto request, CancellationToken ct)
+    public async Task<IActionResult> Crear(GuardarCategoriaRequestDto request, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
-            return Forbid();
-
-        var id = await categorias.CrearAsync(sucursalId, request, ct);
-        return Ok(new { id });
+        try
+        {
+            var id = await categorias.CrearAsync(User.ObtenerUsuarioId(), request, ct);
+            return Ok(new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPut("{categoriaId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Actualizar([FromQuery] Guid sucursalId, Guid categoriaId, GuardarCategoriaRequestDto request, CancellationToken ct)
+    public async Task<IActionResult> Actualizar(Guid categoriaId, GuardarCategoriaRequestDto request, CancellationToken ct)
     {
-        if (!User.TieneAccesoASucursal(sucursalId))
-            return Forbid();
-
         try
         {
-            await categorias.ActualizarAsync(sucursalId, categoriaId, request, ct);
+            await categorias.ActualizarAsync(categoriaId, request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

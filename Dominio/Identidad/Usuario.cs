@@ -9,6 +9,13 @@ public class Usuario
     public string? Email { get; set; }
     public bool Activo { get; set; } = true;
 
+    public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    // Nullable: los usuarios "admin"/"supervisor" de la siembra inicial no tienen un
+    // usuario autenticado que los haya creado.
+    public Guid? CreadoPorUsuarioId { get; set; }
+    public DateTime? ActualizadoEn { get; set; }
+    public Guid? ActualizadoPorUsuarioId { get; set; }
+
     public ICollection<UsuarioRol> Roles { get; set; } = [];
     public ICollection<UsuarioSucursal> SucursalesAsignadas { get; set; } = [];
 }

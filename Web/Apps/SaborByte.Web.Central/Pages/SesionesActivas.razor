@@ -1,0 +1,81 @@
+@page "/sesiones-activas"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@implements IDisposable
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Usuarios activos ahora</MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="CargarAsync" />
+    </div>
+
+    <MudText Typo="Typo.body2" Class="mb-4">
+        Sesiones con actividad en los últimos 15 minutos. No aparece un usuario que cerró sesión o cuya pestaña quedó inactiva más de ese tiempo.
+    </MudText>
+
+    <MudTable Items="_sesiones" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Usuario</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Sucursal</MudTh>
+            <MudTh>Inicio de sesión</MudTh>
+            <MudTh>Última actividad</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.NombreUsuario</MudTd>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@(context.SucursalNombre ?? "(sin elegir)")</MudTd>
+            <MudTd>@context.FechaInicio.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+            <MudTd>@context.FechaUltimaActividad.ToLocalTime().ToString("HH:mm:ss")</MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+    }
+    else if (_sesiones.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="mt-4">No hay usuarios activos ahora mismo.</MudText>
+    }
+}
+
+@code {
+    private List<SesionActivaDto> _sesiones = [];
+    private Timer? _temporizador;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        await CargarAsync();
+
+        // Refresco automático: esta pantalla no sirve de mucho como una foto fija.
+        _temporizador = new Timer(async _ => await InvokeAsync(CargarAsync), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private string? _error;
+
+    private async Task CargarAsync()
+    {
+        try { _sesiones = await ApiClient.ListarSesionesActivasAsync(); }
+        catch (HttpRequestException) { _error = "No tienes permiso para ver esta información."; }
+        StateHasChanged();
+    }
+
+    public void Dispose() => _temporizador?.Dispose();
+}

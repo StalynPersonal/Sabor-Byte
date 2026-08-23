@@ -1,11 +1,12 @@
 @page "/reportes"
+@using System.Text
 @using SaborByte.Web.Api
 @using SaborByte.Web.Api.Dtos
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
 
-<PageTitle>Sabor Byte — Central — Reportes</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
@@ -13,70 +14,93 @@
 }
 else
 {
-    <div class="d-flex justify-space-between align-center mb-4">
+    <div class="d-flex flex-wrap justify-space-between align-center mb-4 gap-2">
         <MudText Typo="Typo.h5">Reportes</MudText>
-        <div class="d-flex gap-2 align-center">
-            <MudDatePicker Label="Desde" @bind-Date="_desde" Class="mr-2" Style="width:160px" />
-            <MudDatePicker Label="Hasta" @bind-Date="_hasta" Style="width:160px" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarAsync">Aplicar</MudButton>
+        <div class="d-flex flex-wrap gap-2 align-center">
+            @if (Sesion.SucursalesPermitidas.Count > 1)
+            {
+                <MudSelect T="Guid" Label="Sucursal" Value="_sucursalIdSeleccionada" ValueChanged="OnSucursalCambiadaAsync" Style="min-width:200px">
+                    @foreach (var sucursal in Sesion.SucursalesPermitidas)
+                    {
+                        <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            <MudDatePicker Label="Desde" @bind-Date="_desde" Style="min-width:180px" />
+            <MudDatePicker Label="Hasta" @bind-Date="_hasta" Style="min-width:180px" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarTodoAsync">Aplicar</MudButton>
+            <MudButton Href="@UriActual()" download="@ArchivoActual()" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Download">
+                Exportar a Excel
+            </MudButton>
         </div>
     </div>
 
-    <MudGrid Class="mb-4">
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.caption">Total vendido (sucursal)</MudText>
-                <MudText Typo="Typo.h4">RD$ @_totalVendido.ToString("N2")</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.caption">Facturas emitidas</MudText>
-                <MudText Typo="Typo.h4">@_cantidadFacturas</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.caption">Ticket promedio</MudText>
-                <MudText Typo="Typo.h4">RD$ @_ticketPromedio.ToString("N2")</MudText>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+    <MudSelect T="TipoReporte" Label="Reporte" Value="_reporte" ValueChanged="OnReporteCambiado" Class="mb-4" Style="max-width:400px">
+        <MudSelectItem Value="TipoReporte.VentasResumen">Ventas resumidas por fecha</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.VentasDetalle">Ventas detalle por fecha</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.TopProductos">Top productos vendidos</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.PorMetodoPago">Ventas por método de pago</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.MovimientosInventario">Movimientos de inventario</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.CxcCxp">CxC / CxP pendientes</MudSelectItem>
+    </MudSelect>
 
-    <MudGrid>
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-2">Top productos vendidos</MudText>
-                @if (_ventasPorProducto.Count == 0)
-                {
-                    <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
-                }
-                else
-                {
-                    <MudChart ChartType="ChartType.Bar" ChartSeries="_serieProductos" XAxisLabels="_etiquetasProductos"
-                              Width="100%" Height="300px" />
-                }
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-2">Ventas por hora del día</MudText>
-                @if (_ventasPorHora.Count == 0)
-                {
-                    <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
-                }
-                else
-                {
-                    <MudChart ChartType="ChartType.Bar" ChartSeries="_serieHoras" XAxisLabels="_etiquetasHoras"
-                              Width="100%" Height="300px" />
-                }
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-
-    <MudPaper Class="pa-4 mt-4">
-        <MudText Typo="Typo.h6" Class="mb-2">Detalle por producto</MudText>
+    @if (_reporte == TipoReporte.VentasResumen)
+    {
+        <MudTable Items="_ventasResumen" Hover="true" Dense="true" T="VentaResumenDiaDto">
+            <HeaderContent>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Facturas</MudTh>
+                <MudTh>Total vendido</MudTh>
+                <MudTh>ITBIS</MudTh>
+                <MudTh>Ticket promedio</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="v">
+                <MudTd>@v.Fecha.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd>@v.CantidadFacturas</MudTd>
+                <MudTd>RD$ @v.TotalVendido.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TotalItbis.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TicketPromedio.ToString("0.00")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.VentasDetalle)
+    {
+        <MudTable Items="_ventasDetalle" Hover="true" Dense="true" T="VentaDetalleDto">
+            <HeaderContent>
+                <MudTh>Factura</MudTh>
+                <MudTh>NCF</MudTh>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Cliente</MudTh>
+                <MudTh>Subtotal</MudTh>
+                <MudTh>ITBIS</MudTh>
+                <MudTh>Descuento</MudTh>
+                <MudTh>Total</MudTh>
+                <MudTh>Formas de pago</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="v">
+                <MudTd>@(v.NumeroFactura ?? "—")</MudTd>
+                <MudTd>@(v.NumeroNcf ?? "—")</MudTd>
+                <MudTd>@v.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>@v.ClienteNombre</MudTd>
+                <MudTd>RD$ @v.Subtotal.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.Itbis.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.Descuento.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.Total.ToString("0.00")</MudTd>
+                <MudTd>@v.FormasPago</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.TopProductos)
+    {
+        @if (_ventasPorProducto.Count == 0)
+        {
+            <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+        }
+        else
+        {
+            <MudChart ChartType="ChartType.Bar" ChartSeries="_serieProductos" ChartLabels="_etiquetasProductos"
+                      Width="100%" Height="280px" Class="mb-4" />
+        }
         <MudTable Items="_ventasPorProducto" Hover="true" Dense="true" T="VentaPorProductoDto">
             <HeaderContent>
                 <MudTh>Producto</MudTh>
@@ -91,26 +115,118 @@ else
                 <MudTd>@(p.UtilidadEstimada.HasValue ? $"RD$ {p.UtilidadEstimada:0.00}" : "—")</MudTd>
             </RowTemplate>
         </MudTable>
-    </MudPaper>
+    }
+    else if (_reporte == TipoReporte.PorMetodoPago)
+    {
+        <MudTable Items="_ventasPorMetodoPago" Hover="true" Dense="true" T="VentaPorMetodoPagoDto">
+            <HeaderContent>
+                <MudTh>Método de pago</MudTh>
+                <MudTh>Cantidad de pagos</MudTh>
+                <MudTh>Total cobrado</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="v">
+                <MudTd>@v.NombreMetodo</MudTd>
+                <MudTd>@v.CantidadPagos</MudTd>
+                <MudTd>RD$ @v.TotalCobrado.ToString("0.00")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.MovimientosInventario)
+    {
+        <MudTable Items="_movimientosInventario" Hover="true" Dense="true" T="MovimientoInventarioReporteDto">
+            <HeaderContent>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Insumo</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh>Cantidad</MudTh>
+                <MudTh>Saldo</MudTh>
+                <MudTh>Nota</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="m">
+                <MudTd>@m.FechaHora.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>@m.NombreProducto</MudTd>
+                <MudTd>@m.Tipo</MudTd>
+                <MudTd>@m.Cantidad.ToString("0.###")</MudTd>
+                <MudTd>@m.SaldoResultante.ToString("0.###")</MudTd>
+                <MudTd>@m.Nota</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.CxcCxp)
+    {
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Por cobrar</MudText>
+                <MudTable Items="_cxcPendientes" Hover="true" Dense="true" T="CuentaPendienteDto">
+                    <HeaderContent>
+                        <MudTh>Cliente</MudTh>
+                        <MudTh>Monto original</MudTh>
+                        <MudTh>Saldo pendiente</MudTh>
+                        <MudTh>Vencimiento</MudTh>
+                        <MudTh>Estado</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="c">
+                        <MudTd>@c.Nombre</MudTd>
+                        <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
+                        <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd>@c.Estado</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Por pagar</MudText>
+                <MudTable Items="_cxpPendientes" Hover="true" Dense="true" T="CuentaPendienteDto">
+                    <HeaderContent>
+                        <MudTh>Proveedor</MudTh>
+                        <MudTh>Monto original</MudTh>
+                        <MudTh>Saldo pendiente</MudTh>
+                        <MudTh>Vencimiento</MudTh>
+                        <MudTh>Estado</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="c">
+                        <MudTd>@c.Nombre</MudTd>
+                        <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
+                        <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd>@c.Estado</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudItem>
+        </MudGrid>
+    }
 }
 
 @code {
+    private enum TipoReporte
+    {
+        VentasResumen,
+        VentasDetalle,
+        TopProductos,
+        PorMetodoPago,
+        MovimientosInventario,
+        CxcCxp
+    }
+
+    private TipoReporte _reporte = TipoReporte.VentasResumen;
+
     private DateTime? _desde = DateTime.Today.AddDays(-30);
     private DateTime? _hasta = DateTime.Today;
 
-    private decimal _totalVendido;
-    private int _cantidadFacturas;
-    private decimal _ticketPromedio;
-
+    private List<VentaResumenDiaDto> _ventasResumen = [];
+    private List<VentaDetalleDto> _ventasDetalle = [];
     private List<VentaPorProductoDto> _ventasPorProducto = [];
-    private List<VentaPorHoraDto> _ventasPorHora = [];
+    private List<VentaPorMetodoPagoDto> _ventasPorMetodoPago = [];
+    private List<MovimientoInventarioReporteDto> _movimientosInventario = [];
+    private List<CuentaPendienteDto> _cxcPendientes = [];
+    private List<CuentaPendienteDto> _cxpPendientes = [];
 
     private List<ChartSeries<double>> _serieProductos = [];
     private string[] _etiquetasProductos = [];
-    private List<ChartSeries<double>> _serieHoras = [];
-    private string[] _etiquetasHoras = [];
 
-    private Guid SucursalId => Sesion.SucursalesPermitidas.FirstOrDefault();
+    private Guid _sucursalIdSeleccionada;
+    private Guid SucursalId => _sucursalIdSeleccionada;
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,33 +236,130 @@ else
             return;
         }
 
-        await CargarAsync();
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
+        _sucursalIdSeleccionada = Sesion.SucursalActivaId;
+        await CargarTodoAsync();
     }
 
-    private async Task CargarAsync()
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
     {
-        var rango = new RangoFechasRequestDto
+        _sucursalIdSeleccionada = sucursalId;
+        await CargarTodoAsync();
+    }
+
+    private void OnReporteCambiado(TipoReporte reporte) => _reporte = reporte;
+
+    private RangoFechasRequestDto RangoActual() => new()
+    {
+        Desde = _desde ?? DateTime.Today.AddDays(-30),
+        Hasta = (_hasta ?? DateTime.Today).AddDays(1).AddSeconds(-1)
+    };
+
+    private async Task CargarTodoAsync()
+    {
+        var rango = RangoActual();
+
+        try
         {
-            Desde = _desde ?? DateTime.Today.AddDays(-30),
-            Hasta = (_hasta ?? DateTime.Today).AddDays(1).AddSeconds(-1)
-        };
+            _ventasResumen = await ApiClient.VentasResumenPorDiaAsync(SucursalId, rango);
+            _ventasDetalle = await ApiClient.VentasDetalleAsync(SucursalId, rango);
+            _ventasPorProducto = await ApiClient.VentasPorProductoAsync(SucursalId, rango);
+            _ventasPorMetodoPago = await ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
+            _movimientosInventario = await ApiClient.MovimientosInventarioReporteAsync(SucursalId, rango);
+            _cxcPendientes = await ApiClient.CxCPendientesAsync(SucursalId);
+            _cxpPendientes = await ApiClient.CxPPendientesAsync(SucursalId);
+        }
+        catch (HttpRequestException)
+        {
+            // Sesión vencida (ver SesionExpiradaHandler) u otro problema de red: no tumbar
+            // toda la pantalla, simplemente dejar los reportes en blanco.
+            return;
+        }
 
-        var porSucursal = await ApiClient.VentasPorSucursalAsync([SucursalId], rango.Desde, rango.Hasta);
-        var propia = porSucursal.PorSucursal.FirstOrDefault(p => p.SucursalId == SucursalId);
-        _totalVendido = propia?.TotalVendido ?? 0m;
-        _cantidadFacturas = propia?.CantidadFacturas ?? 0;
-        _ticketPromedio = propia?.TicketPromedio ?? 0m;
-
-        _ventasPorProducto = await ApiClient.VentasPorProductoAsync(SucursalId, rango);
-        _ventasPorHora = await ApiClient.VentasPorHoraAsync(SucursalId, rango);
-
-        // Top 10 por total vendido, para que el grafico de barras no se sature.
+        // Top 10 por total vendido, para que el gráfico de barras no se sature.
         var top = _ventasPorProducto.Take(10).ToList();
         _etiquetasProductos = top.Select(p => p.NombreProducto).ToArray();
         _serieProductos = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = top.Select(p => (double)p.TotalVendido).ToArray() }];
-
-        var horas = _ventasPorHora.OrderBy(h => h.Hora).ToList();
-        _etiquetasHoras = horas.Select(h => $"{h.Hora}:00").ToArray();
-        _serieHoras = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = horas.Select(h => (double)h.TotalVendido).ToArray() }];
     }
+
+    // --- Exportación a CSV (se abre directo en Excel) ---
+
+    private static string EscaparCsv(object? valor)
+    {
+        var texto = valor?.ToString() ?? string.Empty;
+        return texto.Contains(',') || texto.Contains('"') || texto.Contains('\n')
+            ? "\"" + texto.Replace("\"", "\"\"") + "\""
+            : texto;
+    }
+
+    private static string ConstruirCsvUri(string[] encabezados, IEnumerable<IEnumerable<object?>> filas)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(string.Join(",", encabezados.Select(EscaparCsv)));
+        foreach (var fila in filas)
+            sb.AppendLine(string.Join(",", fila.Select(EscaparCsv)));
+
+        // BOM UTF-8 al inicio para que Excel respete tildes/eñes en vez de mostrarlas mal.
+        var bytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        return "data:text/csv;charset=utf-8;base64," + Convert.ToBase64String(bytes);
+    }
+
+    private string UriVentasResumen() => ConstruirCsvUri(
+        ["Fecha", "Facturas", "Total vendido", "ITBIS", "Ticket promedio"],
+        _ventasResumen.Select(v => new object?[] { v.Fecha.ToString("dd/MM/yyyy"), v.CantidadFacturas, v.TotalVendido, v.TotalItbis, v.TicketPromedio }));
+
+    private string UriVentasDetalle() => ConstruirCsvUri(
+        ["Factura", "NCF", "Fecha", "Cliente", "Subtotal", "ITBIS", "Descuento", "Total", "Formas de pago"],
+        _ventasDetalle.Select(v => new object?[]
+        {
+            v.NumeroFactura, v.NumeroNcf, v.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+            v.ClienteNombre, v.Subtotal, v.Itbis, v.Descuento, v.Total, v.FormasPago
+        }));
+
+    private string UriTopProductos() => ConstruirCsvUri(
+        ["Producto", "Cantidad vendida", "Total vendido", "Utilidad estimada"],
+        _ventasPorProducto.Select(p => new object?[] { p.NombreProducto, p.CantidadVendida, p.TotalVendido, p.UtilidadEstimada }));
+
+    private string UriPorMetodoPago() => ConstruirCsvUri(
+        ["Método de pago", "Cantidad de pagos", "Total cobrado"],
+        _ventasPorMetodoPago.Select(v => new object?[] { v.NombreMetodo, v.CantidadPagos, v.TotalCobrado }));
+
+    private string UriMovimientosInventario() => ConstruirCsvUri(
+        ["Fecha", "Insumo", "Tipo", "Cantidad", "Saldo", "Nota"],
+        _movimientosInventario.Select(m => new object?[]
+        {
+            m.FechaHora.ToLocalTime().ToString("dd/MM/yyyy HH:mm"), m.NombreProducto, m.Tipo, m.Cantidad, m.SaldoResultante, m.Nota
+        }));
+
+    private string UriCxcCxp() => ConstruirCsvUri(
+        ["Tipo", "Nombre", "Monto original", "Saldo pendiente", "Vencimiento", "Estado"],
+        _cxcPendientes.Select(c => new object?[] { "Por cobrar", c.Nombre, c.MontoOriginal, c.SaldoPendiente, c.FechaVencimiento.ToString("dd/MM/yyyy"), c.Estado })
+            .Concat(_cxpPendientes.Select(c => new object?[] { "Por pagar", c.Nombre, c.MontoOriginal, c.SaldoPendiente, c.FechaVencimiento.ToString("dd/MM/yyyy"), c.Estado })));
+
+    private string UriActual() => _reporte switch
+    {
+        TipoReporte.VentasResumen => UriVentasResumen(),
+        TipoReporte.VentasDetalle => UriVentasDetalle(),
+        TipoReporte.TopProductos => UriTopProductos(),
+        TipoReporte.PorMetodoPago => UriPorMetodoPago(),
+        TipoReporte.MovimientosInventario => UriMovimientosInventario(),
+        TipoReporte.CxcCxp => UriCxcCxp(),
+        _ => UriVentasResumen()
+    };
+
+    private string ArchivoActual() => _reporte switch
+    {
+        TipoReporte.VentasResumen => "ventas_resumidas.csv",
+        TipoReporte.VentasDetalle => "ventas_detalle.csv",
+        TipoReporte.TopProductos => "top_productos.csv",
+        TipoReporte.PorMetodoPago => "ventas_por_metodo_pago.csv",
+        TipoReporte.MovimientosInventario => "movimientos_inventario.csv",
+        TipoReporte.CxcCxp => "cxc_cxp_pendientes.csv",
+        _ => "reporte.csv"
+    };
 }

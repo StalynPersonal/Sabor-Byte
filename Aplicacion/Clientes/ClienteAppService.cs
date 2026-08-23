@@ -15,7 +15,7 @@ public class ClienteAppService(IAppDbContext db)
         {
             query = query.Where(c =>
                 EF.Functions.Like(c.NombreORazonSocial, $"%{texto}%") ||
-                c.RncOCedula == texto);
+                (c.RncOCedula != null && EF.Functions.Like(c.RncOCedula, $"%{texto}%")));
         }
 
         return await query
@@ -35,17 +35,20 @@ public class ClienteAppService(IAppDbContext db)
             .ToListAsync(ct);
     }
 
-    public async Task<Guid> CrearAsync(Guid sucursalId, GuardarClienteRequestDto request, CancellationToken ct = default)
+    public async Task<Guid> CrearAsync(Guid sucursalId, Guid usuarioId, GuardarClienteRequestDto request, CancellationToken ct = default)
     {
+        await ValidarAsync(sucursalId, request, clienteId: null, ct);
+
         var cliente = new Cliente
         {
             SucursalId = sucursalId,
-            NombreORazonSocial = request.NombreORazonSocial,
-            RncOCedula = request.RncOCedula,
+            NombreORazonSocial = request.NombreORazonSocial.Trim(),
+            RncOCedula = NormalizarRnc(request.RncOCedula),
             Telefono = request.Telefono,
             Email = request.Email,
             Direccion = request.Direccion,
-            TipoCliente = request.TipoCliente
+            TipoCliente = request.TipoCliente,
+            CreadoPorUsuarioId = usuarioId
         };
 
         db.Clientes.Add(cliente);
@@ -58,8 +61,10 @@ public class ClienteAppService(IAppDbContext db)
         var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Id == clienteId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El cliente no existe.");
 
-        cliente.NombreORazonSocial = request.NombreORazonSocial;
-        cliente.RncOCedula = request.RncOCedula;
+        await ValidarAsync(sucursalId, request, clienteId, ct);
+
+        cliente.NombreORazonSocial = request.NombreORazonSocial.Trim();
+        cliente.RncOCedula = NormalizarRnc(request.RncOCedula);
         cliente.Telefono = request.Telefono;
         cliente.Email = request.Email;
         cliente.Direccion = request.Direccion;
@@ -75,5 +80,28 @@ public class ClienteAppService(IAppDbContext db)
 
         cliente.Activo = false;
         await db.SaveChangesAsync(ct);
+    }
+
+    private static string? NormalizarRnc(string? rncOCedula) =>
+        string.IsNullOrWhiteSpace(rncOCedula) ? null : rncOCedula.Trim();
+
+    private async Task ValidarAsync(Guid sucursalId, GuardarClienteRequestDto request, Guid? clienteId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.NombreORazonSocial))
+            throw new InvalidOperationException("El nombre o razón social del cliente es obligatorio.");
+
+        var rnc = NormalizarRnc(request.RncOCedula);
+
+        if (request.TipoCliente == TipoCliente.Fiscal && rnc is null)
+            throw new InvalidOperationException("El RNC/Cédula es obligatorio para un cliente Fiscal.");
+
+        if (rnc is not null)
+        {
+            var yaExiste = await db.Clientes.AnyAsync(c =>
+                c.SucursalId == sucursalId && c.RncOCedula == rnc && c.Id != clienteId, ct);
+
+            if (yaExiste)
+                throw new InvalidOperationException($"Ya existe otro cliente con el RNC/Cédula '{rnc}' en esta sucursal.");
+        }
     }
 }

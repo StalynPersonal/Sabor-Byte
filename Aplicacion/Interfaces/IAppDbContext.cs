@@ -17,26 +17,37 @@ namespace SaborByte.Aplicacion.Interfaces;
 // concretos desde Aplicacion, sin caer en un repositorio por entidad.
 public interface IAppDbContext
 {
+    DbSet<Empresa> Empresas { get; }
     DbSet<Sucursal> Sucursales { get; }
 
     DbSet<Usuario> Usuarios { get; }
     DbSet<Rol> Roles { get; }
     DbSet<UsuarioRol> UsuarioRoles { get; }
+    DbSet<SesionActiva> SesionesActivas { get; }
 
     DbSet<Categoria> Categorias { get; }
+    DbSet<MetodoPago> MetodosPago { get; }
+    DbSet<UnidadMedida> UnidadesMedida { get; }
     DbSet<Producto> Productos { get; }
+    DbSet<CodigoBarraProducto> CodigosBarraProducto { get; }
     DbSet<ProductoIngrediente> ProductoIngredientes { get; }
     DbSet<ComboItem> ComboItems { get; }
+    DbSet<StockSucursal> StockPorSucursal { get; }
 
     DbSet<Dominio.Caja.Caja> Cajas { get; }
     DbSet<TurnoCaja> TurnosCaja { get; }
     DbSet<MovimientoCaja> MovimientosCaja { get; }
     DbSet<DenominacionCierre> DenominacionesCierre { get; }
+    DbSet<PorcentajePropina> PorcentajesPropina { get; }
+    DbSet<DenominacionEfectivo> DenominacionesEfectivo { get; }
 
     DbSet<SecuenciaNcf> SecuenciasNcf { get; }
     DbSet<Factura> Facturas { get; }
     DbSet<FacturaDetalle> FacturaDetalles { get; }
-    DbSet<NotaCreditoDebito> NotasCreditoDebito { get; }
+    DbSet<FacturaPago> FacturaPagos { get; }
+    DbSet<MotivoNotaCredito> MotivosNotaCredito { get; }
+    DbSet<NotaCredito> NotasCredito { get; }
+    DbSet<NotaCreditoDetalle> NotasCreditoDetalle { get; }
 
     DbSet<MovimientoInventario> MovimientosInventario { get; }
 

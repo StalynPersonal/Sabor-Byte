@@ -20,6 +20,11 @@ public class SecuenciaNcf
     public long SecuenciaFinal { get; set; }
     public DateTime FechaVencimiento { get; set; }
     public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
+    // Siempre creada/editada por un Admin autenticado vía SecuenciaNcfAppService — nunca por
+    // un proceso del sistema, a diferencia de otras entidades que sí tienen alta automática.
+    public Guid CreadoPorUsuarioId { get; set; }
+    public DateTime? ActualizadoEn { get; set; }
+    public Guid? ActualizadoPorUsuarioId { get; set; }
     public bool Activa { get; set; } = true;
 
     // eNCF real: Serie + Tipo (2 dígitos) + Secuencia (10 dígitos) = 13 caracteres.

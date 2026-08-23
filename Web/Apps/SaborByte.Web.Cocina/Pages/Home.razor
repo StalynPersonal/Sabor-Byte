@@ -8,7 +8,7 @@
 @inject NavigationManager Navegacion
 @inject IJSRuntime JS
 
-<PageTitle>Sabor Byte — Cocina</PageTitle>
+<PageTitle>SaborByte — Cocina</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
@@ -16,61 +16,52 @@
 }
 else
 {
-    <MudGrid>
-        @foreach (var comanda in _comandas.OrderBy(c => c.CreadoEn))
-        {
-            <MudItem xs="12" sm="6" md="4">
-                <MudPaper Class="pa-4" Elevation="4">
-                    <div class="d-flex justify-space-between align-center">
-                        <MudText Typo="Typo.h6">Comanda #@comanda.NumeroComanda</MudText>
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => ImprimirAsync(comanda)">
-                            Imprimir
-                        </MudButton>
-                    </div>
-                    <MudText Typo="Typo.caption" Class="mb-2">@comanda.CreadoEn.ToLocalTime().ToString("HH:mm")</MudText>
+    <MudText Typo="Typo.h6" Class="mb-2">En preparación</MudText>
+    @if (_comandasEnPreparacion.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="mb-4">No hay comandas pendientes.</MudText>
+    }
+    else
+    {
+        <MudGrid Class="mb-6">
+            @foreach (var comanda in _comandasEnPreparacion)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <ComandaCard Comanda="comanda" OnImprimir="ImprimirAsync"
+                                 OnPreparar="item => CambiarEstadoAsync(item, EstadoItemComanda.EnPreparacion)"
+                                 OnListo="item => CambiarEstadoAsync(item, EstadoItemComanda.Listo)"
+                                 OnCancelar="CancelarAsync" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
 
-                    @foreach (var item in comanda.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
-                    {
-                        <MudPaper Class="pa-2 mb-2" Outlined="true">
-                            <MudText Typo="Typo.subtitle2">@item.Cantidad x @item.NombreProducto</MudText>
-                            @if (!string.IsNullOrEmpty(item.Notas))
-                            {
-                                <MudText Typo="Typo.caption">Nota: @item.Notas</MudText>
-                            }
-                            <MudText Typo="Typo.caption" Class="d-block mb-1">Estado: @item.Estado</MudText>
-
-                            <MudButtonGroup Variant="Variant.Filled" Size="Size.Small">
-                                @if (item.Estado == EstadoItemComanda.Pendiente)
-                                {
-                                    <MudButton Color="Color.Warning" OnClick="() => CambiarEstadoAsync(item, EstadoItemComanda.EnPreparacion)">
-                                        Preparar
-                                    </MudButton>
-                                }
-                                @if (item.Estado == EstadoItemComanda.EnPreparacion)
-                                {
-                                    <MudButton Color="Color.Success" OnClick="() => CambiarEstadoAsync(item, EstadoItemComanda.Listo)">
-                                        Listo
-                                    </MudButton>
-                                }
-                                @if (item.Estado != EstadoItemComanda.Listo && item.Estado != EstadoItemComanda.Entregado)
-                                {
-                                    <MudButton Color="Color.Error" OnClick="() => CancelarAsync(item)">
-                                        Cancelar
-                                    </MudButton>
-                                }
-                            </MudButtonGroup>
-                        </MudPaper>
-                    }
-                </MudPaper>
-            </MudItem>
-        }
-    </MudGrid>
+    @if (_comandasListas.Count > 0)
+    {
+        <MudDivider Class="mb-4" />
+        <MudText Typo="Typo.h6" Class="mb-2">Listas</MudText>
+        <MudGrid>
+            @foreach (var comanda in _comandasListas)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <ComandaCard Comanda="comanda" OnImprimir="ImprimirAsync"
+                                 OnPreparar="item => CambiarEstadoAsync(item, EstadoItemComanda.EnPreparacion)"
+                                 OnListo="item => CambiarEstadoAsync(item, EstadoItemComanda.Listo)"
+                                 OnCancelar="CancelarAsync" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
 }
 
 @if (_comandaAImprimir is not null)
 {
     <div class="solo-imprimir">
         <p style="text-align:center; margin:0; font-weight:bold">COMANDA #@_comandaAImprimir.NumeroComanda</p>
+        @if (!string.IsNullOrEmpty(_comandaAImprimir.NumeroMesa))
+        {
+            <p style="text-align:center; margin:0">Mesa @_comandaAImprimir.NumeroMesa@(string.IsNullOrEmpty(_comandaAImprimir.NombreSalon) ? "" : $" ({_comandaAImprimir.NombreSalon})")</p>
+        }
         <p style="text-align:center; margin:0">@_comandaAImprimir.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
         <hr />
         @foreach (var item in _comandaAImprimir.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
@@ -88,6 +79,21 @@ else
     private List<ComandaDto> _comandas = [];
     private ComandaDto? _comandaAImprimir;
 
+    // "Lista" = ya no queda nada por preparar (todos sus ítems activos están Listo o
+    // Entregado) — se separa de "En preparación" para no perderla de vista pero sin que
+    // estorbe entre las que sí necesitan trabajo. Una comanda con todos los ítems
+    // cancelados no tiene nada que mostrar en ninguna de las dos secciones.
+    private List<ComandaDto> _comandasEnPreparacion => _comandas
+        .Where(c => c.Items.Any(i => i.Estado is EstadoItemComanda.Pendiente or EstadoItemComanda.EnPreparacion))
+        .OrderBy(c => c.CreadoEn)
+        .ToList();
+
+    private List<ComandaDto> _comandasListas => _comandas
+        .Where(c => c.Items.Any(i => i.Estado is EstadoItemComanda.Listo or EstadoItemComanda.Entregado) &&
+                    !c.Items.Any(i => i.Estado is EstadoItemComanda.Pendiente or EstadoItemComanda.EnPreparacion))
+        .OrderBy(c => c.CreadoEn)
+        .ToList();
+
     protected override async Task OnInitializedAsync()
     {
         if (!Sesion.EstaAutenticado)
@@ -96,7 +102,13 @@ else
             return;
         }
 
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
+        var sucursalId = Sesion.SucursalActivaId;
         _comandas = await ApiClient.ObtenerComandasAbiertasAsync(sucursalId);
 
         Conexion.ComandaCreada += OnComandaCreada;
@@ -129,14 +141,14 @@ else
 
     private async Task CambiarEstadoAsync(ComandaItemDto item, EstadoItemComanda nuevoEstado)
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursalId = Sesion.SucursalActivaId;
         await ApiClient.CambiarEstadoItemAsync(sucursalId, item.Id, nuevoEstado);
         item.Estado = nuevoEstado; // optimista; el evento SignalR reconfirma
     }
 
     private async Task CancelarAsync(ComandaItemDto item)
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
+        var sucursalId = Sesion.SucursalActivaId;
         await ApiClient.CancelarItemAsync(sucursalId, item.Id, "Cancelado desde cocina", RolQueCancelo.Cocina);
         item.Estado = EstadoItemComanda.Cancelado;
         StateHasChanged();
@@ -146,6 +158,10 @@ else
     {
         _comandaAImprimir = comanda;
         StateHasChanged();
+        // Sin esta espera, "print" a veces se dispara antes de que el navegador termine de
+        // pintar el bloque .solo-imprimir con el detalle — sale la hoja con el título pero
+        // sin los ítems.
+        await Task.Delay(50);
         await JS.InvokeVoidAsync("print");
     }
 

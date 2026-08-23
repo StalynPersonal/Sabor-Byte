@@ -1,11 +1,11 @@
-@page "/notascreditodebito"
+@page "/notas-credito"
 @using SaborByte.Web.Api
 @using SaborByte.Web.Api.Dtos
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
 
-<PageTitle>Sabor Byte — Central — Notas de Crédito/Débito</PageTitle>
+<PageTitle>SaborByte — Central</PageTitle>
 
 @if (!Sesion.EstaAutenticado)
 {
@@ -13,94 +13,147 @@
 }
 else
 {
-    <MudText Typo="Typo.h5" Class="mb-4">Notas de Crédito / Débito</MudText>
+    <MudText Typo="Typo.h5" Class="mb-4">Notas de Crédito</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">
+        Solo consulta — las notas de crédito se emiten desde Caja (requieren autorización de un
+        Supervisor, Admin o un usuario con el rol "AutorizaNotaCredito").
+    </MudText>
 
-    <MudGrid>
-        <MudItem xs="12" md="5">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-2">1. Buscar factura original</MudText>
-                <MudTextField T="string" Label="Buscar por NCF" @bind-Value="_textoBusqueda"
-                               Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="BuscarFacturasAsync" Class="mb-2" />
-
-                <MudTable Items="_facturas" Hover="true" Dense="true" T="FacturaResumenDto">
-                    <HeaderContent>
-                        <MudTh>NCF</MudTh>
-                        <MudTh>Fecha</MudTh>
-                        <MudTh>Total</MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate Context="factura">
-                        <MudTd>@(factura.NumeroNcf ?? "(sin NCF)")</MudTd>
-                        <MudTd>@factura.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
-                        <MudTd>RD$ @factura.Total.ToString("0.00")</MudTd>
-                        <MudTd>
-                            <MudButton Size="Size.Small" OnClick="() => SeleccionarFacturaAsync(factura)">Seleccionar</MudButton>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" md="7">
-            @if (_facturaSeleccionada is not null)
-            {
-                <MudPaper Class="pa-4 mb-4">
-                    <MudText Typo="Typo.h6" Class="mb-2">
-                        2. Factura seleccionada: @(_facturaSeleccionada.NumeroNcf ?? "(sin NCF)")
-                        — Total RD$ @_facturaSeleccionada.Total.ToString("0.00")
-                    </MudText>
-
-                    <MudSelect T="TipoNota" Label="Tipo de nota" @bind-Value="_form.Tipo" Class="mb-2">
-                        <MudSelectItem Value="TipoNota.Credito">Nota de Crédito (anula/ajusta a la baja)</MudSelectItem>
-                        <MudSelectItem Value="TipoNota.Debito">Nota de Débito (ajusta al alza)</MudSelectItem>
+    @if (_sucursalId == Guid.Empty)
+    {
+        <MudText Typo="Typo.body2">Cargando...</MudText>
+    }
+    else
+    {
+        <MudPaper Class="pa-3 mb-3">
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField T="string" Label="Buscar por N° de nota o NCF" @bind-Value="_textoBusqueda"
+                                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarTablaAsync"
+                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudSelect T="Guid" Label="Sucursal" Value="_sucursalId" ValueChanged="OnSucursalCambiadaAsync">
+                        @foreach (var sucursal in _sucursales)
+                        {
+                            <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                        }
                     </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudSelect T="Guid?" Label="Caja" Value="_cajaId" ValueChanged="v => OnFiltroCambiado(() => _cajaId = v)">
+                        <MudSelectItem Value="@((Guid?)null)">Todas</MudSelectItem>
+                        @foreach (var caja in _cajas)
+                        {
+                            <MudSelectItem Value="@((Guid?)caja.Id)">Caja @caja.Numero</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudDatePicker Label="Desde" Date="_desde" DateChanged="v => OnFiltroCambiado(() => _desde = v)" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudDatePicker Label="Hasta" Date="_hasta" DateChanged="v => OnFiltroCambiado(() => _hasta = v)" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudNumericField T="decimal?" Label="Monto mínimo" Value="_montoMinimo" ValueChanged="v => OnFiltroCambiado(() => _montoMinimo = v)" Min="0" />
+                </MudItem>
+                <MudItem xs="6" sm="3" md="2">
+                    <MudNumericField T="decimal?" Label="Monto máximo" Value="_montoMaximo" ValueChanged="v => OnFiltroCambiado(() => _montoMaximo = v)" Min="0" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
 
-                    <MudNumericField T="decimal" Label="Monto" @bind-Value="_form.Monto" Class="mb-2" />
-                    <MudTextField T="string" Label="Motivo" @bind-Value="_form.Motivo" Lines="2" Class="mb-2" />
-
-                    @if (!string.IsNullOrEmpty(_error))
-                    {
-                        <MudAlert Severity="Severity.Error" Class="my-2">@_error</MudAlert>
-                    }
-
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="EmitirNotaAsync">
-                        Emitir nota
-                    </MudButton>
-                </MudPaper>
-
-                <MudPaper Class="pa-4">
-                    <MudText Typo="Typo.h6" Class="mb-2">Historial de esta factura</MudText>
-                    @foreach (var nota in _notas)
-                    {
-                        <div class="d-flex justify-space-between mb-1">
-                            <MudText Typo="Typo.body2">
-                                @(nota.Tipo == TipoNota.Credito ? "Crédito" : "Débito") — @(nota.NumeroNcf ?? "(sin NCF)")
-                                — @nota.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")
-                            </MudText>
-                            <MudText Typo="Typo.body2">RD$ @nota.Monto.ToString("0.00")</MudText>
-                        </div>
-                    }
-                    @if (_notas.Count == 0)
-                    {
-                        <MudText Typo="Typo.body2">Sin notas emitidas todavía.</MudText>
-                    }
-                </MudPaper>
-            }
-            else
-            {
-                <MudText Typo="Typo.body1">Selecciona una factura de la izquierda para emitir o ver sus notas.</MudText>
-            }
-        </MudItem>
-    </MudGrid>
+        <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="NotaCreditoDto">
+            <HeaderContent>
+                <MudTh>N° Nota</MudTh>
+                <MudTh>NCF</MudTh>
+                <MudTh>Factura original</MudTh>
+                <MudTh>Motivo</MudTh>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Monto</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.NumeroNota</MudTd>
+                <MudTd>@(context.NumeroNcf ?? "(sin NCF)")</MudTd>
+                <MudTd>@context.NumeroFacturaOriginal</MudTd>
+                <MudTd>@context.Motivo</MudTd>
+                <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                <MudTd>
+                    <MudTooltip Text="Ver detalle">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => _notaDetalle = context" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+            </PagerContent>
+        </MudTable>
+    }
 }
 
+<MudDialog @bind-Visible="_viendoDetalle" Options="_opcionesDialogo">
+    <TitleContent>Nota @_notaDetalle?.NumeroNota</TitleContent>
+    <DialogContent>
+        @if (_notaDetalle is not null)
+        {
+            <MudSimpleTable Dense="true" Elevation="0" Class="mb-3">
+                <tbody>
+                    <tr><td>N° Nota</td><td>@_notaDetalle.NumeroNota</td></tr>
+                    <tr><td>NCF</td><td>@(_notaDetalle.NumeroNcf ?? "(sin NCF)")</td></tr>
+                    <tr><td>Factura original</td><td>@_notaDetalle.NumeroFacturaOriginal</td></tr>
+                    <tr><td>Sucursal / Caja</td><td>@_notaDetalle.SucursalCodigo / @_notaDetalle.CajaNumero</td></tr>
+                    <tr><td>Motivo</td><td>@_notaDetalle.Motivo</td></tr>
+                    <tr><td>Fecha</td><td>@_notaDetalle.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td></tr>
+                    <tr><td>Monto</td><td>RD$ @_notaDetalle.Monto.ToString("0.00")</td></tr>
+                </tbody>
+            </MudSimpleTable>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Líneas acreditadas</MudText>
+            <MudTable Items="_notaDetalle.Detalle" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Producto</MudTh>
+                    <MudTh>Cantidad</MudTh>
+                    <MudTh>Monto</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.NombreProducto</MudTd>
+                    <MudTd>@context.Cantidad.ToString("0.###")</MudTd>
+                    <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _viendoDetalle = false">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
+    private MudTable<NotaCreditoDto>? _tabla;
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
     private string _textoBusqueda = string.Empty;
-    private List<FacturaResumenDto> _facturas = [];
-    private FacturaResumenDto? _facturaSeleccionada;
-    private List<NotaCreditoDebitoDto> _notas = [];
-    private CrearNotaRequestDto _form = new();
-    private string? _error;
+    private NotaCreditoDto? _notaDetalleCampo;
+
+    private NotaCreditoDto? _notaDetalle
+    {
+        get => _notaDetalleCampo;
+        set { _notaDetalleCampo = value; _viendoDetalle = value is not null; }
+    }
+
+    private bool _viendoDetalle;
+
+    private Guid _sucursalId;
+    private List<SucursalResumenDto> _sucursales = new();
+    private List<CajaResumenDto> _cajas = new();
+    private Guid? _cajaId;
+    private DateTime? _desde;
+    private DateTime? _hasta;
+    private decimal? _montoMinimo;
+    private decimal? _montoMaximo;
 
     protected override async Task OnInitializedAsync()
     {
@@ -110,45 +163,36 @@ else
             return;
         }
 
-        await BuscarFacturasAsync();
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _sucursalId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
+            ? Sesion.SucursalActivaId
+            : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        if (_sucursalId != Guid.Empty)
+            _cajas = await ApiClient.ListarCajasAsync(_sucursalId);
     }
 
-    private async Task BuscarFacturasAsync()
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
     {
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        _facturas = await ApiClient.BuscarFacturasAsync(sucursalId, _textoBusqueda);
+        _sucursalId = sucursalId;
+        _cajaId = null;
+        _cajas = await ApiClient.ListarCajasAsync(_sucursalId);
+        await RecargarTablaAsync();
     }
 
-    private async Task SeleccionarFacturaAsync(FacturaResumenDto factura)
+    private async Task OnFiltroCambiado(Action aplicar)
     {
-        _facturaSeleccionada = factura;
-        _form = new CrearNotaRequestDto { FacturaOriginalId = factura.Id };
-        _error = null;
-        await CargarNotasAsync();
+        aplicar();
+        await RecargarTablaAsync();
     }
 
-    private async Task CargarNotasAsync()
+    private async Task<TableData<NotaCreditoDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
     {
-        if (_facturaSeleccionada is null)
-            return;
-
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        _notas = await ApiClient.ListarNotasPorFacturaAsync(sucursalId, _facturaSeleccionada.Id);
+        var resultado = await ApiClient.ListarNotasAsync(
+            _sucursalId, estado.Page + 1, estado.PageSize, _textoBusqueda,
+            _desde, _hasta?.AddDays(1).AddSeconds(-1), _montoMinimo, _montoMaximo, _cajaId);
+        return new TableData<NotaCreditoDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
 
-    private async Task EmitirNotaAsync()
-    {
-        _error = null;
-        var sucursalId = Sesion.SucursalesPermitidas.FirstOrDefault();
-        var (exito, error) = await ApiClient.CrearNotaAsync(sucursalId, _form);
-
-        if (!exito)
-        {
-            _error = error;
-            return;
-        }
-
-        _form = new CrearNotaRequestDto { FacturaOriginalId = _facturaSeleccionada!.Id };
-        await CargarNotasAsync();
-    }
+    private Task RecargarTablaAsync() => _tabla?.ReloadServerData() ?? Task.CompletedTask;
 }

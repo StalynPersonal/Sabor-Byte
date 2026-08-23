@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Aplicacion.Reportes.Dtos;
+using SaborByte.Dominio.Caja;
+using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.CxcCxp;
 
 namespace SaborByte.Aplicacion.Reportes;
 
@@ -83,7 +86,7 @@ public class ReporteAppService(IAppDbContext db)
                 NombreProducto = a.NombreProducto,
                 CantidadVendida = a.Cantidad,
                 TotalVendido = a.Total,
-                UtilidadEstimada = costoUnitario.HasValue ? a.Total - (costoUnitario.Value * a.Cantidad) : null
+                UtilidadEstimada = a.Total - (costoUnitario * a.Cantidad)
             };
         }).ToList();
     }
@@ -108,5 +111,237 @@ public class ReporteAppService(IAppDbContext db)
             })
             .OrderBy(v => v.Hora)
             .ToList();
+    }
+
+    // Ventas agrupadas por día calendario — para la pestaña "Ventas resumidas por fecha".
+    public async Task<List<VentaResumenDiaDto>> VentasResumenPorDiaAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var facturas = await db.Facturas
+            .Where(f => f.SucursalId == sucursalId && f.FechaEmision >= rango.Desde && f.FechaEmision <= rango.Hasta)
+            .Select(f => new { f.FechaEmision, f.Total, f.Itbis })
+            .ToListAsync(ct);
+
+        return facturas
+            .GroupBy(f => f.FechaEmision.Date)
+            .Select(g =>
+            {
+                var cantidad = g.Count();
+                var total = g.Sum(f => f.Total);
+                return new VentaResumenDiaDto
+                {
+                    Fecha = g.Key,
+                    CantidadFacturas = cantidad,
+                    TotalVendido = total,
+                    TotalItbis = g.Sum(f => f.Itbis),
+                    TicketPromedio = cantidad > 0 ? total / cantidad : 0m
+                };
+            })
+            .OrderBy(v => v.Fecha)
+            .ToList();
+    }
+
+    // Detalle factura por factura — para la pestaña "Ventas detalle por fecha".
+    public async Task<List<VentaDetalleDto>> VentasDetalleAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var facturas = await db.Facturas
+            .Include(f => f.Pagos).ThenInclude(p => p.MetodoPago)
+            .Where(f => f.SucursalId == sucursalId && f.FechaEmision >= rango.Desde && f.FechaEmision <= rango.Hasta)
+            .OrderByDescending(f => f.FechaEmision)
+            .ToListAsync(ct);
+
+        return facturas.Select(f => new VentaDetalleDto
+        {
+            FacturaId = f.Id,
+            NumeroFactura = f.NumeroFactura,
+            NumeroNcf = f.NumeroNcf,
+            FechaEmision = f.FechaEmision,
+            ClienteNombre = f.ClienteNombre,
+            Subtotal = f.Subtotal,
+            Itbis = f.Itbis,
+            Descuento = f.Descuento,
+            Total = f.Total,
+            FormasPago = string.Join(", ", f.Pagos.Select(p => $"{p.MetodoPago?.Nombre ?? "?"}: RD$ {p.Monto:0.00}"))
+        }).ToList();
+    }
+
+    // Totales cobrados por cada método de pago — para la pestaña "Ventas por método de pago".
+    public async Task<List<VentaPorMetodoPagoDto>> VentasPorMetodoPagoAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var pagos = await db.FacturaPagos
+            .Include(p => p.MetodoPago)
+            .Where(p => p.Factura!.SucursalId == sucursalId &&
+                        p.Factura.FechaEmision >= rango.Desde && p.Factura.FechaEmision <= rango.Hasta)
+            .ToListAsync(ct);
+
+        return pagos
+            .GroupBy(p => new { p.MetodoPagoId, Nombre = p.MetodoPago?.Nombre ?? "(desconocido)" })
+            .Select(g => new VentaPorMetodoPagoDto
+            {
+                MetodoPagoId = g.Key.MetodoPagoId,
+                NombreMetodo = g.Key.Nombre,
+                CantidadPagos = g.Count(),
+                TotalCobrado = g.Sum(p => p.Monto)
+            })
+            .OrderByDescending(v => v.TotalCobrado)
+            .ToList();
+    }
+
+    // Totales vendidos agrupados por categoría — para el gráfico de dona del dashboard.
+    public async Task<List<VentaPorCategoriaDto>> VentasPorCategoriaAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var detalles = await db.FacturaDetalles
+            .Where(d => d.Factura!.SucursalId == sucursalId &&
+                        d.Factura.FechaEmision >= rango.Desde && d.Factura.FechaEmision <= rango.Hasta)
+            .Select(d => new { d.ProductoId, d.Total })
+            .ToListAsync(ct);
+
+        var productoIds = detalles.Select(d => d.ProductoId).Distinct().ToList();
+        var categoriasPorProducto = await db.Productos
+            .Where(p => productoIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.CategoriaId })
+            .ToDictionaryAsync(p => p.Id, p => p.CategoriaId, ct);
+
+        var categoriaIds = categoriasPorProducto.Values.Distinct().ToList();
+        var nombresCategoria = await db.Categorias
+            .Where(c => categoriaIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Nombre, ct);
+
+        return detalles
+            .Where(d => categoriasPorProducto.ContainsKey(d.ProductoId))
+            .GroupBy(d => categoriasPorProducto[d.ProductoId])
+            .Select(g => new VentaPorCategoriaDto
+            {
+                CategoriaId = g.Key,
+                NombreCategoria = nombresCategoria.GetValueOrDefault(g.Key, "(categoría eliminada)"),
+                TotalVendido = g.Sum(d => d.Total)
+            })
+            .OrderByDescending(v => v.TotalVendido)
+            .ToList();
+    }
+
+    // Kardex del rango — para la pestaña "Movimientos de inventario".
+    public async Task<List<MovimientoInventarioReporteDto>> MovimientosInventarioAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var movimientos = await db.MovimientosInventario
+            .Where(m => m.SucursalId == sucursalId && m.FechaHora >= rango.Desde && m.FechaHora <= rango.Hasta)
+            .OrderByDescending(m => m.FechaHora)
+            .Take(5000)
+            .ToListAsync(ct);
+
+        var productoIds = movimientos.Select(m => m.ProductoId).Distinct().ToList();
+        var nombres = await db.Productos
+            .Where(p => productoIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Nombre, ct);
+
+        return movimientos.Select(m => new MovimientoInventarioReporteDto
+        {
+            FechaHora = m.FechaHora,
+            NombreProducto = nombres.GetValueOrDefault(m.ProductoId, "(producto eliminado)"),
+            Tipo = m.Tipo.ToString(),
+            Cantidad = m.Cantidad,
+            SaldoResultante = m.SaldoResultante,
+            Nota = m.Nota
+        }).ToList();
+    }
+
+    // Cuentas por cobrar pendientes — para la pestaña "CxC pendiente".
+    public async Task<List<CuentaPendienteDto>> CxCPendientesAsync(Guid sucursalId, CancellationToken ct = default)
+    {
+        var cuentas = await db.CuentasPorCobrar
+            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada)
+            .OrderBy(c => c.FechaVencimiento)
+            .ToListAsync(ct);
+
+        var clienteIds = cuentas.Select(c => c.ClienteId).Distinct().ToList();
+        var nombres = await db.Clientes
+            .Where(c => clienteIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.NombreORazonSocial, ct);
+
+        return cuentas.Select(c => new CuentaPendienteDto
+        {
+            CuentaId = c.Id,
+            Nombre = nombres.GetValueOrDefault(c.ClienteId, "(cliente eliminado)"),
+            MontoOriginal = c.MontoOriginal,
+            SaldoPendiente = c.SaldoPendiente,
+            FechaVencimiento = c.FechaVencimiento,
+            Estado = c.Estado.ToString()
+        }).ToList();
+    }
+
+    // Cuentas por pagar pendientes — para la pestaña "CxP pendiente".
+    public async Task<List<CuentaPendienteDto>> CxPPendientesAsync(Guid sucursalId, CancellationToken ct = default)
+    {
+        var cuentas = await db.CuentasPorPagar
+            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada)
+            .OrderBy(c => c.FechaVencimiento)
+            .ToListAsync(ct);
+
+        var proveedorIds = cuentas.Select(c => c.ProveedorId).Distinct().ToList();
+        var nombres = await db.Proveedores
+            .Where(p => proveedorIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.NombreORazonSocial, ct);
+
+        return cuentas.Select(c => new CuentaPendienteDto
+        {
+            CuentaId = c.Id,
+            Nombre = nombres.GetValueOrDefault(c.ProveedorId, "(proveedor eliminado)"),
+            MontoOriginal = c.MontoOriginal,
+            SaldoPendiente = c.SaldoPendiente,
+            FechaVencimiento = c.FechaVencimiento,
+            Estado = c.Estado.ToString()
+        }).ToList();
+    }
+
+    // KPIs del día para el dashboard de Inicio: ventas de hoy, turnos abiertos, CxC/CxP
+    // pendientes y alertas de stock bajo, todo scopeado a una sola sucursal.
+    public async Task<DashboardResumenDto> ObtenerDashboardAsync(Guid sucursalId, CancellationToken ct = default)
+    {
+        var desde = DateTime.Today;
+        var hasta = desde.AddDays(1).AddSeconds(-1);
+        var rangoHoy = new RangoFechasRequestDto { Desde = desde, Hasta = hasta };
+
+        var totalesHoy = await db.Facturas
+            .Where(f => f.SucursalId == sucursalId && f.FechaEmision >= desde && f.FechaEmision <= hasta)
+            .Select(f => f.Total)
+            .ToListAsync(ct);
+
+        var cantidadHoy = totalesHoy.Count;
+        var totalVendidoHoy = totalesHoy.Sum();
+
+        var turnosAbiertos = await db.TurnosCaja
+            .CountAsync(t => t.Caja!.SucursalId == sucursalId && t.Estado == EstadoTurnoCaja.Abierto, ct);
+
+        var saldosCxC = await db.CuentasPorCobrar
+            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada)
+            .Select(c => c.SaldoPendiente)
+            .ToListAsync(ct);
+
+        var saldosCxP = await db.CuentasPorPagar
+            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada)
+            .Select(c => c.SaldoPendiente)
+            .ToListAsync(ct);
+
+        var productosStockBajo = await db.StockPorSucursal
+            .CountAsync(s => s.SucursalId == sucursalId && s.StockMinimo != null && s.StockActual < s.StockMinimo, ct);
+
+        return new DashboardResumenDto
+        {
+            VentasHoyTotal = totalVendidoHoy,
+            VentasHoyCantidadFacturas = cantidadHoy,
+            TicketPromedioHoy = cantidadHoy > 0 ? totalVendidoHoy / cantidadHoy : 0m,
+            TurnosAbiertos = turnosAbiertos,
+            CxCPendienteCantidad = saldosCxC.Count,
+            CxCPendienteTotal = saldosCxC.Sum(),
+            CxPPendienteCantidad = saldosCxP.Count,
+            CxPPendienteTotal = saldosCxP.Sum(),
+            ProductosStockBajo = productosStockBajo,
+            VentasPorHoraHoy = await VentasPorHoraAsync(sucursalId, rangoHoy, ct),
+            TopProductosHoy = (await VentasPorProductoAsync(sucursalId, rangoHoy, ct)).Take(5).ToList()
+        };
     }
 }

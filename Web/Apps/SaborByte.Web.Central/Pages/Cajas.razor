@@ -1,0 +1,159 @@
+@page "/cajas"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Cajas</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaCaja" Disabled="_sucursalSeleccionadaId == Guid.Empty">
+            Nueva caja
+        </MudButton>
+    </div>
+
+    <MudSelect T="Guid" Label="Sucursal" Value="_sucursalSeleccionadaId" ValueChanged="OnSucursalCambiadaAsync" Class="mb-4" Style="max-width:400px">
+        @foreach (var sucursal in _sucursales)
+        {
+            <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudTable Items="_cajas" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Número</MudTh>
+            <MudTh>Activa</MudTh>
+            <MudTh>IP autorizada</MudTh>
+            <MudTh>Próximo N° de factura</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Numero</MudTd>
+            <MudTd>@(context.Activa ? "Sí" : "No")</MudTd>
+            <MudTd>@(context.IpPermitida ?? "(cualquiera)")</MudTd>
+            <MudTd>@context.ProximoNumeroFactura</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarCaja(context)" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_cajaId is null ? "Nueva caja" : "Editar caja")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Número (ej. 01)" @bind-Value="_form.Numero" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.Activa" Label="Activa" Class="mb-2" />
+
+        <MudTextField T="string" Label="IP autorizada (opcional)" @bind-Value="_form.IpPermitida" Class="mb-2" />
+        <MudTextField T="string" Label="Hostname autorizado (opcional)" @bind-Value="_form.HostnamePermitido" Class="mb-2" />
+
+        <MudNumericField T="long" Label="Próximo N° de factura (secuencia)" @bind-Value="_form.ProximoNumeroFactura" Class="mb-2" />
+        <MudText Typo="Typo.caption" Class="mb-2">
+            El próximo número de factura completo será: <strong>@VistaPreviaNumeroFactura()</strong>
+            (código de sucursal + número de caja + secuencia de 5 dígitos). No se puede retroceder, solo mantener o avanzar.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<CajaDto> _cajas = [];
+    private List<SucursalResumenDto> _sucursales = [];
+    private Guid _sucursalSeleccionadaId;
+    private bool _editando;
+    private Guid? _cajaId;
+    private GuardarCajaRequestDto _form = new();
+
+    private string? _codigoSucursal => _sucursales.FirstOrDefault(s => s.Id == _sucursalSeleccionadaId)?.Codigo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _sucursalSeleccionadaId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
+            ? Sesion.SucursalActivaId
+            : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        await CargarAsync();
+    }
+
+    private async Task OnSucursalCambiadaAsync(Guid sucursalId)
+    {
+        _sucursalSeleccionadaId = sucursalId;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (_sucursalSeleccionadaId == Guid.Empty)
+        {
+            _cajas = [];
+            return;
+        }
+
+        _cajas = await ApiClient.ListarCajasGestionAsync(_sucursalSeleccionadaId);
+    }
+
+    private string VistaPreviaNumeroFactura() =>
+        $"{_codigoSucursal ?? "??"}{(string.IsNullOrEmpty(_form.Numero) ? "??" : _form.Numero)}{_form.ProximoNumeroFactura:D5}";
+
+    private void NuevaCaja()
+    {
+        _cajaId = null;
+        _form = new GuardarCajaRequestDto();
+        _editando = true;
+    }
+
+    private void EditarCaja(CajaDto caja)
+    {
+        _cajaId = caja.Id;
+        _form = new GuardarCajaRequestDto
+        {
+            Numero = caja.Numero,
+            Activa = caja.Activa,
+            IpPermitida = caja.IpPermitida,
+            HostnamePermitido = caja.HostnamePermitido,
+            ProximoNumeroFactura = caja.ProximoNumeroFactura
+        };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        var (exito, error) = _cajaId is null
+            ? await ApiClient.CrearCajaAsync(_sucursalSeleccionadaId, _form)
+            : await ApiClient.ActualizarCajaAsync(_sucursalSeleccionadaId, _cajaId.Value, _form);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(_cajaId is null ? "Caja creada." : "Caja actualizada.", Severity.Success);
+        _editando = false;
+        await CargarAsync();
+    }
+}
