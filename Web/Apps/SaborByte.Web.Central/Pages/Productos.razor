@@ -196,7 +196,7 @@ else
         }
         else
         {
-            <MudCheckBox T="bool" @bind-Value="_form.Inventariable" Label="Inventariable (producto de reventa, sin preparación)" Class="mb-1" />
+            <MudCheckBox T="bool" Value="_form.Inventariable" ValueChanged="OnInventariableChanged" Label="Inventariable (producto de reventa, sin preparación)" Class="mb-1" />
             @if (_form.Inventariable)
             {
                 <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
@@ -636,6 +636,20 @@ else
             _form.CodigosBarra.Add(codigo);
 
         _nuevoCodigoBarra = string.Empty;
+    }
+
+    // Inventariable y Receta son mutuamente excluyentes (el backend lo rechaza si llegan
+    // juntos) — sin esto, marcar Inventariable en un producto que ya tenía receta configurada
+    // guardaba igual el _form.Receta viejo (el diálogo de edición no lo muestra ni lo toca) y
+    // el guardado fallaba con un error que no explicaba qué había que hacer.
+    private void OnInventariableChanged(bool valor)
+    {
+        _form.Inventariable = valor;
+        if (valor && _form.Receta.Count > 0)
+        {
+            _form.Receta.Clear();
+            Snackbar.Add("Se borró la receta configurada: un producto Inventariable no puede tener receta.", Severity.Warning);
+        }
     }
 
     private async Task GuardarComboAsync()
