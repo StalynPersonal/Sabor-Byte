@@ -5,6 +5,8 @@ using MudBlazor.Services;
 using SaborByte.Web.Api;
 using SaborByte.Web.Central;
 
+CulturaApp.Aplicar();
+
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
