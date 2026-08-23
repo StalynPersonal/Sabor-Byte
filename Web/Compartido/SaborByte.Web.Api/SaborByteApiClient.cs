@@ -581,16 +581,24 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<List<ProveedorDto>> ListarProveedoresAsync(Guid sucursalId)
+    public async Task<List<ProveedorDto>> ListarProveedoresAsync(Guid sucursalId, bool incluirInactivos = false)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<List<ProveedorDto>>($"api/cxccxp/proveedores?sucursalId={sucursalId}") ?? [];
+        return await http.GetFromJsonAsync<List<ProveedorDto>>(
+            $"api/cxccxp/proveedores?sucursalId={sucursalId}&incluirInactivos={incluirInactivos}") ?? [];
     }
 
     public async Task<(bool Exito, string? Error)> CrearProveedorAsync(Guid sucursalId, GuardarProveedorRequestDto request)
     {
         AdjuntarToken();
         var respuesta = await http.PostAsJsonAsync($"api/cxccxp/proveedores?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarProveedorAsync(Guid sucursalId, Guid proveedorId, GuardarProveedorRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/cxccxp/proveedores/{proveedorId}?sucursalId={sucursalId}", request);
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
@@ -614,11 +622,17 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<ResultadoPaginadoDto<CuentaPorCobrarDto>> ListarPorCobrarAsync(Guid sucursalId, int pagina, int tamanoPagina)
+    public async Task<ResultadoPaginadoDto<CuentaPorCobrarDto>> ListarPorCobrarAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false)
     {
         AdjuntarToken();
         return await http.GetFromJsonAsync<ResultadoPaginadoDto<CuentaPorCobrarDto>>(
-            $"api/cxccxp/porcobrar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}") ?? new();
+            $"api/cxccxp/porcobrar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&incluirPagadas={incluirPagadas}") ?? new();
+    }
+
+    public async Task<List<PagoCuentaDto>> ListarPagosPorCobrarAsync(Guid sucursalId, Guid cuentaId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<PagoCuentaDto>>($"api/cxccxp/porcobrar/{cuentaId}/pagos?sucursalId={sucursalId}") ?? [];
     }
 
     public async Task<(bool Exito, string? Error)> CrearCuentaPorCobrarAsync(Guid sucursalId, CrearCuentaPorCobrarRequestDto request)
@@ -635,11 +649,17 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<ResultadoPaginadoDto<CuentaPorPagarDto>> ListarPorPagarAsync(Guid sucursalId, int pagina, int tamanoPagina)
+    public async Task<ResultadoPaginadoDto<CuentaPorPagarDto>> ListarPorPagarAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false)
     {
         AdjuntarToken();
         return await http.GetFromJsonAsync<ResultadoPaginadoDto<CuentaPorPagarDto>>(
-            $"api/cxccxp/porpagar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}") ?? new();
+            $"api/cxccxp/porpagar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&incluirPagadas={incluirPagadas}") ?? new();
+    }
+
+    public async Task<List<PagoCuentaDto>> ListarPagosPorPagarAsync(Guid sucursalId, Guid cuentaId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<PagoCuentaDto>>($"api/cxccxp/porpagar/{cuentaId}/pagos?sucursalId={sucursalId}") ?? [];
     }
 
     public async Task<(bool Exito, string? Error)> CrearCuentaPorPagarAsync(Guid sucursalId, CrearCuentaPorPagarRequestDto request)

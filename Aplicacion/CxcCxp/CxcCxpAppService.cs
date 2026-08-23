@@ -8,17 +8,20 @@ namespace SaborByte.Aplicacion.CxcCxp;
 
 public class CxcCxpAppService(IAppDbContext db)
 {
-    // --- Proveedores (necesarios para dar de alta una Cuenta por Pagar) ---
+    // --- Proveedores ---
 
-    public async Task<List<ProveedorDto>> ListarProveedoresAsync(Guid sucursalId, CancellationToken ct = default) =>
+    public async Task<List<ProveedorDto>> ListarProveedoresAsync(Guid sucursalId, bool incluirInactivos = false, CancellationToken ct = default) =>
         await db.Proveedores
-            .Where(p => p.SucursalId == sucursalId && p.Activo)
+            .Where(p => p.SucursalId == sucursalId && (incluirInactivos || p.Activo))
             .OrderBy(p => p.NombreORazonSocial)
             .Select(p => new ProveedorDto { Id = p.Id, NombreORazonSocial = p.NombreORazonSocial, Rnc = p.Rnc, Telefono = p.Telefono, Activo = p.Activo })
             .ToListAsync(ct);
 
     public async Task<Guid> CrearProveedorAsync(Guid sucursalId, Guid usuarioId, GuardarProveedorRequestDto request, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(request.NombreORazonSocial))
+            throw new InvalidOperationException("El nombre del proveedor es obligatorio.");
+
         var proveedor = new Proveedor
         {
             SucursalId = sucursalId,
@@ -31,6 +34,22 @@ public class CxcCxpAppService(IAppDbContext db)
         db.Proveedores.Add(proveedor);
         await db.SaveChangesAsync(ct);
         return proveedor.Id;
+    }
+
+    public async Task ActualizarProveedorAsync(Guid sucursalId, Guid proveedorId, GuardarProveedorRequestDto request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.NombreORazonSocial))
+            throw new InvalidOperationException("El nombre del proveedor es obligatorio.");
+
+        var proveedor = await db.Proveedores.FirstOrDefaultAsync(p => p.Id == proveedorId && p.SucursalId == sucursalId, ct)
+            ?? throw new InvalidOperationException("El proveedor no existe.");
+
+        proveedor.NombreORazonSocial = request.NombreORazonSocial;
+        proveedor.Rnc = request.Rnc;
+        proveedor.Telefono = request.Telefono;
+        proveedor.Activo = request.Activo;
+
+        await db.SaveChangesAsync(ct);
     }
 
     // --- Cuentas por Cobrar ---
@@ -53,30 +72,52 @@ public class CxcCxpAppService(IAppDbContext db)
     }
 
     public async Task<ResultadoPaginado<CuentaPorCobrarDto>> ListarPorCobrarAsync(
-        Guid sucursalId, int pagina, int tamanoPagina, CancellationToken ct = default)
+        Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, CancellationToken ct = default)
     {
         pagina = pagina < 1 ? 1 : pagina;
         tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
 
-        var query = db.CuentasPorCobrar.Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada);
+        var query = db.CuentasPorCobrar.Where(c => c.SucursalId == sucursalId);
+        if (!incluirPagadas)
+            query = query.Where(c => c.Estado != EstadoCuenta.Pagada);
+
         var total = await query.CountAsync(ct);
 
-        var items = await query
-            .OrderBy(c => c.FechaVencimiento)
+        var items = await (
+                from c in query
+                join cl in db.Clientes on c.ClienteId equals cl.Id
+                orderby c.FechaVencimiento
+                select new CuentaPorCobrarDto
+                {
+                    Id = c.Id,
+                    ClienteId = c.ClienteId,
+                    ClienteNombre = cl.NombreORazonSocial,
+                    MontoOriginal = c.MontoOriginal,
+                    SaldoPendiente = c.SaldoPendiente,
+                    FechaVencimiento = c.FechaVencimiento,
+                    Estado = c.Estado
+                })
             .Skip((pagina - 1) * tamanoPagina)
             .Take(tamanoPagina)
-            .Select(c => new CuentaPorCobrarDto
-            {
-                Id = c.Id,
-                ClienteId = c.ClienteId,
-                MontoOriginal = c.MontoOriginal,
-                SaldoPendiente = c.SaldoPendiente,
-                FechaVencimiento = c.FechaVencimiento,
-                Estado = c.Estado
-            })
             .ToListAsync(ct);
 
         return new ResultadoPaginado<CuentaPorCobrarDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
+    public async Task<List<PagoCuentaDto>> ObtenerPagosCxCAsync(Guid sucursalId, Guid cuentaId, CancellationToken ct = default)
+    {
+        var existe = await db.CuentasPorCobrar.AnyAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct);
+        if (!existe)
+            throw new InvalidOperationException("La cuenta por cobrar no existe.");
+
+        return await (
+                from p in db.PagosCxC
+                join m in db.MetodosPago on p.MetodoPagoId equals m.Id
+                where p.CuentaPorCobrarId == cuentaId
+                orderby p.FechaPago descending
+                select new PagoCuentaDto { Id = p.Id, FechaPago = p.FechaPago, Monto = p.Monto, MetodoPagoNombre = m.Nombre }
+            )
+            .ToListAsync(ct);
     }
 
     public async Task RegistrarPagoCxCAsync(Guid sucursalId, Guid cuentaId, Guid usuarioId, RegistrarPagoRequestDto request, CancellationToken ct = default)
@@ -115,31 +156,53 @@ public class CxcCxpAppService(IAppDbContext db)
     }
 
     public async Task<ResultadoPaginado<CuentaPorPagarDto>> ListarPorPagarAsync(
-        Guid sucursalId, int pagina, int tamanoPagina, CancellationToken ct = default)
+        Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, CancellationToken ct = default)
     {
         pagina = pagina < 1 ? 1 : pagina;
         tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
 
-        var query = db.CuentasPorPagar.Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada);
+        var query = db.CuentasPorPagar.Where(c => c.SucursalId == sucursalId);
+        if (!incluirPagadas)
+            query = query.Where(c => c.Estado != EstadoCuenta.Pagada);
+
         var total = await query.CountAsync(ct);
 
-        var items = await query
-            .OrderBy(c => c.FechaVencimiento)
+        var items = await (
+                from c in query
+                join pr in db.Proveedores on c.ProveedorId equals pr.Id
+                orderby c.FechaVencimiento
+                select new CuentaPorPagarDto
+                {
+                    Id = c.Id,
+                    ProveedorId = c.ProveedorId,
+                    ProveedorNombre = pr.NombreORazonSocial,
+                    DocumentoReferencia = c.DocumentoReferencia,
+                    MontoOriginal = c.MontoOriginal,
+                    SaldoPendiente = c.SaldoPendiente,
+                    FechaVencimiento = c.FechaVencimiento,
+                    Estado = c.Estado
+                })
             .Skip((pagina - 1) * tamanoPagina)
             .Take(tamanoPagina)
-            .Select(c => new CuentaPorPagarDto
-            {
-                Id = c.Id,
-                ProveedorId = c.ProveedorId,
-                DocumentoReferencia = c.DocumentoReferencia,
-                MontoOriginal = c.MontoOriginal,
-                SaldoPendiente = c.SaldoPendiente,
-                FechaVencimiento = c.FechaVencimiento,
-                Estado = c.Estado
-            })
             .ToListAsync(ct);
 
         return new ResultadoPaginado<CuentaPorPagarDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
+    public async Task<List<PagoCuentaDto>> ObtenerPagosCxPAsync(Guid sucursalId, Guid cuentaId, CancellationToken ct = default)
+    {
+        var existe = await db.CuentasPorPagar.AnyAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct);
+        if (!existe)
+            throw new InvalidOperationException("La cuenta por pagar no existe.");
+
+        return await (
+                from p in db.PagosCxP
+                join m in db.MetodosPago on p.MetodoPagoId equals m.Id
+                where p.CuentaPorPagarId == cuentaId
+                orderby p.FechaPago descending
+                select new PagoCuentaDto { Id = p.Id, FechaPago = p.FechaPago, Monto = p.Monto, MetodoPagoNombre = m.Nombre }
+            )
+            .ToListAsync(ct);
     }
 
     public async Task RegistrarPagoCxPAsync(Guid sucursalId, Guid cuentaId, Guid usuarioId, RegistrarPagoRequestDto request, CancellationToken ct = default)

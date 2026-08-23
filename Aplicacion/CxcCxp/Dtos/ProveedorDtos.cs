@@ -14,4 +14,5 @@ public class GuardarProveedorRequestDto
     public required string NombreORazonSocial { get; set; }
     public string? Rnc { get; set; }
     public string? Telefono { get; set; }
+    public bool Activo { get; set; } = true;
 }

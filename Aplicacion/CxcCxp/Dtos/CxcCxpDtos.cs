@@ -20,10 +20,19 @@ public class CuentaPorCobrarDto
 {
     public Guid Id { get; set; }
     public Guid ClienteId { get; set; }
+    public string ClienteNombre { get; set; } = string.Empty;
     public decimal MontoOriginal { get; set; }
     public decimal SaldoPendiente { get; set; }
     public DateTime FechaVencimiento { get; set; }
     public EstadoCuenta Estado { get; set; }
+}
+
+public class PagoCuentaDto
+{
+    public Guid Id { get; set; }
+    public DateTime FechaPago { get; set; }
+    public decimal Monto { get; set; }
+    public string MetodoPagoNombre { get; set; } = string.Empty;
 }
 
 public class CrearCuentaPorPagarRequestDto
@@ -38,6 +47,7 @@ public class CuentaPorPagarDto
 {
     public Guid Id { get; set; }
     public Guid ProveedorId { get; set; }
+    public string ProveedorNombre { get; set; } = string.Empty;
     public required string DocumentoReferencia { get; set; }
     public decimal MontoOriginal { get; set; }
     public decimal SaldoPendiente { get; set; }

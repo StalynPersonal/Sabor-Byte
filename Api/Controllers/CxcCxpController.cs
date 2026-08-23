@@ -12,10 +12,10 @@ namespace SaborByte.Api.Controllers;
 public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 {
     [HttpGet("proveedores")]
-    public async Task<IActionResult> ListarProveedores([FromQuery] Guid sucursalId, CancellationToken ct)
+    public async Task<IActionResult> ListarProveedores([FromQuery] Guid sucursalId, [FromQuery] bool incluirInactivos, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        return Ok(await cxcCxp.ListarProveedoresAsync(sucursalId, ct));
+        return Ok(await cxcCxp.ListarProveedoresAsync(sucursalId, incluirInactivos, ct));
     }
 
     [HttpPost("proveedores")]
@@ -34,11 +34,43 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
         }
     }
 
-    [HttpGet("porcobrar")]
-    public async Task<IActionResult> ListarPorCobrar([FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
+    [HttpPut("proveedores/{proveedorId:guid}")]
+    public async Task<IActionResult> ActualizarProveedor([FromQuery] Guid sucursalId, Guid proveedorId, GuardarProveedorRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        return Ok(await cxcCxp.ListarPorCobrarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
+
+        try
+        {
+            await cxcCxp.ActualizarProveedorAsync(sucursalId, proveedorId, request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
+    [HttpGet("porcobrar")]
+    public async Task<IActionResult> ListarPorCobrar(
+        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirPagadas, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+        return Ok(await cxcCxp.ListarPorCobrarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, incluirPagadas, ct));
+    }
+
+    [HttpGet("porcobrar/{cuentaId:guid}/pagos")]
+    public async Task<IActionResult> ListarPagosPorCobrar([FromQuery] Guid sucursalId, Guid cuentaId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+
+        try
+        {
+            return Ok(await cxcCxp.ObtenerPagosCxCAsync(sucursalId, cuentaId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPost("porcobrar")]
@@ -74,10 +106,26 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
     }
 
     [HttpGet("porpagar")]
-    public async Task<IActionResult> ListarPorPagar([FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
+    public async Task<IActionResult> ListarPorPagar(
+        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirPagadas, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        return Ok(await cxcCxp.ListarPorPagarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
+        return Ok(await cxcCxp.ListarPorPagarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, incluirPagadas, ct));
+    }
+
+    [HttpGet("porpagar/{cuentaId:guid}/pagos")]
+    public async Task<IActionResult> ListarPagosPorPagar([FromQuery] Guid sucursalId, Guid cuentaId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+
+        try
+        {
+            return Ok(await cxcCxp.ObtenerPagosCxPAsync(sucursalId, cuentaId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPost("porpagar")]
