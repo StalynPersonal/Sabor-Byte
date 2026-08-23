@@ -39,6 +39,7 @@ public class RecetaItemDto
 {
     public Guid InsumoId { get; set; }
     public string InsumoNombre { get; set; } = string.Empty;
+    public string? InsumoCodigo { get; set; }
     public decimal CantidadUsada { get; set; }
     public bool IncluidoPorDefecto { get; set; } = true;
     public bool Opcional { get; set; }
@@ -88,6 +89,7 @@ public class ComponenteComboDto
 {
     public Guid ProductoIncluidoId { get; set; }
     public string ProductoIncluidoNombre { get; set; } = string.Empty;
+    public string? ProductoIncluidoCodigo { get; set; }
     public decimal Cantidad { get; set; }
 }
 

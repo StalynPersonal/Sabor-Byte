@@ -137,6 +137,7 @@ public class ProductoAppService(IAppDbContext db)
         {
             InsumoId = r.InsumoId,
             InsumoNombre = r.Insumo?.Nombre ?? "?",
+            InsumoCodigo = r.Insumo?.Codigo,
             CantidadUsada = r.CantidadUsada,
             IncluidoPorDefecto = r.IncluidoPorDefecto,
             Opcional = r.Opcional
@@ -145,6 +146,7 @@ public class ProductoAppService(IAppDbContext db)
         {
             ProductoIncluidoId = c.ProductoIncluidoId,
             ProductoIncluidoNombre = c.ProductoIncluido?.Nombre ?? "?",
+            ProductoIncluidoCodigo = c.ProductoIncluido?.Codigo,
             Cantidad = c.Cantidad
         }).ToList();
 

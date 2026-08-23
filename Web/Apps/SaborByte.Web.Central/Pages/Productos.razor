@@ -360,11 +360,11 @@ else
                 else
                 {
                     <MudSimpleTable Dense="true" Elevation="0">
-                        <thead><tr><th>Producto</th><th>Cantidad</th></tr></thead>
+                        <thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th></tr></thead>
                         <tbody>
                             @foreach (var componente in _detalle.Componentes)
                             {
-                                <tr><td>@componente.ProductoIncluidoNombre</td><td>@componente.Cantidad.ToString("0.###")</td></tr>
+                                <tr><td>@(componente.ProductoIncluidoCodigo ?? "—")</td><td>@componente.ProductoIncluidoNombre</td><td>@componente.Cantidad.ToString("0.###")</td></tr>
                             }
                         </tbody>
                     </MudSimpleTable>
@@ -380,11 +380,12 @@ else
                 else
                 {
                     <MudSimpleTable Dense="true" Elevation="0">
-                        <thead><tr><th>Insumo</th><th>Cantidad</th><th>Opcional</th></tr></thead>
+                        <thead><tr><th>Código</th><th>Insumo</th><th>Cantidad</th><th>Opcional</th></tr></thead>
                         <tbody>
                             @foreach (var ingrediente in _detalle.Receta)
                             {
                                 <tr>
+                                    <td>@(ingrediente.InsumoCodigo ?? "—")</td>
                                     <td>@ingrediente.InsumoNombre</td>
                                     <td>@ingrediente.CantidadUsada.ToString("0.###")</td>
                                     <td>@(ingrediente.Opcional ? "Sí" : "No")</td>

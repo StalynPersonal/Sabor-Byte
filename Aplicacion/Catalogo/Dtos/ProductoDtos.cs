@@ -34,6 +34,7 @@ public class ComponenteComboDto
 {
     public Guid ProductoIncluidoId { get; set; }
     public required string ProductoIncluidoNombre { get; set; }
+    public string? ProductoIncluidoCodigo { get; set; }
     public decimal Cantidad { get; set; }
 }
 
@@ -75,6 +76,7 @@ public class RecetaItemDto
 {
     public Guid InsumoId { get; set; }
     public required string InsumoNombre { get; set; }
+    public string? InsumoCodigo { get; set; }
     public decimal CantidadUsada { get; set; }
     public bool IncluidoPorDefecto { get; set; }
     public bool Opcional { get; set; }
