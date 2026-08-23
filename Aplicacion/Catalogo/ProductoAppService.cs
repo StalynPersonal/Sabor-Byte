@@ -242,8 +242,13 @@ public class ProductoAppService(IAppDbContext db)
         await ValidarUnidadMedidaAsync(request.UnidadMedidaId, ct);
         ValidarReceta(request.Receta);
 
-        var inventariable = producto.TipoProducto == TipoProducto.Insumo || request.Inventariable;
-        ValidarInventariableVsReceta(producto.TipoProducto, inventariable, request.Receta);
+        // Cambiar el tipo después de creado sí se permite (ej. corregir un error al dar de
+        // alta) — pero solo si nada más del catálogo depende del tipo actual (ver método).
+        if (producto.TipoProducto != request.TipoProducto)
+            await ValidarCambioTipoAsync(producto, request.TipoProducto, ct);
+
+        var inventariable = request.TipoProducto == TipoProducto.Insumo || request.Inventariable;
+        ValidarInventariableVsReceta(request.TipoProducto, inventariable, request.Receta);
 
         var pasaAInventariable = inventariable && !producto.Inventariable;
 
@@ -255,12 +260,11 @@ public class ProductoAppService(IAppDbContext db)
         producto.CostoUnitario = request.CostoUnitario ?? 0m;
         producto.CategoriaId = request.CategoriaId;
         producto.TasaItbis = request.TasaItbis;
+        producto.TipoProducto = request.TipoProducto;
         producto.Inventariable = inventariable;
         producto.UnidadMedidaId = request.UnidadMedidaId;
         producto.ActualizadoEn = DateTime.UtcNow;
         producto.ActualizadoPorUsuarioId = usuarioId;
-        // TipoProducto no se permite cambiar tras crearlo (evita inconsistencias con
-        // movimientos de inventario / recetas ya existentes).
 
         // Si un Vendible pasa de no-inventariable a inventariable después de creado, hay
         // que crearle su renglón de stock en cada sucursal (mismo caso que un Insumo nuevo
@@ -291,7 +295,7 @@ public class ProductoAppService(IAppDbContext db)
             .Distinct()
             .Select(codigo => new CodigoBarraProducto { ProductoId = producto.Id, CodigoBarra = codigo.Trim() }));
 
-        if (producto.TipoProducto == TipoProducto.Vendible)
+        if (request.TipoProducto == TipoProducto.Vendible)
         {
             db.ProductoIngredientes.RemoveRange(producto.Receta);
             producto.Receta.Clear();
@@ -309,6 +313,12 @@ public class ProductoAppService(IAppDbContext db)
                     Opcional = ingrediente.Opcional
                 });
             }
+        }
+        else if (producto.Receta.Count > 0)
+        {
+            // Pasó de Vendible a Insumo: un Insumo no puede tener receta propia.
+            db.ProductoIngredientes.RemoveRange(producto.Receta);
+            producto.Receta.Clear();
         }
 
         await db.SaveChangesAsync(ct);
@@ -450,6 +460,32 @@ public class ProductoAppService(IAppDbContext db)
     {
         if (receta.Any(i => i.CantidadUsada <= 0))
             throw new InvalidOperationException("La cantidad usada de cada ingrediente de la receta debe ser mayor a cero.");
+    }
+
+    // Cambiar el tipo de un producto ya creado es seguro salvo que otra parte del catálogo
+    // dependa activamente de su tipo actual — en esos casos, hay que desenredar esa
+    // dependencia primero (no se hace en cascada para no borrar configuración de otro
+    // producto sin que el usuario lo sepa).
+    private async Task ValidarCambioTipoAsync(Producto producto, TipoProducto nuevoTipo, CancellationToken ct)
+    {
+        if (producto.EsCombo)
+            throw new InvalidOperationException("Un combo no puede cambiar de tipo.");
+
+        if (producto.TipoProducto == TipoProducto.Insumo && nuevoTipo == TipoProducto.Vendible)
+        {
+            var usadoComoInsumo = await db.ProductoIngredientes.AnyAsync(pi => pi.InsumoId == producto.Id, ct);
+            if (usadoComoInsumo)
+                throw new InvalidOperationException(
+                    "Este insumo está en la receta de otro producto — no se puede cambiar a Vendible mientras siga en uso. Quítalo de esa receta primero.");
+        }
+
+        if (producto.TipoProducto == TipoProducto.Vendible && nuevoTipo == TipoProducto.Insumo)
+        {
+            var esComponenteDeCombo = await db.ComboItems.AnyAsync(ci => ci.ProductoIncluidoId == producto.Id, ct);
+            if (esComponenteDeCombo)
+                throw new InvalidOperationException(
+                    "Este producto es componente de un combo — no se puede cambiar a Insumo mientras siga en uso. Quítalo del combo primero.");
+        }
     }
 
     // Un producto Inventariable (Insumo, o Vendible de reventa como una botella de agua)

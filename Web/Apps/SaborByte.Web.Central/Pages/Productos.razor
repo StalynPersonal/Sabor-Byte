@@ -137,10 +137,23 @@ else
             }
         </div>
 
-        <MudSelect T="TipoProducto" Label="Tipo" @bind-Value="_form.TipoProducto" Class="mb-2" Disabled="_productoId is not null">
+        <MudSelect T="TipoProducto" Label="Tipo" @bind-Value="_form.TipoProducto" Class="mb-2" Disabled="_editandoEsCombo">
             <MudSelectItem Value="TipoProducto.Vendible">Vendible</MudSelectItem>
             <MudSelectItem Value="TipoProducto.Insumo">Insumo</MudSelectItem>
         </MudSelect>
+        @if (_editandoEsCombo)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">Un combo no puede cambiar de tipo.</MudAlert>
+        }
+        else if (_productoId is not null)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-2" Dense="true">
+                Si cambias el tipo: pasar a Insumo borra la receta actual; pasar a Vendible
+                requiere configurar receta o marcarlo Inventariable. El sistema no deja
+                cambiarlo si otro producto depende de este (como insumo de una receta o
+                componente de un combo).
+            </MudAlert>
+        }
 
         <div class="d-flex gap-2 align-center mb-2">
             <MudSelect T="Guid" Label="Categoría" @bind-Value="_form.CategoriaId" Style="flex:1">
@@ -369,6 +382,7 @@ else
     private Guid? _productoId;
     private GuardarProductoRequestDto _form = new();
     private string _nuevoCodigoBarra = string.Empty;
+    private bool _editandoEsCombo;
 
     private bool _editandoReceta;
 
@@ -532,6 +546,7 @@ else
             CategoriaId = _categorias.FirstOrDefault()?.Id ?? Guid.Empty,
             UnidadMedidaId = _unidadesMedida.FirstOrDefault()?.Id ?? Guid.Empty
         };
+        _editandoEsCombo = false;
         _nuevoCodigoBarra = string.Empty;
         _editando = true;
     }
@@ -638,6 +653,7 @@ else
 
         _productoId = id;
         _form = ConstruirForm(producto);
+        _editandoEsCombo = producto.EsCombo;
         _nuevoCodigoBarra = string.Empty;
         _editando = true;
     }
