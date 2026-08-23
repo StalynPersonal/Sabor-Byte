@@ -9,6 +9,11 @@ public class UsuarioDto
     public bool Activo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
+
+    // El primer usuario creado en el sistema — no se puede editar ni desactivar (ver
+    // UsuarioAppService.ObtenerIdAdminPrincipalAsync). El frontend usa esto para
+    // deshabilitar sus botones de editar/desactivar.
+    public bool EsAdminPrincipal { get; set; }
 }
 
 public class CambiarPasswordRequestDto

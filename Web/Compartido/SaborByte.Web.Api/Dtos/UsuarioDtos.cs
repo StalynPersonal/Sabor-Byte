@@ -9,6 +9,7 @@ public class UsuarioDto
     public bool Activo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
+    public bool EsAdminPrincipal { get; set; }
 }
 
 public class CrearUsuarioRequestDto

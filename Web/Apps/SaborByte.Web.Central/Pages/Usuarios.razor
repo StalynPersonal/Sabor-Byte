@@ -35,12 +35,21 @@ else
             <MudTd>@string.Join(", ", context.Roles)</MudTd>
             <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
             <MudTd>
-                <MudTooltip Text="Editar">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarUsuario(context)" />
-                </MudTooltip>
-                <MudTooltip Text="Desactivar">
-                    <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)" />
-                </MudTooltip>
+                @if (context.EsAdminPrincipal)
+                {
+                    <MudTooltip Text="El administrador principal no se puede editar ni desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Disabled="true" />
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Editar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarUsuario(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context.Id)" />
+                    </MudTooltip>
+                }
             </MudTd>
         </RowTemplate>
         <PagerContent>

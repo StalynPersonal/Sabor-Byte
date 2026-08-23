@@ -25,14 +25,24 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
             .Take(tamanoPagina)
             .ToListAsync(ct);
 
+        var idAdminPrincipal = await ObtenerIdAdminPrincipalAsync(ct);
+
         return new ResultadoPaginado<UsuarioDto>
         {
-            Items = usuarios.Select(MapearDto).ToList(),
+            Items = usuarios.Select(u => MapearDto(u, idAdminPrincipal)).ToList(),
             Pagina = pagina,
             TamanoPagina = tamanoPagina,
             TotalRegistros = total
         };
     }
+
+    // El primer usuario creado en todo el sistema (el admin de la siembra inicial) es
+    // intocable: sin él, un Admin podría editarse/desactivarse a sí mismo (o a otro
+    // Admin) por error y dejar el sistema sin nadie que pueda administrar usuarios.
+    // Se identifica por antigüedad (CreadoEn), no por nombre de usuario, para que siga
+    // funcionando aunque lo rebauticen.
+    private async Task<Guid> ObtenerIdAdminPrincipalAsync(CancellationToken ct) =>
+        await db.Usuarios.OrderBy(u => u.CreadoEn).Select(u => u.Id).FirstAsync(ct);
 
     public async Task<Guid> CrearAsync(Guid usuarioActorId, CrearUsuarioRequestDto request, CancellationToken ct = default)
     {
@@ -81,6 +91,9 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
             .Include(u => u.SucursalesAsignadas)
             .FirstOrDefaultAsync(u => u.Id == usuarioId, ct)
             ?? throw new InvalidOperationException("El usuario no existe.");
+
+        if (usuarioId == await ObtenerIdAdminPrincipalAsync(ct))
+            throw new InvalidOperationException("El administrador principal no se puede editar.");
 
         if (string.IsNullOrWhiteSpace(request.NombreUsuario))
             throw new InvalidOperationException("El nombre de usuario es obligatorio.");
@@ -143,13 +156,16 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
         var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId, ct)
             ?? throw new InvalidOperationException("El usuario no existe.");
 
+        if (usuarioId == await ObtenerIdAdminPrincipalAsync(ct))
+            throw new InvalidOperationException("El administrador principal no se puede desactivar.");
+
         usuario.Activo = false;
         usuario.ActualizadoEn = DateTime.UtcNow;
         usuario.ActualizadoPorUsuarioId = usuarioActorId;
         await db.SaveChangesAsync(ct);
     }
 
-    private static UsuarioDto MapearDto(Usuario u) => new()
+    private static UsuarioDto MapearDto(Usuario u, Guid idAdminPrincipal) => new()
     {
         Id = u.Id,
         NombreUsuario = u.NombreUsuario,
@@ -157,6 +173,7 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
         Email = u.Email,
         Activo = u.Activo,
         Roles = u.Roles.Select(r => r.Rol!.Nombre).ToList(),
-        SucursalesAsignadas = u.SucursalesAsignadas.Select(s => s.SucursalId).ToList()
+        SucursalesAsignadas = u.SucursalesAsignadas.Select(s => s.SucursalId).ToList(),
+        EsAdminPrincipal = u.Id == idAdminPrincipal
     };
 }
