@@ -403,6 +403,11 @@ public class ReporteAppService(IAppDbContext db)
             .Select(c => c.SaldoPendiente)
             .ToListAsync(ct);
 
+        var notasCreditoHoy = await db.NotasCredito
+            .Where(n => n.SucursalId == sucursalId && n.FechaEmision >= desde && n.FechaEmision <= hasta)
+            .Select(n => n.Monto)
+            .ToListAsync(ct);
+
         return new DashboardResumenDto
         {
             VentasHoyTotal = totalVendidoHoy,
@@ -418,6 +423,8 @@ public class ReporteAppService(IAppDbContext db)
             PagadoHoyCxP = pagadoHoyCxP,
             CuentasVencidasCantidad = cxcVencidas.Count + cxpVencidas.Count,
             CuentasVencidasTotal = cxcVencidas.Sum() + cxpVencidas.Sum(),
+            NotasCreditoHoyCantidad = notasCreditoHoy.Count,
+            NotasCreditoHoyTotal = notasCreditoHoy.Sum(),
             VentasPorHoraHoy = await VentasPorHoraAsync(sucursalId, rangoHoy, ct),
             TopProductosHoy = (await VentasPorProductoAsync(sucursalId, rangoHoy, ct)).Take(5).ToList()
         };

@@ -130,6 +130,8 @@ public class DashboardResumenDto
     public decimal PagadoHoyCxP { get; set; }
     public int CuentasVencidasCantidad { get; set; }
     public decimal CuentasVencidasTotal { get; set; }
+    public int NotasCreditoHoyCantidad { get; set; }
+    public decimal NotasCreditoHoyTotal { get; set; }
     public List<VentaPorHoraDto> VentasPorHoraHoy { get; set; } = [];
     public List<VentaPorProductoDto> TopProductosHoy { get; set; } = [];
 }
