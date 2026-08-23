@@ -263,7 +263,7 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         var total = await query.CountAsync(ct);
 
         var turnos = await query
-            .OrderByDescending(x => x.Turno.FechaHoraCierre)
+            .OrderByDescending(x => x.Turno.NumeroTurno)
             .Skip((pagina - 1) * tamanoPagina)
             .Take(tamanoPagina)
             .Select(x => new { x.Turno, x.CajaNumero })

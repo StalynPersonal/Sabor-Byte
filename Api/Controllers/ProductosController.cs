@@ -134,4 +134,19 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
             return BadRequest(new { mensaje = ex.Message });
         }
     }
+
+    [HttpPut("combos/{comboId:guid}")]
+    [Authorize(Roles = "Supervisor,Admin")]
+    public async Task<IActionResult> ActualizarCombo(Guid comboId, CrearComboRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            await productos.ActualizarComboAsync(User.ObtenerUsuarioId(), comboId, request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
 }

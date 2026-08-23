@@ -27,6 +27,7 @@ public class ProductoDetalleDto
     public decimal StockActual { get; set; }
     public bool EsCombo { get; set; }
     public List<RecetaItemDto> Receta { get; set; } = [];
+    public List<ComponenteComboDto> Componentes { get; set; } = [];
 
     public DateTime CreadoEn { get; set; }
     public string? CreadoPorNombre { get; set; }
@@ -81,6 +82,13 @@ public class CrearComboRequestDto
     public decimal Precio { get; set; }
     public Guid CategoriaId { get; set; }
     public List<ComponenteComboRequestDto> Componentes { get; set; } = [];
+}
+
+public class ComponenteComboDto
+{
+    public Guid ProductoIncluidoId { get; set; }
+    public string ProductoIncluidoNombre { get; set; } = string.Empty;
+    public decimal Cantidad { get; set; }
 }
 
 public class CategoriaDto

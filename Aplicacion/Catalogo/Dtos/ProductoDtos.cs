@@ -30,6 +30,13 @@ public class CrearComboRequestDto
     public List<ComponenteComboRequestDto> Componentes { get; set; } = [];
 }
 
+public class ComponenteComboDto
+{
+    public Guid ProductoIncluidoId { get; set; }
+    public required string ProductoIncluidoNombre { get; set; }
+    public decimal Cantidad { get; set; }
+}
+
 public class ProductoDetalleDto
 {
     public Guid Id { get; set; }
@@ -53,6 +60,10 @@ public class ProductoDetalleDto
 
     // Solo se llena en ObtenerAsync (detalle de un producto), no en el listado paginado.
     public List<RecetaItemDto> Receta { get; set; } = [];
+
+    // Solo se llena en ObtenerAsync cuando EsCombo — los productos Vendibles que
+    // conforman el combo, con su cantidad.
+    public List<ComponenteComboDto> Componentes { get; set; } = [];
 
     public DateTime CreadoEn { get; set; }
     public string? CreadoPorNombre { get; set; }

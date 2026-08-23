@@ -382,6 +382,13 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<(bool Exito, string? Error)> ActualizarComboAsync(Guid comboId, CrearComboRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/productos/combos/{comboId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<(bool Exito, string? Error)> ConfigurarUmbralesInventarioAsync(Guid sucursalId, ConfigurarUmbralesRequestDto request)
     {
         AdjuntarToken();

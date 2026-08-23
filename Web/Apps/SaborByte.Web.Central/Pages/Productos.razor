@@ -246,7 +246,7 @@ else
 </MudDialog>
 
 <MudDialog @bind-Visible="_editandoCombo" Options="_opcionesDialogo">
-    <TitleContent>Nuevo combo</TitleContent>
+    <TitleContent>@(_comboIdEditando is null ? "Nuevo combo" : "Editar combo")</TitleContent>
     <DialogContent>
         <MudTextField T="string" Label="Nombre del combo" @bind-Value="_formCombo.Nombre" Class="mb-2" />
         <MudTextField T="string" Label="Código (único)" @bind-Value="_formCombo.Codigo" Class="mb-2" Required="true" />
@@ -282,7 +282,7 @@ else
         </MudButton>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="() => _editandoCombo = false">Cancelar</MudButton>
+        <MudButton OnClick="() => { _editandoCombo = false; _comboIdEditando = null; }">Cancelar</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarComboAsync">Guardar combo</MudButton>
     </DialogActions>
 </MudDialog>
@@ -349,6 +349,51 @@ else
                     }
                 </tbody>
             </MudSimpleTable>
+
+            @if (_detalle.EsCombo)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Componentes</MudText>
+                @if (_detalle.Componentes.Count == 0)
+                {
+                    <MudText Typo="Typo.body2">Este combo no tiene componentes.</MudText>
+                }
+                else
+                {
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <thead><tr><th>Producto</th><th>Cantidad</th></tr></thead>
+                        <tbody>
+                            @foreach (var componente in _detalle.Componentes)
+                            {
+                                <tr><td>@componente.ProductoIncluidoNombre</td><td>@componente.Cantidad.ToString("0.###")</td></tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+            }
+            else if (_detalle.TipoProducto == TipoProducto.Vendible && !_detalle.Inventariable)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Receta (insumos)</MudText>
+                @if (_detalle.Receta.Count == 0)
+                {
+                    <MudText Typo="Typo.body2">Este producto todavía no tiene receta configurada.</MudText>
+                }
+                else
+                {
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <thead><tr><th>Insumo</th><th>Cantidad</th><th>Opcional</th></tr></thead>
+                        <tbody>
+                            @foreach (var ingrediente in _detalle.Receta)
+                            {
+                                <tr>
+                                    <td>@ingrediente.InsumoNombre</td>
+                                    <td>@ingrediente.CantidadUsada.ToString("0.###")</td>
+                                    <td>@(ingrediente.Opcional ? "Sí" : "No")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+            }
         }
     </DialogContent>
     <DialogActions>
@@ -387,6 +432,7 @@ else
     private bool _editandoReceta;
 
     private bool _editandoCombo;
+    private Guid? _comboIdEditando;
     private CrearComboRequestDto _formCombo = new();
 
     protected override async Task OnInitializedAsync()
@@ -553,6 +599,7 @@ else
 
     private void NuevoCombo()
     {
+        _comboIdEditando = null;
         _formCombo = new CrearComboRequestDto { CategoriaId = _categorias.FirstOrDefault()?.Id ?? Guid.Empty };
         _editandoCombo = true;
     }
@@ -599,7 +646,10 @@ else
             return;
         }
 
-        var (exito, error) = await ApiClient.CrearComboAsync(_formCombo);
+        var esNuevo = _comboIdEditando is null;
+        var (exito, error) = esNuevo
+            ? await ApiClient.CrearComboAsync(_formCombo)
+            : await ApiClient.ActualizarComboAsync(_comboIdEditando!.Value, _formCombo);
 
         if (!exito)
         {
@@ -607,8 +657,9 @@ else
             return;
         }
 
-        Snackbar.Add("Combo creado.", Severity.Success);
+        Snackbar.Add(esNuevo ? "Combo creado." : "Combo actualizado.", Severity.Success);
         _editandoCombo = false;
+        _comboIdEditando = null;
         await CargarListasParaFormulariosAsync();
         await RecargarTablaAsync();
     }
@@ -651,9 +702,28 @@ else
         if (producto is null)
             return;
 
+        if (producto.EsCombo)
+        {
+            _comboIdEditando = id;
+            _formCombo = new CrearComboRequestDto
+            {
+                Nombre = producto.Nombre,
+                Codigo = producto.Codigo ?? string.Empty,
+                Precio = producto.Precio,
+                CategoriaId = producto.CategoriaId,
+                Componentes = producto.Componentes.Select(c => new ComponenteComboRequestDto
+                {
+                    ProductoIncluidoId = c.ProductoIncluidoId,
+                    Cantidad = c.Cantidad
+                }).ToList()
+            };
+            _editandoCombo = true;
+            return;
+        }
+
         _productoId = id;
         _form = ConstruirForm(producto);
-        _editandoEsCombo = producto.EsCombo;
+        _editandoEsCombo = false;
         _nuevoCodigoBarra = string.Empty;
         _editando = true;
     }

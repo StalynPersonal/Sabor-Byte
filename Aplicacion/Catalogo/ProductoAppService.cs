@@ -128,6 +128,7 @@ public class ProductoAppService(IAppDbContext db)
         var producto = await db.Productos
             .Include(p => p.CodigosBarra)
             .Include(p => p.Receta).ThenInclude(r => r.Insumo)
+            .Include(p => p.ComponentesCombo).ThenInclude(c => c.ProductoIncluido)
             .FirstOrDefaultAsync(p => p.Id == productoId, ct)
             ?? throw new InvalidOperationException("El producto no existe.");
 
@@ -139,6 +140,12 @@ public class ProductoAppService(IAppDbContext db)
             CantidadUsada = r.CantidadUsada,
             IncluidoPorDefecto = r.IncluidoPorDefecto,
             Opcional = r.Opcional
+        }).ToList();
+        dto.Componentes = producto.ComponentesCombo.Select(c => new ComponenteComboDto
+        {
+            ProductoIncluidoId = c.ProductoIncluidoId,
+            ProductoIncluidoNombre = c.ProductoIncluido?.Nombre ?? "?",
+            Cantidad = c.Cantidad
         }).ToList();
 
         if (sucursalId is Guid sid)
@@ -401,6 +408,63 @@ public class ProductoAppService(IAppDbContext db)
         await db.SaveChangesAsync(ct);
 
         return combo.Id;
+    }
+
+    // Reemplaza nombre/precio/categoría y la lista completa de componentes del combo
+    // (se borran los que ya no vengan y se agregan los nuevos) — más simple y sin riesgo
+    // de desincronización que intentar diffear línea por línea.
+    public async Task ActualizarComboAsync(Guid usuarioId, Guid comboId, CrearComboRequestDto request, CancellationToken ct = default)
+    {
+        var combo = await db.Productos
+            .Include(p => p.ComponentesCombo)
+            .FirstOrDefaultAsync(p => p.Id == comboId, ct)
+            ?? throw new InvalidOperationException("El combo no existe.");
+
+        if (!combo.EsCombo)
+            throw new InvalidOperationException("Este producto no es un combo.");
+
+        ValidarNombre(request.Nombre);
+        ValidarPrecioYCosto(request.Precio, null);
+
+        if (request.Componentes.Count == 0)
+            throw new InvalidOperationException("El combo debe tener al menos un componente.");
+
+        if (request.Componentes.Any(c => c.Cantidad < 1))
+            throw new InvalidOperationException("La cantidad de cada componente del combo debe ser como mínimo 1.");
+
+        var componenteIds = request.Componentes.Select(c => c.ProductoIncluidoId).ToList();
+        var existentes = await db.Productos
+            .Where(p => componenteIds.Contains(p.Id) && p.TipoProducto == TipoProducto.Vendible && !p.EsCombo)
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+
+        var faltante = componenteIds.Except(existentes).FirstOrDefault();
+        if (faltante != Guid.Empty)
+            throw new InvalidOperationException($"El producto {faltante} no existe, no es vendible o es a su vez un combo.");
+
+        await ValidarCodigosAsync(request.Codigo, [], comboId, ct);
+        await ValidarCategoriaAsync(request.CategoriaId, ct);
+
+        combo.Nombre = request.Nombre;
+        combo.Codigo = request.Codigo;
+        combo.Precio = request.Precio;
+        combo.CategoriaId = request.CategoriaId;
+        combo.ActualizadoEn = DateTime.UtcNow;
+        combo.ActualizadoPorUsuarioId = usuarioId;
+
+        db.ComboItems.RemoveRange(combo.ComponentesCombo);
+        combo.ComponentesCombo.Clear();
+        foreach (var componente in request.Componentes)
+        {
+            combo.ComponentesCombo.Add(new ComboItem
+            {
+                ComboId = combo.Id,
+                ProductoIncluidoId = componente.ProductoIncluidoId,
+                Cantidad = componente.Cantidad
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 
     private static void ValidarNombre(string nombre)
