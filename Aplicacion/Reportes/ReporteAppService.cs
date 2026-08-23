@@ -297,6 +297,62 @@ public class ReporteAppService(IAppDbContext db)
         }).ToList();
     }
 
+    // Pagos de cuentas por cobrar dentro de un rango de fechas — para el reporte "Pagos CxC recibidos".
+    public async Task<List<PagoCuentaReporteDto>> CxCPagosAsync(Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var pagos = await (
+                from p in db.PagosCxC
+                join c in db.CuentasPorCobrar on p.CuentaPorCobrarId equals c.Id
+                join cl in db.Clientes on c.ClienteId equals cl.Id
+                join m in db.MetodosPago on p.MetodoPagoId equals m.Id
+                join u in db.Usuarios on p.CreadoPorUsuarioId equals u.Id
+                where c.SucursalId == sucursalId && p.FechaPago >= rango.Desde && p.FechaPago <= rango.Hasta
+                orderby p.FechaPago descending
+                select new PagoCuentaReporteDto
+                {
+                    PagoId = p.Id,
+                    Nombre = cl.NombreORazonSocial,
+                    FechaPago = p.FechaPago,
+                    Monto = p.Monto,
+                    MetodoPagoNombre = m.Nombre,
+                    NumeroComprobante = p.NumeroComprobante,
+                    RegistradoPorNombre = u.Nombre,
+                    Anulado = p.Anulado
+                }
+            )
+            .ToListAsync(ct);
+
+        return pagos;
+    }
+
+    // Pagos de cuentas por pagar dentro de un rango de fechas — para el reporte "Pagos CxP realizados".
+    public async Task<List<PagoCuentaReporteDto>> CxPPagosAsync(Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var pagos = await (
+                from p in db.PagosCxP
+                join c in db.CuentasPorPagar on p.CuentaPorPagarId equals c.Id
+                join pr in db.Proveedores on c.ProveedorId equals pr.Id
+                join m in db.MetodosPago on p.MetodoPagoId equals m.Id
+                join u in db.Usuarios on p.CreadoPorUsuarioId equals u.Id
+                where c.SucursalId == sucursalId && p.FechaPago >= rango.Desde && p.FechaPago <= rango.Hasta
+                orderby p.FechaPago descending
+                select new PagoCuentaReporteDto
+                {
+                    PagoId = p.Id,
+                    Nombre = pr.NombreORazonSocial,
+                    FechaPago = p.FechaPago,
+                    Monto = p.Monto,
+                    MetodoPagoNombre = m.Nombre,
+                    NumeroComprobante = p.NumeroComprobante,
+                    RegistradoPorNombre = u.Nombre,
+                    Anulado = p.Anulado
+                }
+            )
+            .ToListAsync(ct);
+
+        return pagos;
+    }
+
     // KPIs del día para el dashboard de Inicio: ventas de hoy, turnos abiertos, CxC/CxP
     // pendientes y alertas de stock bajo, todo scopeado a una sola sucursal.
     public async Task<DashboardResumenDto> ObtenerDashboardAsync(Guid sucursalId, CancellationToken ct = default)

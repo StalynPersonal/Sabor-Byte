@@ -41,7 +41,10 @@ else
         <MudSelectItem Value="TipoReporte.TopProductos">Top productos vendidos</MudSelectItem>
         <MudSelectItem Value="TipoReporte.PorMetodoPago">Ventas por método de pago</MudSelectItem>
         <MudSelectItem Value="TipoReporte.MovimientosInventario">Movimientos de inventario</MudSelectItem>
-        <MudSelectItem Value="TipoReporte.CxcCxp">CxC / CxP pendientes</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.CxCPendientes">Cuentas por cobrar pendientes</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.CxPPendientes">Cuentas por pagar pendientes</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.CxCPagos">Pagos de CxC recibidos</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.CxPPagos">Pagos de CxP realizados</MudSelectItem>
     </MudSelect>
 
     @if (_reporte == TipoReporte.VentasResumen)
@@ -152,49 +155,89 @@ else
             </RowTemplate>
         </MudTable>
     }
-    else if (_reporte == TipoReporte.CxcCxp)
+    else if (_reporte == TipoReporte.CxCPendientes)
     {
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudText Typo="Typo.subtitle1" Class="mb-2">Por cobrar</MudText>
-                <MudTable Items="_cxcPendientes" Hover="true" Dense="true" T="CuentaPendienteDto">
-                    <HeaderContent>
-                        <MudTh>Cliente</MudTh>
-                        <MudTh>Monto original</MudTh>
-                        <MudTh>Saldo pendiente</MudTh>
-                        <MudTh>Vencimiento</MudTh>
-                        <MudTh>Estado</MudTh>
-                    </HeaderContent>
-                    <RowTemplate Context="c">
-                        <MudTd>@c.Nombre</MudTd>
-                        <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
-                        <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
-                        <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
-                        <MudTd>@c.Estado</MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudItem>
-
-            <MudItem xs="12" md="6">
-                <MudText Typo="Typo.subtitle1" Class="mb-2">Por pagar</MudText>
-                <MudTable Items="_cxpPendientes" Hover="true" Dense="true" T="CuentaPendienteDto">
-                    <HeaderContent>
-                        <MudTh>Proveedor</MudTh>
-                        <MudTh>Monto original</MudTh>
-                        <MudTh>Saldo pendiente</MudTh>
-                        <MudTh>Vencimiento</MudTh>
-                        <MudTh>Estado</MudTh>
-                    </HeaderContent>
-                    <RowTemplate Context="c">
-                        <MudTd>@c.Nombre</MudTd>
-                        <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
-                        <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
-                        <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
-                        <MudTd>@c.Estado</MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudItem>
-        </MudGrid>
+        <MudTable Items="_cxcPendientes" Hover="true" Dense="true" T="CuentaPendienteDto">
+            <HeaderContent>
+                <MudTh>Cliente</MudTh>
+                <MudTh>Monto original</MudTh>
+                <MudTh>Saldo pendiente</MudTh>
+                <MudTh>Vencimiento</MudTh>
+                <MudTh>Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="c">
+                <MudTd>@c.Nombre</MudTd>
+                <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
+                <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
+                <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd>@c.Estado</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.CxPPendientes)
+    {
+        <MudTable Items="_cxpPendientes" Hover="true" Dense="true" T="CuentaPendienteDto">
+            <HeaderContent>
+                <MudTh>Proveedor</MudTh>
+                <MudTh>Monto original</MudTh>
+                <MudTh>Saldo pendiente</MudTh>
+                <MudTh>Vencimiento</MudTh>
+                <MudTh>Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="c">
+                <MudTd>@c.Nombre</MudTd>
+                <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
+                <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
+                <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd>@c.Estado</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.CxCPagos)
+    {
+        <MudTable Items="_cxcPagos" Hover="true" Dense="true" T="PagoCuentaReporteDto">
+            <HeaderContent>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Cliente</MudTh>
+                <MudTh>Monto</MudTh>
+                <MudTh>Forma de pago</MudTh>
+                <MudTh>N° comprobante</MudTh>
+                <MudTh>Registrado por</MudTh>
+                <MudTh>Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="p">
+                <MudTd>@p.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>@p.Nombre</MudTd>
+                <MudTd>RD$ @p.Monto.ToString("0.00")</MudTd>
+                <MudTd>@p.MetodoPagoNombre</MudTd>
+                <MudTd>@(p.NumeroComprobante ?? "—")</MudTd>
+                <MudTd>@p.RegistradoPorNombre</MudTd>
+                <MudTd>@(p.Anulado ? "Anulado" : "Vigente")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.CxPPagos)
+    {
+        <MudTable Items="_cxpPagos" Hover="true" Dense="true" T="PagoCuentaReporteDto">
+            <HeaderContent>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Proveedor</MudTh>
+                <MudTh>Monto</MudTh>
+                <MudTh>Forma de pago</MudTh>
+                <MudTh>N° comprobante</MudTh>
+                <MudTh>Registrado por</MudTh>
+                <MudTh>Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="p">
+                <MudTd>@p.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>@p.Nombre</MudTd>
+                <MudTd>RD$ @p.Monto.ToString("0.00")</MudTd>
+                <MudTd>@p.MetodoPagoNombre</MudTd>
+                <MudTd>@(p.NumeroComprobante ?? "—")</MudTd>
+                <MudTd>@p.RegistradoPorNombre</MudTd>
+                <MudTd>@(p.Anulado ? "Anulado" : "Vigente")</MudTd>
+            </RowTemplate>
+        </MudTable>
     }
 }
 
@@ -206,7 +249,10 @@ else
         TopProductos,
         PorMetodoPago,
         MovimientosInventario,
-        CxcCxp
+        CxCPendientes,
+        CxPPendientes,
+        CxCPagos,
+        CxPPagos
     }
 
     private TipoReporte _reporte = TipoReporte.VentasResumen;
@@ -221,6 +267,8 @@ else
     private List<MovimientoInventarioReporteDto> _movimientosInventario = [];
     private List<CuentaPendienteDto> _cxcPendientes = [];
     private List<CuentaPendienteDto> _cxpPendientes = [];
+    private List<PagoCuentaReporteDto> _cxcPagos = [];
+    private List<PagoCuentaReporteDto> _cxpPagos = [];
 
     private List<ChartSeries<double>> _serieProductos = [];
     private string[] _etiquetasProductos = [];
@@ -273,6 +321,8 @@ else
             _movimientosInventario = await ApiClient.MovimientosInventarioReporteAsync(SucursalId, rango);
             _cxcPendientes = await ApiClient.CxCPendientesAsync(SucursalId);
             _cxpPendientes = await ApiClient.CxPPendientesAsync(SucursalId);
+            _cxcPagos = await ApiClient.CxCPagosAsync(SucursalId, rango);
+            _cxpPagos = await ApiClient.CxPPagosAsync(SucursalId, rango);
         }
         catch (HttpRequestException)
         {
@@ -336,10 +386,29 @@ else
             m.FechaHora.ToLocalTime().ToString("dd/MM/yyyy HH:mm"), m.NombreProducto, m.Tipo, m.Cantidad, m.SaldoResultante, m.Nota
         }));
 
-    private string UriCxcCxp() => ConstruirCsvUri(
-        ["Tipo", "Nombre", "Monto original", "Saldo pendiente", "Vencimiento", "Estado"],
-        _cxcPendientes.Select(c => new object?[] { "Por cobrar", c.Nombre, c.MontoOriginal, c.SaldoPendiente, c.FechaVencimiento.ToString("dd/MM/yyyy"), c.Estado })
-            .Concat(_cxpPendientes.Select(c => new object?[] { "Por pagar", c.Nombre, c.MontoOriginal, c.SaldoPendiente, c.FechaVencimiento.ToString("dd/MM/yyyy"), c.Estado })));
+    private string UriCxCPendientes() => ConstruirCsvUri(
+        ["Cliente", "Monto original", "Saldo pendiente", "Vencimiento", "Estado"],
+        _cxcPendientes.Select(c => new object?[] { c.Nombre, c.MontoOriginal, c.SaldoPendiente, c.FechaVencimiento.ToString("dd/MM/yyyy"), c.Estado }));
+
+    private string UriCxPPendientes() => ConstruirCsvUri(
+        ["Proveedor", "Monto original", "Saldo pendiente", "Vencimiento", "Estado"],
+        _cxpPendientes.Select(c => new object?[] { c.Nombre, c.MontoOriginal, c.SaldoPendiente, c.FechaVencimiento.ToString("dd/MM/yyyy"), c.Estado }));
+
+    private string UriCxCPagos() => ConstruirCsvUri(
+        ["Fecha", "Cliente", "Monto", "Forma de pago", "N° comprobante", "Registrado por", "Estado"],
+        _cxcPagos.Select(p => new object?[]
+        {
+            p.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm"), p.Nombre, p.Monto, p.MetodoPagoNombre,
+            p.NumeroComprobante, p.RegistradoPorNombre, p.Anulado ? "Anulado" : "Vigente"
+        }));
+
+    private string UriCxPPagos() => ConstruirCsvUri(
+        ["Fecha", "Proveedor", "Monto", "Forma de pago", "N° comprobante", "Registrado por", "Estado"],
+        _cxpPagos.Select(p => new object?[]
+        {
+            p.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm"), p.Nombre, p.Monto, p.MetodoPagoNombre,
+            p.NumeroComprobante, p.RegistradoPorNombre, p.Anulado ? "Anulado" : "Vigente"
+        }));
 
     private string UriActual() => _reporte switch
     {
@@ -348,7 +417,10 @@ else
         TipoReporte.TopProductos => UriTopProductos(),
         TipoReporte.PorMetodoPago => UriPorMetodoPago(),
         TipoReporte.MovimientosInventario => UriMovimientosInventario(),
-        TipoReporte.CxcCxp => UriCxcCxp(),
+        TipoReporte.CxCPendientes => UriCxCPendientes(),
+        TipoReporte.CxPPendientes => UriCxPPendientes(),
+        TipoReporte.CxCPagos => UriCxCPagos(),
+        TipoReporte.CxPPagos => UriCxPPagos(),
         _ => UriVentasResumen()
     };
 
@@ -359,7 +431,10 @@ else
         TipoReporte.TopProductos => "top_productos.csv",
         TipoReporte.PorMetodoPago => "ventas_por_metodo_pago.csv",
         TipoReporte.MovimientosInventario => "movimientos_inventario.csv",
-        TipoReporte.CxcCxp => "cxc_cxp_pendientes.csv",
+        TipoReporte.CxCPendientes => "cxc_pendientes.csv",
+        TipoReporte.CxPPendientes => "cxp_pendientes.csv",
+        TipoReporte.CxCPagos => "cxc_pagos.csv",
+        TipoReporte.CxPPagos => "cxp_pagos.csv",
         _ => "reporte.csv"
     };
 }

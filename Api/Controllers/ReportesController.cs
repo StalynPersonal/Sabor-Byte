@@ -110,4 +110,22 @@ public class ReportesController(ReporteAppService reportes) : ControllerBase
 
         return Ok(await reportes.CxPPendientesAsync(sucursalId, ct));
     }
+
+    [HttpPost("cxc-pagos")]
+    public async Task<IActionResult> CxCPagos([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.CxCPagosAsync(sucursalId, request, ct));
+    }
+
+    [HttpPost("cxp-pagos")]
+    public async Task<IActionResult> CxPPagos([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.CxPPagosAsync(sucursalId, request, ct));
+    }
 }

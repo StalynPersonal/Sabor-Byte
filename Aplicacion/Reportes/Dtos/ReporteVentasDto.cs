@@ -104,6 +104,18 @@ public class CuentaPendienteDto
     public string Estado { get; set; } = string.Empty;
 }
 
+public class PagoCuentaReporteDto
+{
+    public Guid PagoId { get; set; }
+    public string Nombre { get; set; } = string.Empty; // Cliente o Proveedor
+    public DateTime FechaPago { get; set; }
+    public decimal Monto { get; set; }
+    public string MetodoPagoNombre { get; set; } = string.Empty;
+    public string? NumeroComprobante { get; set; }
+    public string RegistradoPorNombre { get; set; } = string.Empty;
+    public bool Anulado { get; set; }
+}
+
 public class DashboardResumenDto
 {
     public decimal VentasHoyTotal { get; set; }
