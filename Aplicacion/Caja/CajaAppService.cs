@@ -149,6 +149,7 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         return new TurnoAbiertoDto
         {
             TurnoCajaId = turno.Id,
+            NumeroTurno = turno.NumeroTurno,
             FechaHoraApertura = turno.FechaHoraApertura,
             MontoAperturaEfectivo = turno.MontoAperturaEfectivo,
             UsuarioAperturaNombre = nombreUsuario,
@@ -215,6 +216,7 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         return new ResumenTurnoDto
         {
             TurnoCajaId = turno.Id,
+            NumeroTurno = turno.NumeroTurno,
             Estado = turno.Estado,
             CajaNumero = caja,
             FechaHoraApertura = turno.FechaHoraApertura,
@@ -303,6 +305,7 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             return new TurnoCerradoResumenDto
             {
                 TurnoCajaId = t.Turno.Id,
+                NumeroTurno = t.Turno.NumeroTurno,
                 CajaNumero = t.CajaNumero,
                 FechaHoraApertura = t.Turno.FechaHoraApertura,
                 FechaHoraCierre = t.Turno.FechaHoraCierre,

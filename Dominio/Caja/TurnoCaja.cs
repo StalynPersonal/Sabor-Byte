@@ -9,6 +9,12 @@ public enum EstadoTurnoCaja
 public class TurnoCaja
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    // Identificador corto y legible para el cajero/administrador (ej. "Turno #142"),
+    // a diferencia del Id (GUID) que no es práctico de comunicar de palabra o por escrito.
+    // Autogenerado por la base de datos (columna IDENTITY), único en todo el sistema.
+    public int NumeroTurno { get; set; }
+
     public Guid CajaId { get; set; }
     public Caja? Caja { get; set; }
 

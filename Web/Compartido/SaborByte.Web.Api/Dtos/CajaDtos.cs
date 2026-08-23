@@ -43,6 +43,7 @@ public class AbrirTurnoResponseDto
 public class TurnoAbiertoDto
 {
     public Guid TurnoCajaId { get; set; }
+    public int NumeroTurno { get; set; }
     public DateTime FechaHoraApertura { get; set; }
     public decimal MontoAperturaEfectivo { get; set; }
     public string? UsuarioAperturaNombre { get; set; }
@@ -74,6 +75,7 @@ public class TotalPorFormaPagoDto
 public class ResumenTurnoDto
 {
     public Guid TurnoCajaId { get; set; }
+    public int NumeroTurno { get; set; }
     public int Estado { get; set; }
     public string? CajaNumero { get; set; }
     public DateTime FechaHoraApertura { get; set; }
@@ -96,6 +98,7 @@ public class DetalleDenominacionDto
 public class TurnoCerradoResumenDto
 {
     public Guid TurnoCajaId { get; set; }
+    public int NumeroTurno { get; set; }
     public string CajaNumero { get; set; } = string.Empty;
     public DateTime FechaHoraApertura { get; set; }
     public DateTime? FechaHoraCierre { get; set; }

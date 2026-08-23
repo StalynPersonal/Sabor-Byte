@@ -19,7 +19,7 @@ else if (_turnoBloqueadoOtroDia is not null)
         <MudPaper Class="pa-8" Elevation="3">
             <MudText Typo="Typo.h5" Class="mb-4">Turno sin cerrar de otro día</MudText>
             <MudAlert Severity="Severity.Warning" Class="mb-4">
-                Esta caja tiene un turno abierto desde el @_turnoBloqueadoOtroDia.FechaHoraApertura.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                Esta caja tiene el turno #@_turnoBloqueadoOtroDia.NumeroTurno abierto desde el @_turnoBloqueadoOtroDia.FechaHoraApertura.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
                 (por @(_turnoBloqueadoOtroDia.UsuarioAperturaNombre ?? "otro usuario")). No puede seguir operando en un día
                 distinto — hay que cerrarlo primero.
             </MudAlert>
@@ -64,7 +64,7 @@ else if (_cerrando)
 {
     <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
         <MudPaper Class="pa-6">
-            <MudText Typo="Typo.h5" Class="mb-4">Cierre de turno — conteo de efectivo</MudText>
+            <MudText Typo="Typo.h5" Class="mb-4">Cierre de turno #@_resumenCierre?.NumeroTurno — conteo de efectivo</MudText>
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">Esperado por forma de pago (según ventas del turno)</MudText>
             @foreach (var total in _resumenCierre?.Totales ?? [])
@@ -114,7 +114,7 @@ else
         <MudText Typo="Typo.body2"><strong>Caja:</strong> @NumeroCajaActual</MudText>
         <MudText Typo="Typo.body2">
             <strong>Turno abierto:</strong>
-            @(_turnoAbierto is null ? "—" : $"{_turnoAbierto.FechaHoraApertura.ToLocalTime():dd/MM/yyyy HH:mm} por {_turnoAbierto.UsuarioAperturaNombre ?? "?"}")
+            @(_turnoAbierto is null ? "—" : $"#{_turnoAbierto.NumeroTurno} — {_turnoAbierto.FechaHoraApertura.ToLocalTime():dd/MM/yyyy HH:mm} por {_turnoAbierto.UsuarioAperturaNombre ?? "?"}")
         </MudText>
         <MudText Typo="Typo.body2"><strong>Próximo N° de factura:</strong> @ProximoNumeroFacturaActual</MudText>
     </MudPaper>

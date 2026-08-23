@@ -278,6 +278,9 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.HasOne(x => x.Caja).WithMany().HasForeignKey(x => x.CajaId);
             // Máximo un turno Abierto por caja a la vez.
             b.HasIndex(x => x.CajaId).IsUnique().HasFilter("[Estado] = 0");
+            // Numeración corta y única (IDENTITY): la asigna SQL Server, no la aplicación.
+            b.Property(x => x.NumeroTurno).UseIdentityColumn();
+            b.HasIndex(x => x.NumeroTurno).IsUnique();
         });
 
         modelBuilder.Entity<Dominio.Caja.MovimientoCaja>(b =>
