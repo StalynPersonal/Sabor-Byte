@@ -15,9 +15,9 @@
     <MudItem xs="12" sm="6" md="3">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Ventas de hoy</MudText>
-            <MudText Typo="Typo.h5">RD$ @_dashboard.VentasHoyTotal.ToString("0.00")</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.VentasHoyTotal.ToString("N2")</MudText>
             <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                @_dashboard.VentasHoyCantidadFacturas factura(s) — ticket prom. RD$ @_dashboard.TicketPromedioHoy.ToString("0.00")
+                @_dashboard.VentasHoyCantidadFacturas factura(s) — ticket prom. RD$ @_dashboard.TicketPromedioHoy.ToString("N2")
             </MudText>
         </MudPaper>
     </MudItem>
@@ -31,25 +31,62 @@
     <MudItem xs="12" sm="6" md="3">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Por cobrar pendiente</MudText>
-            <MudText Typo="Typo.h5">RD$ @_dashboard.CxCPendienteTotal.ToString("0.00")</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.CxCPendienteTotal.ToString("N2")</MudText>
             <MudText Typo="Typo.caption" Class="mud-text-secondary">@_dashboard.CxCPendienteCantidad cuenta(s)</MudText>
         </MudPaper>
     </MudItem>
     <MudItem xs="12" sm="6" md="3">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Por pagar pendiente</MudText>
-            <MudText Typo="Typo.h5">RD$ @_dashboard.CxPPendienteTotal.ToString("0.00")</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.CxPPendienteTotal.ToString("N2")</MudText>
             <MudText Typo="Typo.caption" Class="mud-text-secondary">@_dashboard.CxPPendienteCantidad cuenta(s)</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Cobrado hoy (CxC)</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.CobradoHoyCxC.ToString("N2")</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Pagos recibidos hoy</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Pagado hoy (CxP)</MudText>
+            <MudText Typo="Typo.h5">RD$ @_dashboard.PagadoHoyCxP.ToString("N2")</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Pagos realizados hoy</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Cuentas vencidas</MudText>
+            <MudText Typo="Typo.h5" Style="@(_dashboard.CuentasVencidasCantidad > 0 ? "color:var(--mud-palette-error)" : "")">
+                RD$ @_dashboard.CuentasVencidasTotal.ToString("N2")
+            </MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@_dashboard.CuentasVencidasCantidad cuenta(s) — CxC + CxP</MudText>
         </MudPaper>
     </MudItem>
 </MudGrid>
 
-@if (_dashboard.ProductosStockBajo > 0)
+@if (_insumosStockBajo.Count > 0)
 {
-    <MudAlert Severity="Severity.Warning" Class="mb-4">
-        @_dashboard.ProductosStockBajo producto(s) con stock por debajo del mínimo.
-        <MudButton Href="inventario" Size="Size.Small" Class="ml-2">Revisar inventario</MudButton>
-    </MudAlert>
+    <MudPaper Class="pa-4 mb-4" Style="border-left: 4px solid var(--mud-palette-error)">
+        <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Error">
+            @_insumosStockBajo.Count producto(s) con stock por debajo del mínimo
+        </MudText>
+        <MudTable Items="_insumosStockBajo" Hover="true" Dense="true" T="ProductoDetalleDto">
+            <HeaderContent>
+                <MudTh>Producto</MudTh>
+                <MudTh>Stock</MudTh>
+                <MudTh>Mínimo</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="p">
+                <MudTd>@p.Nombre</MudTd>
+                <MudTd Style="color:var(--mud-palette-error); font-weight:bold">@p.StockActual.ToString("0.###")</MudTd>
+                <MudTd>@p.StockMinimo?.ToString("0.###")</MudTd>
+            </RowTemplate>
+        </MudTable>
+        <MudButton Href="inventario" Size="Size.Small" Class="mt-2">Ir a inventario</MudButton>
+    </MudPaper>
 }
 
 <MudGrid Class="mb-4">
@@ -85,7 +122,7 @@
                     <RowTemplate Context="item">
                         <MudTd>@item.NombreProducto</MudTd>
                         <MudTd>@item.CantidadVendida.ToString("0.##")</MudTd>
-                        <MudTd>RD$ @item.TotalVendido.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @item.TotalVendido.ToString("N2")</MudTd>
                     </RowTemplate>
                 </MudTable>
             }
@@ -166,7 +203,7 @@
 </MudGrid>
 
 <MudGrid Class="mt-1">
-    <MudItem xs="12" md="4">
+    <MudItem xs="12" md="6">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-2">Ventas por método de pago</MudText>
             @if (_ventasPorMetodoPagoReporte.Count == 0)
@@ -181,7 +218,7 @@
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="12" md="4">
+    <MudItem xs="12" md="6">
         <MudPaper Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-2">Ventas por categoría</MudText>
             @if (_ventasPorCategoriaReporte.Count == 0)
@@ -196,31 +233,6 @@
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="12" md="4">
-        <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h6" Class="mb-2">Productos con stock bajo</MudText>
-            @if (_insumosStockBajo.Count == 0)
-            {
-                <MudText Typo="Typo.body2">Ningún producto está por debajo de su mínimo.</MudText>
-            }
-            else
-            {
-                <MudTable Items="_insumosStockBajo" Hover="true" Dense="true" T="ProductoDetalleDto">
-                    <HeaderContent>
-                        <MudTh>Producto</MudTh>
-                        <MudTh>Stock</MudTh>
-                        <MudTh>Mínimo</MudTh>
-                    </HeaderContent>
-                    <RowTemplate Context="p">
-                        <MudTd>@p.Nombre</MudTd>
-                        <MudTd Style="color:var(--mud-palette-error); font-weight:bold">@p.StockActual.ToString("0.###")</MudTd>
-                        <MudTd>@p.StockMinimo?.ToString("0.###")</MudTd>
-                    </RowTemplate>
-                </MudTable>
-                <MudButton Href="inventario" Size="Size.Small" Class="mt-2">Ir a inventario</MudButton>
-            }
-        </MudPaper>
-    </MudItem>
 </MudGrid>
 
 @code {

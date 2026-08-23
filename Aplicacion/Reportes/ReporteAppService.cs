@@ -385,6 +385,24 @@ public class ReporteAppService(IAppDbContext db)
         var productosStockBajo = await db.StockPorSucursal
             .CountAsync(s => s.SucursalId == sucursalId && s.StockMinimo != null && s.StockActual < s.StockMinimo, ct);
 
+        var cobradoHoyCxC = await db.PagosCxC
+            .Where(p => !p.Anulado && p.FechaPago >= desde && p.FechaPago <= hasta && p.Cuenta!.SucursalId == sucursalId)
+            .SumAsync(p => (decimal?)p.Monto, ct) ?? 0m;
+
+        var pagadoHoyCxP = await db.PagosCxP
+            .Where(p => !p.Anulado && p.FechaPago >= desde && p.FechaPago <= hasta && p.Cuenta!.SucursalId == sucursalId)
+            .SumAsync(p => (decimal?)p.Monto, ct) ?? 0m;
+
+        var cxcVencidas = await db.CuentasPorCobrar
+            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada && c.FechaVencimiento < desde)
+            .Select(c => c.SaldoPendiente)
+            .ToListAsync(ct);
+
+        var cxpVencidas = await db.CuentasPorPagar
+            .Where(c => c.SucursalId == sucursalId && c.Estado != EstadoCuenta.Pagada && c.FechaVencimiento < desde)
+            .Select(c => c.SaldoPendiente)
+            .ToListAsync(ct);
+
         return new DashboardResumenDto
         {
             VentasHoyTotal = totalVendidoHoy,
@@ -396,6 +414,10 @@ public class ReporteAppService(IAppDbContext db)
             CxPPendienteCantidad = saldosCxP.Count,
             CxPPendienteTotal = saldosCxP.Sum(),
             ProductosStockBajo = productosStockBajo,
+            CobradoHoyCxC = cobradoHoyCxC,
+            PagadoHoyCxP = pagadoHoyCxP,
+            CuentasVencidasCantidad = cxcVencidas.Count + cxpVencidas.Count,
+            CuentasVencidasTotal = cxcVencidas.Sum() + cxpVencidas.Sum(),
             VentasPorHoraHoy = await VentasPorHoraAsync(sucursalId, rangoHoy, ct),
             TopProductosHoy = (await VentasPorProductoAsync(sucursalId, rangoHoy, ct)).Take(5).ToList()
         };
