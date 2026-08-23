@@ -117,8 +117,10 @@ else if (_cerrando)
             <MudText Typo="Typo.body2">Total efectivo contado: <strong>RD$ @TotalEfectivoContado.ToString("0.00")</strong></MudText>
         </DialogContent>
         <DialogActions>
-            <MudButton OnClick="() => _confirmandoCierre = false">Cancelar</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarCierreAsync">Sí, cerrar turno</MudButton>
+            <MudButton OnClick="() => _confirmandoCierre = false" Disabled="_procesandoCierre">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarCierreAsync" Disabled="_procesandoCierre">
+                Sí, cerrar turno
+            </MudButton>
         </DialogActions>
     </MudDialog>
 }
@@ -872,6 +874,7 @@ else
 
     private bool _cerrando;
     private bool _confirmandoCierre;
+    private bool _procesandoCierre;
     private ResumenTurnoDto? _resumenCierre;
     private List<int> _denominacionesEfectivo = [];
     private readonly Dictionary<int, int> _cantidadesPorDenominacion = [];
@@ -1482,39 +1485,53 @@ else
 
     private async Task ConfirmarCierreAsync()
     {
-        var denominaciones = _denominacionesEfectivo
-            .Where(d => _cantidadesPorDenominacion.GetValueOrDefault(d) > 0)
-            .Select(d => new DenominacionCierreDto { MetodoPagoId = MetodoPagoEfectivoId, Denominacion = d, Cantidad = _cantidadesPorDenominacion[d] })
-            .ToList();
-
-        foreach (var metodo in _metodosPago.Where(m => !m.EsEfectivo))
-        {
-            var monto = _montoContadoPorMetodo.GetValueOrDefault(metodo.Id);
-            if (monto > 0)
-                denominaciones.Add(new DenominacionCierreDto { MetodoPagoId = metodo.Id, Denominacion = null, Cantidad = 1 * (int)monto });
-        }
-
-        var (exito, error) = await ApiClient.CerrarTurnoAsync(new CerrarTurnoRequestDto
-        {
-            TurnoCajaId = _turnoCajaId!.Value,
-            Denominaciones = denominaciones
-        });
-
-        if (!exito)
-        {
-            _confirmandoCierre = false;
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+        // Protege contra doble-clic/doble-envío: sin esto, un segundo clic mientras el
+        // primero todavía está en vuelo llegaba con _turnoCajaId ya en null (el primero
+        // ya había cerrado el turno) y tumbaba la página.
+        if (_procesandoCierre || _turnoCajaId is null)
             return;
-        }
 
-        Snackbar.Add("Turno cerrado.", Severity.Success);
-        _turnoCajaId = null;
-        _cerrando = false;
-        _confirmandoCierre = false;
-        _resumenCierre = null;
-        foreach (var d in _denominacionesEfectivo)
-            _cantidadesPorDenominacion[d] = 0;
-        _montoContadoPorMetodo.Clear();
+        _procesandoCierre = true;
+        try
+        {
+            var denominaciones = _denominacionesEfectivo
+                .Where(d => _cantidadesPorDenominacion.GetValueOrDefault(d) > 0)
+                .Select(d => new DenominacionCierreDto { MetodoPagoId = MetodoPagoEfectivoId, Denominacion = d, Cantidad = _cantidadesPorDenominacion[d] })
+                .ToList();
+
+            foreach (var metodo in _metodosPago.Where(m => !m.EsEfectivo))
+            {
+                var monto = _montoContadoPorMetodo.GetValueOrDefault(metodo.Id);
+                if (monto > 0)
+                    denominaciones.Add(new DenominacionCierreDto { MetodoPagoId = metodo.Id, Denominacion = null, Cantidad = 1 * (int)monto });
+            }
+
+            var (exito, error) = await ApiClient.CerrarTurnoAsync(new CerrarTurnoRequestDto
+            {
+                TurnoCajaId = _turnoCajaId.Value,
+                Denominaciones = denominaciones
+            });
+
+            if (!exito)
+            {
+                _confirmandoCierre = false;
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Turno cerrado.", Severity.Success);
+            _turnoCajaId = null;
+            _cerrando = false;
+            _confirmandoCierre = false;
+            _resumenCierre = null;
+            foreach (var d in _denominacionesEfectivo)
+                _cantidadesPorDenominacion[d] = 0;
+            _montoContadoPorMetodo.Clear();
+        }
+        finally
+        {
+            _procesandoCierre = false;
+        }
     }
 
     private class LineaCarrito
