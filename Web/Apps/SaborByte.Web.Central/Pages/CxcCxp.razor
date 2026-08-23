@@ -205,7 +205,7 @@ else
     </DialogActions>
 </MudDialog>
 
-<MudDialog @bind-Visible="_viendoPagos" Options="_opcionesDialogo">
+<MudDialog @bind-Visible="_viendoPagos" Options="_opcionesDialogoGrande">
     <TitleContent>Pagos registrados</TitleContent>
     <DialogContent>
         @if (_pagosVistos.Count == 0)
@@ -336,6 +336,7 @@ else
 
 @code {
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
 
     private MudTable<CuentaPorCobrarDto>? _tablaCxC;
     private MudTable<CuentaPorPagarDto>? _tablaCxP;
