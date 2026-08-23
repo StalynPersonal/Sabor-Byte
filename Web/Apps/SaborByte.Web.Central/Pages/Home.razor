@@ -47,7 +47,7 @@
 @if (_dashboard.ProductosStockBajo > 0)
 {
     <MudAlert Severity="Severity.Warning" Class="mb-4">
-        @_dashboard.ProductosStockBajo insumo(s) con stock por debajo del mínimo.
+        @_dashboard.ProductosStockBajo producto(s) con stock por debajo del mínimo.
         <MudButton Href="inventario" Size="Size.Small" Class="ml-2">Revisar inventario</MudButton>
     </MudAlert>
 }
@@ -198,16 +198,16 @@
 
     <MudItem xs="12" md="4">
         <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h6" Class="mb-2">Insumos con stock bajo</MudText>
+            <MudText Typo="Typo.h6" Class="mb-2">Productos con stock bajo</MudText>
             @if (_insumosStockBajo.Count == 0)
             {
-                <MudText Typo="Typo.body2">Ningún insumo está por debajo de su mínimo.</MudText>
+                <MudText Typo="Typo.body2">Ningún producto está por debajo de su mínimo.</MudText>
             }
             else
             {
                 <MudTable Items="_insumosStockBajo" Hover="true" Dense="true" T="ProductoDetalleDto">
                     <HeaderContent>
-                        <MudTh>Insumo</MudTh>
+                        <MudTh>Producto</MudTh>
                         <MudTh>Stock</MudTh>
                         <MudTh>Mínimo</MudTh>
                     </HeaderContent>
@@ -335,8 +335,8 @@
             _etiquetasCategoriaReporte = _ventasPorCategoriaReporte.Select(v => v.NombreCategoria).ToArray();
             _serieCategoriaReporte = [new ChartSeries<double> { Name = "Total (RD$)", Data = _ventasPorCategoriaReporte.Select(v => (double)v.TotalVendido).ToArray() }];
 
-            var insumos = await ApiClient.ListarProductosAsync(1, 500, tipo: TipoProducto.Insumo, sucursalId: SucursalId);
-            _insumosStockBajo = insumos.Items
+            var inventariables = await ApiClient.ListarInventariablesAsync(SucursalId);
+            _insumosStockBajo = inventariables
                 .Where(p => p.StockMinimo is decimal min && p.StockActual < min)
                 .OrderBy(p => p.Nombre)
                 .ToList();

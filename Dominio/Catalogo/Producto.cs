@@ -36,6 +36,14 @@ public class Producto : EntidadBase
     public decimal TasaItbis { get; set; } = 0.18m;
 
     public TipoProducto TipoProducto { get; set; }
+
+    // Todo Insumo es inventariable por definición. Un Vendible normalmente NO lo es (su
+    // stock es indirecto, vía receta) — pero un Vendible de reventa (ej. agua embotellada,
+    // que se compra y se vende igual, sin preparación) sí puede marcarse Inventariable para
+    // llevar su propio StockSucursal, igual que un Insumo. Mutuamente excluyente con Receta:
+    // un Vendible-Inventariable no debe tener líneas de receta (ver ProductoAppService).
+    public bool Inventariable { get; set; }
+
     public Guid UnidadMedidaId { get; set; }
     public UnidadMedida? UnidadMedida { get; set; }
 

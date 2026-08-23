@@ -61,10 +61,10 @@ else
         <RowTemplate>
             <MudTd>@context.Codigo</MudTd>
             <MudTd>@context.Nombre</MudTd>
-            <MudTd>@(context.TipoProducto == TipoProducto.Insumo ? "Insumo" : "Vendible")</MudTd>
+            <MudTd>@TextoTipo(context)</MudTd>
             <MudTd>@(context.EsCombo ? "Sí" : "No")</MudTd>
             <MudTd>RD$ @((context.Precio * (1 + context.TasaItbis)).ToString("0.00"))</MudTd>
-            <MudTd>@(context.TipoProducto == TipoProducto.Insumo ? context.StockActual.ToString("0.###") : "-")</MudTd>
+            <MudTd>@(context.Inventariable ? context.StockActual.ToString("0.###") : "-")</MudTd>
             <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
             <MudTd>
                 <MudTooltip Text="Ver detalle">
@@ -75,7 +75,7 @@ else
                 </MudTooltip>
                 <MudTooltip Text="@TextoTooltipReceta(context)">
                     <MudIconButton Icon="@Icons.Material.Filled.Restaurant" Size="Size.Small"
-                                   Disabled="context.TipoProducto != TipoProducto.Vendible || context.EsCombo"
+                                   Disabled="context.TipoProducto != TipoProducto.Vendible || context.EsCombo || context.Inventariable"
                                    OnClick="() => AbrirRecetaAsync(context.Id)" />
                 </MudTooltip>
                 @if (context.Activo)
@@ -180,6 +180,24 @@ else
             <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
                 El stock y sus umbrales mínimo/máximo se configuran por sucursal desde Inventario.
             </MudAlert>
+        }
+        else
+        {
+            <MudCheckBox T="bool" @bind-Value="_form.Inventariable" Label="Inventariable (producto de reventa, sin preparación)" Class="mb-1" />
+            @if (_form.Inventariable)
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
+                    Se vende tal cual, sin receta — lleva su propio stock, igual que un insumo
+                    (ej. agua embotellada, refresco enlatado). Se configura desde Inventario.
+                </MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
+                    Se prepara combinando insumos — su stock se descuenta de la receta (ícono
+                    de cubiertos en la tabla), no lleva stock propio.
+                </MudAlert>
+            }
         }
     </DialogContent>
     <DialogActions>
@@ -298,13 +316,13 @@ else
                 <tbody>
                     <tr><td>Código</td><td>@_detalle.Codigo</td></tr>
                     <tr><td>Códigos de barra</td><td>@(_detalle.CodigosBarra.Count > 0 ? string.Join(", ", _detalle.CodigosBarra) : "—")</td></tr>
-                    <tr><td>Tipo</td><td>@(_detalle.TipoProducto == TipoProducto.Insumo ? "Insumo" : "Vendible")</td></tr>
+                    <tr><td>Tipo</td><td>@TextoTipo(_detalle)</td></tr>
                     <tr><td>Categoría</td><td>@(_categorias.FirstOrDefault(c => c.Id == _detalle.CategoriaId)?.Nombre ?? "—")</td></tr>
                     <tr><td>Precio</td><td>RD$ @_detalle.Precio.ToString("0.00")</td></tr>
                     <tr><td>Costo unitario</td><td>@(_detalle.CostoUnitario is decimal costo ? $"RD$ {costo:0.00}" : "—")</td></tr>
                     <tr><td>Tasa de ITBIS</td><td>@(_detalle.TasaItbis * 100)%</td></tr>
                     <tr><td>Unidad de medida</td><td>@(_unidadesMedida.FirstOrDefault(u => u.Id == _detalle.UnidadMedidaId)?.Nombre ?? "—")</td></tr>
-                    @if (_detalle.TipoProducto == TipoProducto.Insumo)
+                    @if (_detalle.Inventariable)
                     {
                         <tr><td>Stock actual</td><td>@_detalle.StockActual.ToString("0.###")</td></tr>
                         <tr><td>Stock mínimo</td><td>@(_detalle.StockMinimo?.ToString("0.###") ?? "—")</td></tr>
@@ -600,6 +618,7 @@ else
         CostoUnitario = producto.CostoUnitario,
         TasaItbis = producto.TasaItbis,
         TipoProducto = producto.TipoProducto,
+        Inventariable = producto.Inventariable,
         UnidadMedidaId = producto.UnidadMedidaId,
         CategoriaId = producto.CategoriaId,
         Receta = producto.Receta.Select(r => new IngredienteRequestDto
@@ -642,10 +661,18 @@ else
         await RecargarTablaAsync();
     }
 
+    private static string TextoTipo(ProductoDetalleDto p) => p.TipoProducto switch
+    {
+        TipoProducto.Insumo => "Insumo",
+        _ when p.Inventariable => "Vendible (reventa)",
+        _ => "Vendible"
+    };
+
     private static string TextoTooltipReceta(ProductoDetalleDto p) => p.TipoProducto switch
     {
         TipoProducto.Insumo => "Los insumos no tienen receta propia",
         _ when p.EsCombo => "Los combos no tienen receta propia",
+        _ when p.Inventariable => "Es de reventa (Inventariable) — no tiene receta, lleva su propio stock",
         _ => "Receta (ingredientes)"
     };
 

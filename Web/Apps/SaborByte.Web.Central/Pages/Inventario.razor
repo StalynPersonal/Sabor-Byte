@@ -14,48 +14,95 @@
 }
 else
 {
-    <div class="d-flex justify-space-between align-center mb-4">
-        <MudText Typo="Typo.h5">Inventario (insumos)</MudText>
+    <MudText Typo="Typo.h5" Class="mb-1">Inventario</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+        Solo aparece aquí lo que lleva stock propio: tus <strong>insumos</strong> (ingredientes de
+        las recetas) y los productos que vendes tal cual, sin preparación, marcados como
+        <strong>Inventariable</strong> en "Productos" (ej. agua embotellada). Los platos preparados
+        no tienen fila propia — su consumo se calcula solo de su receta.
+    </MudText>
+
+    @if (_insumosBajoMinimo > 0)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
+            @_insumosBajoMinimo producto(s) por debajo de su stock mínimo — resaltados en rojo abajo.
+        </MudAlert>
+    }
+
+    <div class="d-flex flex-wrap justify-space-between align-center mb-3 gap-2">
+        <MudTextField T="string" Label="Buscar" @bind-Value="_textoBusqueda"
+                       Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarStockAsync"
+                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="max-width:320px" />
         <div class="d-flex gap-2">
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="() => AbrirFormulario(esAjuste: true)">
-                Registrar ajuste
-            </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => AbrirFormulario(esAjuste: false)">
-                Registrar entrada
-            </MudButton>
+            <MudTooltip Text="Corregir el conteo (ej. inventario físico, merma, producto dañado) — el monto puede subir o bajar.">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="() => AbrirFormulario(esAjuste: true)">
+                    Registrar ajuste
+                </MudButton>
+            </MudTooltip>
+            <MudTooltip Text="Llegó mercancía nueva (compra a proveedor) — siempre suma al stock actual.">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => AbrirFormulario(esAjuste: false)">
+                    Registrar entrada
+                </MudButton>
+            </MudTooltip>
         </div>
     </div>
 
     <MudTable Items="_insumos" Hover="true" Dense="true">
         <HeaderContent>
-            <MudTh>Insumo</MudTh>
+            <MudTh>Producto</MudTh>
+            <MudTh>Tipo</MudTh>
             <MudTh>Stock actual</MudTh>
-            <MudTh>Stock mínimo</MudTh>
-            <MudTh>Stock máximo</MudTh>
+            <MudTh>Mínimo</MudTh>
+            <MudTh>Máximo</MudTh>
             <MudTh>Costo unitario</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.Nombre</MudTd>
+            <MudTd>@(context.TipoProducto == TipoProducto.Insumo ? "Insumo" : "Vendible (reventa)")</MudTd>
             <MudTd Style="@(EsStockBajo(context) ? "color:var(--mud-palette-error); font-weight:bold" : "")">
                 @context.StockActual.ToString("0.###") @NombreUnidadMedida(context.UnidadMedidaId)
+                @if (EsStockBajo(context))
+                {
+                    <MudTooltip Text="Por debajo del mínimo configurado">
+                        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Color="Color.Error" Class="ml-1" />
+                    </MudTooltip>
+                }
             </MudTd>
-            <MudTd>@(context.StockMinimo?.ToString("0.###") ?? "-")</MudTd>
-            <MudTd>@(context.StockMaximo?.ToString("0.###") ?? "-")</MudTd>
-            <MudTd>@(context.CostoUnitario is decimal c ? $"RD$ {c:0.00}" : "-")</MudTd>
+            <MudTd>@(context.StockMinimo?.ToString("0.###") ?? "—")</MudTd>
+            <MudTd>@(context.StockMaximo?.ToString("0.###") ?? "—")</MudTd>
+            <MudTd>@(context.CostoUnitario is decimal c ? $"RD$ {c:0.00}" : "—")</MudTd>
             <MudTd>
-                <MudTooltip Text="Configurar umbrales de esta sucursal">
+                <MudTooltip Text="Configurar mínimo/máximo de esta sucursal">
                     <MudIconButton Icon="@Icons.Material.Filled.Tune" Size="Size.Small" OnClick="() => AbrirUmbrales(context)" />
+                </MudTooltip>
+                <MudTooltip Text="Ver movimientos de este producto">
+                    <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" OnClick="() => FiltrarMovimientosPorAsync(context.Id)" />
                 </MudTooltip>
             </MudTd>
         </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2">
+                @(string.IsNullOrWhiteSpace(_textoBusqueda)
+                    ? "Todavía no tienes insumos ni productos de reventa dados de alta. Créalos desde \"Productos\"."
+                    : "Sin resultados para esa búsqueda.")
+            </MudText>
+        </NoRecordsContent>
     </MudTable>
 
-    <MudText Typo="Typo.h6" Class="mt-6 mb-2">Movimientos recientes</MudText>
+    <div class="d-flex justify-space-between align-center mt-6 mb-2">
+        <MudText Typo="Typo.h6">
+            Movimientos @(_productoFiltradoNombre is null ? "recientes" : $"de \"{_productoFiltradoNombre}\"")
+        </MudText>
+        @if (_productoFiltradoId is not null)
+        {
+            <MudButton Size="Size.Small" OnClick="LimpiarFiltroMovimientosAsync">Ver todos</MudButton>
+        }
+    </div>
     <MudTable Items="_movimientos" Hover="true" Dense="true">
         <HeaderContent>
             <MudTh>Fecha</MudTh>
-            <MudTh>Insumo</MudTh>
+            <MudTh>Producto</MudTh>
             <MudTh>Tipo</MudTh>
             <MudTh>Cantidad</MudTh>
             <MudTh>Saldo</MudTh>
@@ -64,20 +111,37 @@ else
         <RowTemplate>
             <MudTd>@context.FechaHora.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
             <MudTd>@context.NombreProducto</MudTd>
-            <MudTd>@context.Tipo</MudTd>
+            <MudTd>@TextoTipoMovimiento(context.Tipo)</MudTd>
             <MudTd Style="@(context.Cantidad < 0 ? "color:var(--mud-palette-error)" : "color:var(--mud-palette-success)")">
                 @(context.Cantidad > 0 ? "+" : "")@context.Cantidad.ToString("0.###")
             </MudTd>
             <MudTd>@context.SaldoResultante.ToString("0.###")</MudTd>
             <MudTd>@context.Nota</MudTd>
         </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2">Sin movimientos todavía.</MudText>
+        </NoRecordsContent>
     </MudTable>
 }
 
 <MudDialog @bind-Visible="_mostrarFormulario" Options="_opcionesDialogo">
     <TitleContent>@(_esAjuste ? "Registrar ajuste de inventario" : "Registrar entrada de inventario")</TitleContent>
     <DialogContent>
-        <MudSelect T="Guid" Label="Insumo" @bind-Value="_productoIdSeleccionado" Class="mb-2">
+        @if (_esAjuste)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                Usa esto para corregir el stock a lo que realmente contaste físicamente — el
+                sistema calcula la diferencia solo.
+            </MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                Usa esto cuando llega mercancía nueva de un proveedor — siempre suma.
+            </MudAlert>
+        }
+
+        <MudSelect T="Guid" Label="Producto" @bind-Value="_productoIdSeleccionado" Class="mb-2">
             @foreach (var insumo in _insumos)
             {
                 <MudSelectItem Value="@insumo.Id">@insumo.Nombre (stock: @insumo.StockActual.ToString("0.###"))</MudSelectItem>
@@ -105,6 +169,10 @@ else
 <MudDialog @bind-Visible="_editandoUmbrales" Options="_opcionesDialogo">
     <TitleContent>Umbrales de stock — @_insumoUmbrales?.Nombre</TitleContent>
     <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Si el stock actual baja del mínimo, el producto aparece resaltado aquí y en el
+            aviso del panel de Inicio.
+        </MudText>
         <MudNumericField T="decimal?" Label="Stock mínimo (alerta)" @bind-Value="_umbralMinimo" Class="mb-2" />
         <MudNumericField T="decimal?" Label="Stock máximo" @bind-Value="_umbralMaximo" Class="mb-2" />
     </DialogContent>
@@ -117,9 +185,15 @@ else
 @code {
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
 
+    private string _textoBusqueda = string.Empty;
     private List<ProductoDetalleDto> _insumos = [];
     private List<MovimientoInventarioDto> _movimientos = [];
     private List<UnidadMedidaDto> _unidadesMedida = [];
+
+    private Guid? _productoFiltradoId;
+    private string? _productoFiltradoNombre;
+
+    private int _insumosBajoMinimo => _insumos.Count(EsStockBajo);
 
     private bool _mostrarFormulario;
     private bool _esAjuste;
@@ -143,22 +217,51 @@ else
             return;
         }
 
-        await CargarAsync();
+        _unidadesMedida = await ApiClient.ListarUnidadesMedidaAsync(incluirInactivos: true);
+        await CargarStockAsync();
+        await CargarMovimientosAsync();
     }
 
-    private async Task CargarAsync()
+    private async Task CargarStockAsync()
     {
         var sucursalId = Sesion.SucursalActivaId;
-        var productos = await ApiClient.ListarProductosAsync(1, 500, tipo: TipoProducto.Insumo, sucursalId: sucursalId);
-        _insumos = productos.Items.OrderBy(p => p.Nombre).ToList();
-        _movimientos = await ApiClient.ListarMovimientosInventarioAsync(sucursalId);
-        _unidadesMedida = await ApiClient.ListarUnidadesMedidaAsync(incluirInactivos: true);
+        var productos = await ApiClient.ListarInventariablesAsync(sucursalId, _textoBusqueda);
+        _insumos = productos.OrderBy(p => p.Nombre).ToList();
+    }
+
+    private async Task CargarMovimientosAsync()
+    {
+        var sucursalId = Sesion.SucursalActivaId;
+        _movimientos = await ApiClient.ListarMovimientosInventarioAsync(sucursalId, _productoFiltradoId);
+    }
+
+    private async Task FiltrarMovimientosPorAsync(Guid productoId)
+    {
+        _productoFiltradoId = productoId;
+        _productoFiltradoNombre = _insumos.FirstOrDefault(p => p.Id == productoId)?.Nombre;
+        await CargarMovimientosAsync();
+    }
+
+    private async Task LimpiarFiltroMovimientosAsync()
+    {
+        _productoFiltradoId = null;
+        _productoFiltradoNombre = null;
+        await CargarMovimientosAsync();
     }
 
     private string NombreUnidadMedida(Guid unidadMedidaId) =>
         _unidadesMedida.FirstOrDefault(u => u.Id == unidadMedidaId)?.Nombre ?? "?";
 
     private static bool EsStockBajo(ProductoDetalleDto p) => p.StockMinimo is decimal min && p.StockActual < min;
+
+    private static string TextoTipoMovimiento(TipoMovimientoInventario tipo) => tipo switch
+    {
+        TipoMovimientoInventario.Entrada => "Entrada",
+        TipoMovimientoInventario.Ajuste => "Ajuste",
+        TipoMovimientoInventario.ConsumoVenta => "Venta",
+        TipoMovimientoInventario.ReversoCancelacion => "Reverso (cancelación)",
+        _ => tipo.ToString()
+    };
 
     private void AbrirFormulario(bool esAjuste)
     {
@@ -199,7 +302,8 @@ else
 
         Snackbar.Add(_esAjuste ? "Ajuste registrado." : "Entrada registrada.", Severity.Success);
         _mostrarFormulario = false;
-        await CargarAsync();
+        await CargarStockAsync();
+        await CargarMovimientosAsync();
     }
 
     private void AbrirUmbrales(ProductoDetalleDto insumo)
@@ -227,6 +331,6 @@ else
 
         Snackbar.Add("Umbrales actualizados.", Severity.Success);
         _editandoUmbrales = false;
-        await CargarAsync();
+        await CargarStockAsync();
     }
 }

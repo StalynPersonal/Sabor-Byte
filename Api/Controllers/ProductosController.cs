@@ -33,6 +33,17 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
             texto, tipo, incluirInactivos, sucursalId, ct));
     }
 
+    // Todo lo que lleva stock propio (Insumos y Vendibles-Inventariables) para la
+    // pantalla "Inventario" de Central — ver ProductoAppService.ListarInventariablesAsync.
+    [HttpGet("inventariables")]
+    public async Task<IActionResult> ListarInventariables([FromQuery] Guid sucursalId, [FromQuery] string? texto, CancellationToken ct)
+    {
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await productos.ListarInventariablesAsync(sucursalId, texto, ct));
+    }
+
     [HttpGet("{productoId:guid}")]
     public async Task<IActionResult> Obtener(Guid productoId, [FromQuery] Guid? sucursalId, CancellationToken ct)
     {

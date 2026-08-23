@@ -95,6 +95,27 @@ public class ProductoAppService(IAppDbContext db)
         };
     }
 
+    // Todo lo que lleva stock propio en una sucursal: Insumos y Vendibles-Inventariables
+    // (ej. agua embotellada) — usado por la pantalla "Inventario" de Central, que ya no
+    // distingue por TipoProducto sino por esta bandera.
+    public async Task<List<ProductoDetalleDto>> ListarInventariablesAsync(Guid sucursalId, string? texto, CancellationToken ct = default)
+    {
+        var query = db.Productos.Where(p => p.Activo && p.Inventariable);
+
+        if (!string.IsNullOrWhiteSpace(texto))
+            query = query.Where(p => EF.Functions.Like(p.Nombre, $"%{texto}%"));
+
+        var items = await query
+            .OrderBy(p => p.Nombre)
+            .Select(p => MapearDetalle(p))
+            .ToListAsync(ct);
+
+        if (items.Count > 0)
+            await AdjuntarStockAsync(items, sucursalId, ct);
+
+        return items;
+    }
+
     // sucursalId es opcional: si se pasa, el detalle trae el stock de esa sucursal
     // (solo aplica cuando el producto es Insumo).
     public async Task<ProductoDetalleDto> ObtenerAsync(Guid productoId, Guid? sucursalId, CancellationToken ct = default)
@@ -143,6 +164,11 @@ public class ProductoAppService(IAppDbContext db)
         await ValidarUnidadMedidaAsync(request.UnidadMedidaId, ct);
         ValidarReceta(request.Receta);
 
+        // Todo Insumo es inventariable por definición; para un Vendible lo decide el
+        // formulario (ver comentario en Producto.Inventariable).
+        var inventariable = request.TipoProducto == TipoProducto.Insumo || request.Inventariable;
+        ValidarInventariableVsReceta(request.TipoProducto, inventariable, request.Receta);
+
         var producto = new Producto
         {
             Nombre = request.Nombre,
@@ -154,13 +180,14 @@ public class ProductoAppService(IAppDbContext db)
             CategoriaId = request.CategoriaId,
             TasaItbis = request.TasaItbis,
             TipoProducto = request.TipoProducto,
+            Inventariable = inventariable,
             UnidadMedidaId = request.UnidadMedidaId,
             CreadoPorUsuarioId = usuarioId
         };
 
         AsignarCodigosBarra(producto, request.CodigosBarra);
 
-        if (producto.TipoProducto == TipoProducto.Vendible)
+        if (producto.TipoProducto == TipoProducto.Vendible && !inventariable)
         {
             foreach (var ingrediente in request.Receta)
             {
@@ -177,9 +204,10 @@ public class ProductoAppService(IAppDbContext db)
 
         db.Productos.Add(producto);
 
-        // Insumo nuevo: arranca en 0 en TODAS las sucursales existentes — cada una
-        // configura su propio mínimo/máximo/entrada inicial después, desde Inventario.
-        if (producto.TipoProducto == TipoProducto.Insumo)
+        // Producto inventariable nuevo (Insumo, o Vendible de reventa): arranca en 0 en
+        // TODAS las sucursales existentes — cada una configura su propio mínimo/máximo/
+        // entrada inicial después, desde Inventario.
+        if (inventariable)
         {
             var sucursalIds = await db.Sucursales.Select(s => s.Id).ToListAsync(ct);
             db.StockPorSucursal.AddRange(sucursalIds.Select(sid => new StockSucursal
@@ -209,6 +237,11 @@ public class ProductoAppService(IAppDbContext db)
         await ValidarUnidadMedidaAsync(request.UnidadMedidaId, ct);
         ValidarReceta(request.Receta);
 
+        var inventariable = producto.TipoProducto == TipoProducto.Insumo || request.Inventariable;
+        ValidarInventariableVsReceta(producto.TipoProducto, inventariable, request.Receta);
+
+        var pasaAInventariable = inventariable && !producto.Inventariable;
+
         producto.Nombre = request.Nombre;
         producto.Descripcion = request.Descripcion;
         producto.ImagenUrl = request.ImagenUrl;
@@ -217,11 +250,29 @@ public class ProductoAppService(IAppDbContext db)
         producto.CostoUnitario = request.CostoUnitario ?? 0m;
         producto.CategoriaId = request.CategoriaId;
         producto.TasaItbis = request.TasaItbis;
+        producto.Inventariable = inventariable;
         producto.UnidadMedidaId = request.UnidadMedidaId;
         producto.ActualizadoEn = DateTime.UtcNow;
         producto.ActualizadoPorUsuarioId = usuarioId;
         // TipoProducto no se permite cambiar tras crearlo (evita inconsistencias con
         // movimientos de inventario / recetas ya existentes).
+
+        // Si un Vendible pasa de no-inventariable a inventariable después de creado, hay
+        // que crearle su renglón de stock en cada sucursal (mismo caso que un Insumo nuevo
+        // en CrearAsync) — si no, la primera venta lo encontraría sin StockSucursal.
+        if (pasaAInventariable)
+        {
+            var sucursalIds = await db.Sucursales.Select(s => s.Id).ToListAsync(ct);
+            var existentes = await db.StockPorSucursal
+                .Where(s => s.ProductoId == producto.Id)
+                .Select(s => s.SucursalId)
+                .ToListAsync(ct);
+            db.StockPorSucursal.AddRange(sucursalIds.Except(existentes).Select(sid => new StockSucursal
+            {
+                ProductoId = producto.Id,
+                SucursalId = sid
+            }));
+        }
 
         // Reemplazo completo de códigos de barra: se agregan directo al DbSet (no a
         // producto.CodigosBarra) porque RemoveRange + Clear + Add sobre la misma colección
@@ -239,6 +290,9 @@ public class ProductoAppService(IAppDbContext db)
         {
             db.ProductoIngredientes.RemoveRange(producto.Receta);
             producto.Receta.Clear();
+
+            // Inventariable y receta son mutuamente excluyentes (ver ValidarInventariableVsReceta):
+            // si es inventariable, request.Receta ya llega vacío; no hace falta un "if" aparte.
             foreach (var ingrediente in request.Receta)
             {
                 db.ProductoIngredientes.Add(new ProductoIngrediente
@@ -393,6 +447,16 @@ public class ProductoAppService(IAppDbContext db)
             throw new InvalidOperationException("La cantidad usada de cada ingrediente de la receta debe ser mayor a cero.");
     }
 
+    // Un producto Inventariable (Insumo, o Vendible de reventa como una botella de agua)
+    // lleva su propio stock — no tiene sentido que ADEMÁS tenga una receta que descuente
+    // otros insumos: sería ambiguo cuál de las dos formas de descuento aplica al vender.
+    private static void ValidarInventariableVsReceta(TipoProducto tipo, bool inventariable, List<IngredienteRequestDto> receta)
+    {
+        if (tipo == TipoProducto.Vendible && inventariable && receta.Count > 0)
+            throw new InvalidOperationException(
+                "Un producto Vendible marcado como Inventariable no puede tener receta — son mutuamente excluyentes: o se prepara (receta) o se revende tal cual (stock propio).");
+    }
+
     private async Task ValidarCategoriaAsync(Guid categoriaId, CancellationToken ct)
     {
         var existe = await db.Categorias.AnyAsync(c => c.Id == categoriaId, ct);
@@ -423,17 +487,17 @@ public class ProductoAppService(IAppDbContext db)
     // StockSucursal para la sucursal indicada (0/null si todavía no existe el renglón).
     private async Task AdjuntarStockAsync(List<ProductoDetalleDto> productos, Guid sucursalId, CancellationToken ct)
     {
-        var insumoIds = productos.Where(p => p.TipoProducto == TipoProducto.Insumo).Select(p => p.Id).ToList();
-        if (insumoIds.Count == 0)
+        var inventariableIds = productos.Where(p => p.Inventariable).Select(p => p.Id).ToList();
+        if (inventariableIds.Count == 0)
             return;
 
         var stocks = await db.StockPorSucursal
-            .Where(s => s.SucursalId == sucursalId && insumoIds.Contains(s.ProductoId))
+            .Where(s => s.SucursalId == sucursalId && inventariableIds.Contains(s.ProductoId))
             .ToDictionaryAsync(s => s.ProductoId, s => s, ct);
 
         foreach (var dto in productos)
         {
-            if (dto.TipoProducto != TipoProducto.Insumo)
+            if (!dto.Inventariable)
                 continue;
 
             if (stocks.TryGetValue(dto.Id, out var stock))
@@ -459,6 +523,7 @@ public class ProductoAppService(IAppDbContext db)
         Activo = p.Activo,
         TasaItbis = p.TasaItbis,
         TipoProducto = p.TipoProducto,
+        Inventariable = p.Inventariable,
         UnidadMedidaId = p.UnidadMedidaId,
         EsCombo = p.EsCombo,
         CreadoEn = p.CreadoEn,

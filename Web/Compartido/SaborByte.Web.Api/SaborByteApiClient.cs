@@ -262,6 +262,16 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
             ?? new ResultadoPaginadoDto<ProductoDetalleDto>();
     }
 
+    public async Task<List<ProductoDetalleDto>> ListarInventariablesAsync(Guid sucursalId, string? texto = null)
+    {
+        AdjuntarToken();
+        var url = $"api/productos/inventariables?sucursalId={sucursalId}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&texto={Uri.EscapeDataString(texto)}";
+
+        return await http.GetFromJsonAsync<List<ProductoDetalleDto>>(url) ?? [];
+    }
+
     public async Task<List<MovimientoInventarioDto>> ListarMovimientosInventarioAsync(Guid sucursalId, Guid? productoId = null)
     {
         AdjuntarToken();

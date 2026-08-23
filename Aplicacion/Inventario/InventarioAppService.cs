@@ -121,8 +121,10 @@ public class InventarioAppService(IAppDbContext db)
         var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == productoId, ct)
             ?? throw new InvalidOperationException("El producto no existe.");
 
-        if (producto.TipoProducto != TipoProducto.Insumo)
-            throw new InvalidOperationException("Solo se puede registrar inventario para productos de tipo Insumo.");
+        // Insumo, o Vendible de reventa marcado Inventariable (ej. agua embotellada) —
+        // ambos llevan stock propio (ver Producto.Inventariable).
+        if (!producto.Inventariable)
+            throw new InvalidOperationException("Este producto no es inventariable — no lleva stock propio.");
 
         return producto;
     }
@@ -206,6 +208,11 @@ public class InventarioAppService(IAppDbContext db)
             }
             return resultado;
         }
+
+        // Vendible de reventa (ej. agua embotellada): no tiene receta, se descuenta a sí
+        // mismo directo, igual que un Insumo (ver Producto.Inventariable).
+        if (producto is { Inventariable: true })
+            return [(producto.Id, cantidadVendida)];
 
         var receta = await db.ProductoIngredientes
             .Where(pi => pi.ProductoId == productoId && !ingredientesExcluidosIds.Contains(pi.InsumoId))

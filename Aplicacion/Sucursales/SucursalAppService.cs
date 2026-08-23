@@ -54,11 +54,12 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria)
         var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioCreadorId, ct);
         usuario?.SucursalesAsignadas.Add(new UsuarioSucursal { UsuarioId = usuarioCreadorId, SucursalId = sucursal.Id });
 
-        // Sucursal nueva: arranca en 0 el stock de cada insumo ya existente en el catálogo
-        // (que es de toda la empresa) — cada sucursal configura su propio mínimo/máximo
-        // y entrada inicial después, desde Inventario.
+        // Sucursal nueva: arranca en 0 el stock de todo lo inventariable ya existente en el
+        // catálogo (Insumos y Vendibles de reventa, ej. agua embotellada — ver
+        // Producto.Inventariable), que es de toda la empresa — cada sucursal configura su
+        // propio mínimo/máximo y entrada inicial después, desde Inventario.
         var insumoIds = await db.Productos
-            .Where(p => p.TipoProducto == Dominio.Catalogo.TipoProducto.Insumo)
+            .Where(p => p.Inventariable)
             .Select(p => p.Id)
             .ToListAsync(ct);
         db.StockPorSucursal.AddRange(insumoIds.Select(pid => new Dominio.Catalogo.StockSucursal

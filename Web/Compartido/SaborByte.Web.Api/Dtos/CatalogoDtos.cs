@@ -20,6 +20,7 @@ public class ProductoDetalleDto
     public bool Activo { get; set; }
     public decimal TasaItbis { get; set; }
     public TipoProducto TipoProducto { get; set; }
+    public bool Inventariable { get; set; }
     public Guid UnidadMedidaId { get; set; }
     public decimal? StockMinimo { get; set; }
     public decimal? StockMaximo { get; set; }
@@ -62,6 +63,7 @@ public class GuardarProductoRequestDto
     public Guid CategoriaId { get; set; }
     public decimal TasaItbis { get; set; } = 0.18m;
     public TipoProducto TipoProducto { get; set; }
+    public bool Inventariable { get; set; }
     public Guid UnidadMedidaId { get; set; }
     public List<IngredienteRequestDto> Receta { get; set; } = [];
 }
