@@ -100,13 +100,27 @@ else if (_cerrando)
             }
 
             <div class="d-flex gap-2 mt-4">
-                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarCierreAsync">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="() => _confirmandoCierre = true">
                     Confirmar cierre
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" OnClick="() => _cerrando = false">Cancelar</MudButton>
             </div>
         </MudPaper>
     </MudContainer>
+
+    <MudDialog @bind-Visible="_confirmandoCierre" Options="_opcionesDialogo">
+        <TitleContent>¿Cerrar el turno #@_resumenCierre?.NumeroTurno?</TitleContent>
+        <DialogContent>
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                Esta acción no se puede deshacer. Verifica el conteo de efectivo antes de continuar.
+            </MudAlert>
+            <MudText Typo="Typo.body2">Total efectivo contado: <strong>RD$ @TotalEfectivoContado.ToString("0.00")</strong></MudText>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _confirmandoCierre = false">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarCierreAsync">Sí, cerrar turno</MudButton>
+        </DialogActions>
+    </MudDialog>
 }
 else
 {
@@ -857,6 +871,7 @@ else
     private List<LineaCarrito> _lineasUltimaVenta = [];
 
     private bool _cerrando;
+    private bool _confirmandoCierre;
     private ResumenTurnoDto? _resumenCierre;
     private List<int> _denominacionesEfectivo = [];
     private readonly Dictionary<int, int> _cantidadesPorDenominacion = [];
@@ -1487,6 +1502,7 @@ else
 
         if (!exito)
         {
+            _confirmandoCierre = false;
             Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
             return;
         }
@@ -1494,6 +1510,7 @@ else
         Snackbar.Add("Turno cerrado.", Severity.Success);
         _turnoCajaId = null;
         _cerrando = false;
+        _confirmandoCierre = false;
         _resumenCierre = null;
         foreach (var d in _denominacionesEfectivo)
             _cantidadesPorDenominacion[d] = 0;
