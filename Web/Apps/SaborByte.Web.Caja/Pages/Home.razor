@@ -1514,7 +1514,6 @@ else
 
             if (!exito)
             {
-                _confirmandoCierre = false;
                 Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
                 return;
             }
@@ -1522,15 +1521,22 @@ else
             Snackbar.Add("Turno cerrado.", Severity.Success);
             _turnoCajaId = null;
             _cerrando = false;
-            _confirmandoCierre = false;
             _resumenCierre = null;
             foreach (var d in _denominacionesEfectivo)
                 _cantidadesPorDenominacion[d] = 0;
             _montoContadoPorMetodo.Clear();
         }
+        catch (Exception ex)
+        {
+            // Cualquier excepción no prevista (red, sesión vencida, etc.) no debe tumbar la
+            // pantalla completa de Blazor WASM (eso congela toda la app hasta refrescar) —
+            // se atrapa acá, se avisa y se deja el diálogo cerrable normalmente.
+            Snackbar.Add($"No se pudo cerrar el turno: {ex.Message}", Severity.Error);
+        }
         finally
         {
             _procesandoCierre = false;
+            _confirmandoCierre = false;
         }
     }
 
