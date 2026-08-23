@@ -114,14 +114,19 @@ else
         </MudTabPanel>
 
         <MudTabPanel Text="Proveedores">
-            <div class="d-flex justify-space-between align-center mt-2 mb-2">
-                <MudCheckBox T="bool" Value="_incluirProveedoresInactivos" ValueChanged="v => OnIncluirProveedoresInactivosAsync(v)" Label="Mostrar inactivos" />
+            <div class="d-flex flex-wrap justify-space-between align-center mt-2 mb-2 gap-2">
+                <div class="d-flex align-center gap-4">
+                    <MudTextField T="string" Label="Buscar por nombre o RNC" @bind-Value="_textoProveedores"
+                                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarProveedoresAsync"
+                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="min-width:280px" />
+                    <MudCheckBox T="bool" Value="_incluirProveedoresInactivos" ValueChanged="v => OnIncluirProveedoresInactivosAsync(v)" Label="Mostrar inactivos" />
+                </div>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirNuevoProveedor">
                     Nuevo proveedor
                 </MudButton>
             </div>
 
-            <MudTable Items="_proveedoresGestion" Hover="true" Dense="true">
+            <MudTable @ref="_tablaProveedores" ServerData="CargarPaginaProveedoresAsync" Hover="true" Dense="true" T="ProveedorDto">
                 <HeaderContent>
                     <MudTh>Nombre</MudTh>
                     <MudTh>RNC</MudTh>
@@ -152,6 +157,9 @@ else
                         }
                     </MudTd>
                 </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new[] { 10, 20, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+                </PagerContent>
             </MudTable>
         </MudTabPanel>
     </MudTabs>
@@ -337,8 +345,9 @@ else
     private string _textoCxP = string.Empty;
 
     private List<ProveedorDto> _proveedoresActivos = [];
-    private List<ProveedorDto> _proveedoresGestion = [];
+    private MudTable<ProveedorDto>? _tablaProveedores;
     private bool _incluirProveedoresInactivos;
+    private string _textoProveedores = string.Empty;
     private List<MetodoPagoDto> _metodosPago = [];
 
     private bool _creandoCxC;
@@ -389,10 +398,15 @@ else
     private async Task CargarProveedoresAsync()
     {
         _proveedoresActivos = await ApiClient.ListarProveedoresAsync(SucursalId);
-        _proveedoresGestion = _incluirProveedoresInactivos
-            ? await ApiClient.ListarProveedoresAsync(SucursalId, incluirInactivos: true)
-            : _proveedoresActivos;
     }
+
+    private async Task<TableData<ProveedorDto>> CargarPaginaProveedoresAsync(TableState estado, CancellationToken ct)
+    {
+        var resultado = await ApiClient.ListarProveedoresPaginadoAsync(SucursalId, estado.Page + 1, estado.PageSize, _incluirProveedoresInactivos, _textoProveedores);
+        return new TableData<ProveedorDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private Task RecargarProveedoresAsync() => _tablaProveedores?.ReloadServerData() ?? Task.CompletedTask;
 
     private async Task<TableData<CuentaPorCobrarDto>> CargarPaginaCxCAsync(TableState estado, CancellationToken ct)
     {
@@ -424,7 +438,7 @@ else
     private async Task OnIncluirProveedoresInactivosAsync(bool valor)
     {
         _incluirProveedoresInactivos = valor;
-        await CargarProveedoresAsync();
+        await RecargarProveedoresAsync();
     }
 
     private static string TextoEstado(EstadoCuenta estado) => estado switch
@@ -608,6 +622,7 @@ else
         Snackbar.Add(_proveedorId is null ? "Proveedor creado." : "Proveedor actualizado.", Severity.Success);
         _editandoProveedor = false;
         await CargarProveedoresAsync();
+        await RecargarProveedoresAsync();
     }
 
     private async Task AlternarActivoProveedorAsync(ProveedorDto proveedor)
@@ -629,6 +644,7 @@ else
 
         Snackbar.Add(request.Activo ? "Proveedor activado." : "Proveedor desactivado.", Severity.Success);
         await CargarProveedoresAsync();
+        await RecargarProveedoresAsync();
     }
 
     private void AbrirNuevaCxP()

@@ -116,6 +116,7 @@ if (app.Environment.IsDevelopment())
     await SeedData.SeedCatalogoDemoAsync(db);
     await SeedData.SeedConfiguracionCajaAsync(db);
     await SeedData.SeedCxcCxpDemoAsync(db);
+    await SeedData.RepararHistorialPagosCxcCxpAsync(db);
 }
 
 app.UseHttpsRedirection();

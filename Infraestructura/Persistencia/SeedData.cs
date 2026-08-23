@@ -254,15 +254,14 @@ public static class SeedData
         }).ToList();
         db.Clientes.AddRange(clientes);
 
-        await db.SaveChangesAsync();
-
+        var efectivo = await db.MetodosPago.FirstAsync(m => m.EsEfectivo);
         var random = new Random(2026);
 
         for (var i = 0; i < 15; i++)
         {
             var monto = 800m + random.Next(0, 40) * 100m;
             var yaPagado = i % 3 == 0 ? monto : i % 3 == 1 ? monto / 2m : 0m;
-            db.CuentasPorCobrar.Add(new CuentaPorCobrar
+            var cuenta = new CuentaPorCobrar
             {
                 SucursalId = sucursal.Id,
                 ClienteId = clientes[i].Id,
@@ -272,14 +271,18 @@ public static class SeedData
                 FechaVencimiento = DateTime.Today.AddDays(random.Next(-20, 40)),
                 Estado = yaPagado == 0 ? EstadoCuenta.Pendiente : yaPagado == monto ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial,
                 CreadoPorUsuarioId = admin.Id
-            });
+            };
+            db.CuentasPorCobrar.Add(cuenta);
+
+            if (yaPagado > 0)
+                db.PagosCxC.Add(new PagoCxC { Cuenta = cuenta, Monto = yaPagado, MetodoPagoId = efectivo.Id, CreadoPorUsuarioId = admin.Id });
         }
 
         for (var i = 0; i < 15; i++)
         {
             var monto = 1500m + random.Next(0, 60) * 100m;
             var yaPagado = i % 3 == 0 ? monto : i % 3 == 1 ? monto / 2m : 0m;
-            db.CuentasPorPagar.Add(new CuentaPorPagar
+            var cuenta = new CuentaPorPagar
             {
                 SucursalId = sucursal.Id,
                 ProveedorId = proveedores[i].Id,
@@ -289,10 +292,60 @@ public static class SeedData
                 FechaVencimiento = DateTime.Today.AddDays(random.Next(-20, 40)),
                 Estado = yaPagado == 0 ? EstadoCuenta.Pendiente : yaPagado == monto ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial,
                 CreadoPorUsuarioId = admin.Id
-            });
+            };
+            db.CuentasPorPagar.Add(cuenta);
+
+            if (yaPagado > 0)
+                db.PagosCxP.Add(new PagoCxP { Cuenta = cuenta, Monto = yaPagado, MetodoPagoId = efectivo.Id, CreadoPorUsuarioId = admin.Id });
         }
 
         await db.SaveChangesAsync();
+    }
+
+    // Repara cuentas CxC/CxP cuyo saldo ya refleja pagos pero no tienen ningún PagoCxC/PagoCxP
+    // que lo explique (el bug: la pantalla decía "Pagada" pero el historial salía vacío).
+    // Idempotente: una vez creado el pago que cierra la diferencia, deja de aplicar.
+    public static async Task RepararHistorialPagosCxcCxpAsync(SaborByteDbContext db)
+    {
+        var admin = await db.Usuarios.FirstOrDefaultAsync(u => u.NombreUsuario == "admin");
+        var efectivo = await db.MetodosPago.FirstOrDefaultAsync(m => m.EsEfectivo);
+        if (admin is null || efectivo is null)
+            return;
+
+        var cxcSinHistorial = await db.CuentasPorCobrar
+            .Where(c => c.SaldoPendiente < c.MontoOriginal && !db.PagosCxC.Any(p => p.CuentaPorCobrarId == c.Id))
+            .ToListAsync();
+
+        foreach (var c in cxcSinHistorial)
+        {
+            db.PagosCxC.Add(new PagoCxC
+            {
+                CuentaPorCobrarId = c.Id,
+                Monto = c.MontoOriginal - c.SaldoPendiente,
+                MetodoPagoId = efectivo.Id,
+                CreadoPorUsuarioId = c.CreadoPorUsuarioId == Guid.Empty ? admin.Id : c.CreadoPorUsuarioId,
+                FechaPago = c.CreadoEn
+            });
+        }
+
+        var cxpSinHistorial = await db.CuentasPorPagar
+            .Where(c => c.SaldoPendiente < c.MontoOriginal && !db.PagosCxP.Any(p => p.CuentaPorPagarId == c.Id))
+            .ToListAsync();
+
+        foreach (var c in cxpSinHistorial)
+        {
+            db.PagosCxP.Add(new PagoCxP
+            {
+                CuentaPorPagarId = c.Id,
+                Monto = c.MontoOriginal - c.SaldoPendiente,
+                MetodoPagoId = efectivo.Id,
+                CreadoPorUsuarioId = c.CreadoPorUsuarioId == Guid.Empty ? admin.Id : c.CreadoPorUsuarioId,
+                FechaPago = c.CreadoEn
+            });
+        }
+
+        if (cxcSinHistorial.Count > 0 || cxpSinHistorial.Count > 0)
+            await db.SaveChangesAsync();
     }
 
     private static async Task<UnidadMedida> ObtenerOCrearUnidadAsync(SaborByteDbContext db, string nombre)

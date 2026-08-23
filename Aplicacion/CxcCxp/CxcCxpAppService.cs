@@ -17,6 +17,31 @@ public class CxcCxpAppService(IAppDbContext db, IAuditoriaService auditoria)
             .Select(p => new ProveedorDto { Id = p.Id, NombreORazonSocial = p.NombreORazonSocial, Rnc = p.Rnc, Telefono = p.Telefono, Activo = p.Activo })
             .ToListAsync(ct);
 
+    public async Task<ResultadoPaginado<ProveedorDto>> ListarProveedoresPaginadoAsync(
+        Guid sucursalId, int pagina, int tamanoPagina, bool incluirInactivos = false, string? texto = null, CancellationToken ct = default)
+    {
+        pagina = pagina < 1 ? 1 : pagina;
+        tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
+
+        var query = db.Proveedores.Where(p => p.SucursalId == sucursalId && (incluirInactivos || p.Activo));
+
+        if (!string.IsNullOrWhiteSpace(texto))
+            query = query.Where(p =>
+                EF.Functions.Like(p.NombreORazonSocial, $"%{texto}%") ||
+                (p.Rnc != null && EF.Functions.Like(p.Rnc, $"%{texto}%")));
+
+        var total = await query.CountAsync(ct);
+
+        var items = await query
+            .OrderBy(p => p.NombreORazonSocial)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .Select(p => new ProveedorDto { Id = p.Id, NombreORazonSocial = p.NombreORazonSocial, Rnc = p.Rnc, Telefono = p.Telefono, Activo = p.Activo })
+            .ToListAsync(ct);
+
+        return new ResultadoPaginado<ProveedorDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
     public async Task<Guid> CrearProveedorAsync(Guid sucursalId, Guid usuarioId, GuardarProveedorRequestDto request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.NombreORazonSocial))

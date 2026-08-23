@@ -18,6 +18,14 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
         return Ok(await cxcCxp.ListarProveedoresAsync(sucursalId, incluirInactivos, ct));
     }
 
+    [HttpGet("proveedores/paginado")]
+    public async Task<IActionResult> ListarProveedoresPaginado(
+        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirInactivos, [FromQuery] string? texto, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+        return Ok(await cxcCxp.ListarProveedoresPaginadoAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, incluirInactivos, texto, ct));
+    }
+
     [HttpPost("proveedores")]
     public async Task<IActionResult> CrearProveedor([FromQuery] Guid sucursalId, GuardarProveedorRequestDto request, CancellationToken ct)
     {

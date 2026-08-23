@@ -588,6 +588,15 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
             $"api/cxccxp/proveedores?sucursalId={sucursalId}&incluirInactivos={incluirInactivos}") ?? [];
     }
 
+    public async Task<ResultadoPaginadoDto<ProveedorDto>> ListarProveedoresPaginadoAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirInactivos = false, string? texto = null)
+    {
+        AdjuntarToken();
+        var url = $"api/cxccxp/proveedores/paginado?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&incluirInactivos={incluirInactivos}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<ProveedorDto>>(url) ?? new();
+    }
+
     public async Task<(bool Exito, string? Error)> CrearProveedorAsync(Guid sucursalId, GuardarProveedorRequestDto request)
     {
         AdjuntarToken();
