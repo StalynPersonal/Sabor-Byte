@@ -213,19 +213,57 @@ else
                     <MudTh>Forma de pago</MudTh>
                     <MudTh>N° comprobante</MudTh>
                     <MudTh>Registrado por</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                    <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
-                    <MudTd>@context.MetodoPagoNombre</MudTd>
-                    <MudTd>@(context.NumeroComprobante ?? "—")</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.Monto.ToString("0.00")</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.MetodoPagoNombre</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@(context.NumeroComprobante ?? "—")</MudTd>
                     <MudTd>@context.RegistradoPorNombre</MudTd>
+                    <MudTd>
+                        @if (context.Anulado)
+                        {
+                            <MudTooltip Text="@($"Anulado por {context.AnuladoPorNombre} — {context.MotivoAnulacion}")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error">Anulado</MudChip>
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Vigente</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (!context.Anulado && PuedeAnularPagos)
+                        {
+                            <MudTooltip Text="Anular pago">
+                                <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Error" OnClick="() => AbrirAnularPago(context)" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
                 </RowTemplate>
             </MudTable>
         }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _viendoPagos = false">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_anulandoPago" Options="_opcionesDialogo">
+    <TitleContent>Anular pago — RD$ @(_pagoAAnular?.Monto.ToString("0.00"))</TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+            El pago no se borra: queda marcado como anulado (con este motivo, quién y cuándo)
+            y su monto vuelve al saldo pendiente de la cuenta.
+        </MudAlert>
+        <MudTextField T="string" Label="Motivo de la anulación" @bind-Value="_motivoAnulacion" Lines="2"
+                       Required="true" RequiredError="El motivo es obligatorio." Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _anulandoPago = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarAnulacionPagoAsync">Anular pago</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -325,6 +363,14 @@ else
 
     private bool _viendoPagos;
     private List<PagoCuentaDto> _pagosVistos = [];
+    private Guid _cuentaPagosVistaId;
+    private bool _viendoPagosEsCxC;
+
+    private bool _anulandoPago;
+    private PagoCuentaDto? _pagoAAnular;
+    private string _motivoAnulacion = string.Empty;
+
+    private bool PuedeAnularPagos => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
 
     private Guid SucursalId => Sesion.SucursalActivaId;
 
@@ -392,14 +438,59 @@ else
 
     private async Task VerPagosCxCAsync(CuentaPorCobrarDto cuenta)
     {
+        _cuentaPagosVistaId = cuenta.Id;
+        _viendoPagosEsCxC = true;
         _pagosVistos = await ApiClient.ListarPagosPorCobrarAsync(SucursalId, cuenta.Id);
         _viendoPagos = true;
     }
 
     private async Task VerPagosCxPAsync(CuentaPorPagarDto cuenta)
     {
+        _cuentaPagosVistaId = cuenta.Id;
+        _viendoPagosEsCxC = false;
         _pagosVistos = await ApiClient.ListarPagosPorPagarAsync(SucursalId, cuenta.Id);
         _viendoPagos = true;
+    }
+
+    private void AbrirAnularPago(PagoCuentaDto pago)
+    {
+        _pagoAAnular = pago;
+        _motivoAnulacion = string.Empty;
+        _anulandoPago = true;
+    }
+
+    private async Task ConfirmarAnulacionPagoAsync()
+    {
+        if (_pagoAAnular is null) return;
+
+        if (string.IsNullOrWhiteSpace(_motivoAnulacion))
+        {
+            Snackbar.Add("El motivo de la anulación es obligatorio.", Severity.Error);
+            return;
+        }
+
+        var request = new AnularPagoRequestDto { Motivo = _motivoAnulacion };
+        var (exito, error) = _viendoPagosEsCxC
+            ? await ApiClient.AnularPagoPorCobrarAsync(SucursalId, _cuentaPagosVistaId, _pagoAAnular.Id, request)
+            : await ApiClient.AnularPagoPorPagarAsync(SucursalId, _cuentaPagosVistaId, _pagoAAnular.Id, request);
+
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Pago anulado.", Severity.Success);
+        _anulandoPago = false;
+
+        _pagosVistos = _viendoPagosEsCxC
+            ? await ApiClient.ListarPagosPorCobrarAsync(SucursalId, _cuentaPagosVistaId)
+            : await ApiClient.ListarPagosPorPagarAsync(SucursalId, _cuentaPagosVistaId);
+
+        if (_viendoPagosEsCxC)
+            await RecargarCxCAsync();
+        else
+            await RecargarCxPAsync();
     }
 
     private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct) =>

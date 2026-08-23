@@ -34,4 +34,11 @@ public class PagoCxP
     // Solo aplica cuando MetodoPago.RequiereComprobante (ej. Transferencia, Depósito):
     // número de referencia/autorización del pago.
     public string? NumeroComprobante { get; set; }
+
+    // Anulación: no se borra el pago (queda para auditoría), se marca y se revierte el
+    // saldo de la cuenta. Solo Admin/Supervisor puede anular — ver CxcCxpController.
+    public bool Anulado { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
+    public Guid? AnuladoPorUsuarioId { get; set; }
+    public string? MotivoAnulacion { get; set; }
 }

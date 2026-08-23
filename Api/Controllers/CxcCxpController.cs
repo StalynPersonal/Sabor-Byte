@@ -105,6 +105,23 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
         }
     }
 
+    [HttpPost("porcobrar/{cuentaId:guid}/pagos/{pagoId:guid}/anular")]
+    [Authorize(Roles = "Admin,Supervisor")]
+    public async Task<IActionResult> AnularPagoPorCobrar([FromQuery] Guid sucursalId, Guid cuentaId, Guid pagoId, AnularPagoRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+
+        try
+        {
+            await cxcCxp.AnularPagoCxCAsync(sucursalId, cuentaId, pagoId, User.ObtenerUsuarioId(), request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
     [HttpGet("porpagar")]
     public async Task<IActionResult> ListarPorPagar(
         [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirPagadas, [FromQuery] string? texto, CancellationToken ct)
@@ -152,6 +169,23 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
         try
         {
             await cxcCxp.RegistrarPagoCxPAsync(sucursalId, cuentaId, User.ObtenerUsuarioId(), request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
+    [HttpPost("porpagar/{cuentaId:guid}/pagos/{pagoId:guid}/anular")]
+    [Authorize(Roles = "Admin,Supervisor")]
+    public async Task<IActionResult> AnularPagoPorPagar([FromQuery] Guid sucursalId, Guid cuentaId, Guid pagoId, AnularPagoRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+
+        try
+        {
+            await cxcCxp.AnularPagoCxPAsync(sucursalId, cuentaId, pagoId, User.ObtenerUsuarioId(), request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)

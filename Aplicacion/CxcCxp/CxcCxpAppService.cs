@@ -6,7 +6,7 @@ using SaborByte.Dominio.CxcCxp;
 
 namespace SaborByte.Aplicacion.CxcCxp;
 
-public class CxcCxpAppService(IAppDbContext db)
+public class CxcCxpAppService(IAppDbContext db, IAuditoriaService auditoria)
 {
     // --- Proveedores ---
 
@@ -129,6 +129,8 @@ public class CxcCxpAppService(IAppDbContext db)
                 from p in db.PagosCxC
                 join m in db.MetodosPago on p.MetodoPagoId equals m.Id
                 join u in db.Usuarios on p.CreadoPorUsuarioId equals u.Id
+                join ua in db.Usuarios on p.AnuladoPorUsuarioId equals ua.Id into anuladores
+                from ua in anuladores.DefaultIfEmpty()
                 where p.CuentaPorCobrarId == cuentaId
                 orderby p.FechaPago descending
                 select new PagoCuentaDto
@@ -138,7 +140,11 @@ public class CxcCxpAppService(IAppDbContext db)
                     Monto = p.Monto,
                     MetodoPagoNombre = m.Nombre,
                     NumeroComprobante = p.NumeroComprobante,
-                    RegistradoPorNombre = u.Nombre
+                    RegistradoPorNombre = u.Nombre,
+                    Anulado = p.Anulado,
+                    FechaAnulacion = p.FechaAnulacion,
+                    AnuladoPorNombre = ua != null ? ua.Nombre : null,
+                    MotivoAnulacion = p.MotivoAnulacion
                 }
             )
             .ToListAsync(ct);
@@ -171,6 +177,34 @@ public class CxcCxpAppService(IAppDbContext db)
         cuenta.Estado = cuenta.SaldoPendiente == 0 ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial;
 
         await db.SaveChangesAsync(ct);
+    }
+
+    // No se borra el pago: se marca Anulado (con motivo y quién/cuándo) y se devuelve el
+    // monto al saldo pendiente de la cuenta, preservando el historial para auditoría.
+    public async Task AnularPagoCxCAsync(Guid sucursalId, Guid cuentaId, Guid pagoId, Guid usuarioId, AnularPagoRequestDto request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Motivo))
+            throw new InvalidOperationException("El motivo de la anulación es obligatorio.");
+
+        var cuenta = await db.CuentasPorCobrar.FirstOrDefaultAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct)
+            ?? throw new InvalidOperationException("La cuenta por cobrar no existe.");
+
+        var pago = await db.PagosCxC.FirstOrDefaultAsync(p => p.Id == pagoId && p.CuentaPorCobrarId == cuentaId, ct)
+            ?? throw new InvalidOperationException("El pago no existe.");
+
+        if (pago.Anulado)
+            throw new InvalidOperationException("Este pago ya fue anulado.");
+
+        pago.Anulado = true;
+        pago.FechaAnulacion = DateTime.UtcNow;
+        pago.AnuladoPorUsuarioId = usuarioId;
+        pago.MotivoAnulacion = request.Motivo;
+
+        cuenta.SaldoPendiente += pago.Monto;
+        cuenta.Estado = cuenta.SaldoPendiente == cuenta.MontoOriginal ? EstadoCuenta.Pendiente : EstadoCuenta.PagadaParcial;
+
+        await db.SaveChangesAsync(ct);
+        await auditoria.RegistrarAsync(sucursalId, usuarioId, "AnulacionPago", "PagoCxC", pago.Id, request.Motivo, ct);
     }
 
     // --- Cuentas por Pagar ---
@@ -252,6 +286,8 @@ public class CxcCxpAppService(IAppDbContext db)
                 from p in db.PagosCxP
                 join m in db.MetodosPago on p.MetodoPagoId equals m.Id
                 join u in db.Usuarios on p.CreadoPorUsuarioId equals u.Id
+                join ua in db.Usuarios on p.AnuladoPorUsuarioId equals ua.Id into anuladores
+                from ua in anuladores.DefaultIfEmpty()
                 where p.CuentaPorPagarId == cuentaId
                 orderby p.FechaPago descending
                 select new PagoCuentaDto
@@ -261,7 +297,11 @@ public class CxcCxpAppService(IAppDbContext db)
                     Monto = p.Monto,
                     MetodoPagoNombre = m.Nombre,
                     NumeroComprobante = p.NumeroComprobante,
-                    RegistradoPorNombre = u.Nombre
+                    RegistradoPorNombre = u.Nombre,
+                    Anulado = p.Anulado,
+                    FechaAnulacion = p.FechaAnulacion,
+                    AnuladoPorNombre = ua != null ? ua.Nombre : null,
+                    MotivoAnulacion = p.MotivoAnulacion
                 }
             )
             .ToListAsync(ct);
@@ -294,5 +334,33 @@ public class CxcCxpAppService(IAppDbContext db)
         cuenta.Estado = cuenta.SaldoPendiente == 0 ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial;
 
         await db.SaveChangesAsync(ct);
+    }
+
+    // No se borra el pago: se marca Anulado (con motivo y quién/cuándo) y se devuelve el
+    // monto al saldo pendiente de la cuenta, preservando el historial para auditoría.
+    public async Task AnularPagoCxPAsync(Guid sucursalId, Guid cuentaId, Guid pagoId, Guid usuarioId, AnularPagoRequestDto request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Motivo))
+            throw new InvalidOperationException("El motivo de la anulación es obligatorio.");
+
+        var cuenta = await db.CuentasPorPagar.FirstOrDefaultAsync(c => c.Id == cuentaId && c.SucursalId == sucursalId, ct)
+            ?? throw new InvalidOperationException("La cuenta por pagar no existe.");
+
+        var pago = await db.PagosCxP.FirstOrDefaultAsync(p => p.Id == pagoId && p.CuentaPorPagarId == cuentaId, ct)
+            ?? throw new InvalidOperationException("El pago no existe.");
+
+        if (pago.Anulado)
+            throw new InvalidOperationException("Este pago ya fue anulado.");
+
+        pago.Anulado = true;
+        pago.FechaAnulacion = DateTime.UtcNow;
+        pago.AnuladoPorUsuarioId = usuarioId;
+        pago.MotivoAnulacion = request.Motivo;
+
+        cuenta.SaldoPendiente += pago.Monto;
+        cuenta.Estado = cuenta.SaldoPendiente == cuenta.MontoOriginal ? EstadoCuenta.Pendiente : EstadoCuenta.PagadaParcial;
+
+        await db.SaveChangesAsync(ct);
+        await auditoria.RegistrarAsync(sucursalId, usuarioId, "AnulacionPago", "PagoCxP", pago.Id, request.Motivo, ct);
     }
 }

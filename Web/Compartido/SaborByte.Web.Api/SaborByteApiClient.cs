@@ -651,6 +651,13 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<(bool Exito, string? Error)> AnularPagoPorCobrarAsync(Guid sucursalId, Guid cuentaId, Guid pagoId, AnularPagoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cxccxp/porcobrar/{cuentaId}/pagos/{pagoId}/anular?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<ResultadoPaginadoDto<CuentaPorPagarDto>> ListarPorPagarAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, string? texto = null)
     {
         AdjuntarToken();
@@ -677,6 +684,13 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
     {
         AdjuntarToken();
         var respuesta = await http.PostAsJsonAsync($"api/cxccxp/porpagar/{cuentaId}/pagos?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> AnularPagoPorPagarAsync(Guid sucursalId, Guid cuentaId, Guid pagoId, AnularPagoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cxccxp/porpagar/{cuentaId}/pagos/{pagoId}/anular?sucursalId={sucursalId}", request);
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 

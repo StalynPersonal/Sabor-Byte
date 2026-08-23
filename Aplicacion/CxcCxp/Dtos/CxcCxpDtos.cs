@@ -37,6 +37,15 @@ public class PagoCuentaDto
     public string MetodoPagoNombre { get; set; } = string.Empty;
     public string? NumeroComprobante { get; set; }
     public string RegistradoPorNombre { get; set; } = string.Empty;
+    public bool Anulado { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
+    public string? AnuladoPorNombre { get; set; }
+    public string? MotivoAnulacion { get; set; }
+}
+
+public class AnularPagoRequestDto
+{
+    public required string Motivo { get; set; }
 }
 
 public class CrearCuentaPorPagarRequestDto
