@@ -54,7 +54,7 @@ public class CxcCxpAppService(IAppDbContext db)
 
     // --- Cuentas por Cobrar ---
 
-    public async Task<Guid> CrearCuentaPorCobrarAsync(Guid sucursalId, CrearCuentaPorCobrarRequestDto request, CancellationToken ct = default)
+    public async Task<Guid> CrearCuentaPorCobrarAsync(Guid sucursalId, Guid usuarioId, CrearCuentaPorCobrarRequestDto request, CancellationToken ct = default)
     {
         var cuenta = new CuentaPorCobrar
         {
@@ -63,7 +63,8 @@ public class CxcCxpAppService(IAppDbContext db)
             FacturaId = request.FacturaId,
             MontoOriginal = request.MontoOriginal,
             SaldoPendiente = request.MontoOriginal,
-            FechaVencimiento = request.FechaVencimiento
+            FechaVencimiento = request.FechaVencimiento,
+            CreadoPorUsuarioId = usuarioId
         };
 
         db.CuentasPorCobrar.Add(cuenta);
@@ -72,7 +73,7 @@ public class CxcCxpAppService(IAppDbContext db)
     }
 
     public async Task<ResultadoPaginado<CuentaPorCobrarDto>> ListarPorCobrarAsync(
-        Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, CancellationToken ct = default)
+        Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, string? texto = null, CancellationToken ct = default)
     {
         pagina = pagina < 1 ? 1 : pagina;
         tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
@@ -81,11 +82,24 @@ public class CxcCxpAppService(IAppDbContext db)
         if (!incluirPagadas)
             query = query.Where(c => c.Estado != EstadoCuenta.Pagada);
 
-        var total = await query.CountAsync(ct);
+        var consulta =
+            from c in query
+            join cl in db.Clientes on c.ClienteId equals cl.Id
+            join u in db.Usuarios on c.CreadoPorUsuarioId equals u.Id into usuarios
+            from u in usuarios.DefaultIfEmpty()
+            select new { Cuenta = c, Cliente = cl, Usuario = u };
+
+        if (!string.IsNullOrWhiteSpace(texto))
+            consulta = consulta.Where(x =>
+                EF.Functions.Like(x.Cliente.NombreORazonSocial, $"%{texto}%") ||
+                (x.Cliente.RncOCedula != null && EF.Functions.Like(x.Cliente.RncOCedula, $"%{texto}%")));
+
+        var total = await consulta.CountAsync(ct);
 
         var items = await (
-                from c in query
-                join cl in db.Clientes on c.ClienteId equals cl.Id
+                from x in consulta
+                let c = x.Cuenta
+                let cl = x.Cliente
                 orderby c.FechaVencimiento
                 select new CuentaPorCobrarDto
                 {
@@ -95,7 +109,8 @@ public class CxcCxpAppService(IAppDbContext db)
                     MontoOriginal = c.MontoOriginal,
                     SaldoPendiente = c.SaldoPendiente,
                     FechaVencimiento = c.FechaVencimiento,
-                    Estado = c.Estado
+                    Estado = c.Estado,
+                    RegistradaPorNombre = x.Usuario != null ? x.Usuario.Nombre : "—"
                 })
             .Skip((pagina - 1) * tamanoPagina)
             .Take(tamanoPagina)
@@ -113,9 +128,18 @@ public class CxcCxpAppService(IAppDbContext db)
         return await (
                 from p in db.PagosCxC
                 join m in db.MetodosPago on p.MetodoPagoId equals m.Id
+                join u in db.Usuarios on p.CreadoPorUsuarioId equals u.Id
                 where p.CuentaPorCobrarId == cuentaId
                 orderby p.FechaPago descending
-                select new PagoCuentaDto { Id = p.Id, FechaPago = p.FechaPago, Monto = p.Monto, MetodoPagoNombre = m.Nombre }
+                select new PagoCuentaDto
+                {
+                    Id = p.Id,
+                    FechaPago = p.FechaPago,
+                    Monto = p.Monto,
+                    MetodoPagoNombre = m.Nombre,
+                    NumeroComprobante = p.NumeroComprobante,
+                    RegistradoPorNombre = u.Nombre
+                }
             )
             .ToListAsync(ct);
     }
@@ -128,7 +152,20 @@ public class CxcCxpAppService(IAppDbContext db)
         if (request.Monto <= 0 || request.Monto > cuenta.SaldoPendiente)
             throw new InvalidOperationException("El monto del pago no es válido para el saldo pendiente.");
 
-        db.PagosCxC.Add(new PagoCxC { CuentaPorCobrarId = cuenta.Id, Monto = request.Monto, MetodoPagoId = request.MetodoPagoId, CreadoPorUsuarioId = usuarioId });
+        var metodoPago = await db.MetodosPago.FirstOrDefaultAsync(m => m.Id == request.MetodoPagoId, ct)
+            ?? throw new InvalidOperationException("El método de pago no existe.");
+
+        if (metodoPago.RequiereComprobante && string.IsNullOrWhiteSpace(request.NumeroComprobante))
+            throw new InvalidOperationException($"El método de pago \"{metodoPago.Nombre}\" requiere número de comprobante.");
+
+        db.PagosCxC.Add(new PagoCxC
+        {
+            CuentaPorCobrarId = cuenta.Id,
+            Monto = request.Monto,
+            MetodoPagoId = request.MetodoPagoId,
+            CreadoPorUsuarioId = usuarioId,
+            NumeroComprobante = metodoPago.RequiereComprobante ? request.NumeroComprobante : null
+        });
 
         cuenta.SaldoPendiente -= request.Monto;
         cuenta.Estado = cuenta.SaldoPendiente == 0 ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial;
@@ -138,7 +175,7 @@ public class CxcCxpAppService(IAppDbContext db)
 
     // --- Cuentas por Pagar ---
 
-    public async Task<Guid> CrearCuentaPorPagarAsync(Guid sucursalId, CrearCuentaPorPagarRequestDto request, CancellationToken ct = default)
+    public async Task<Guid> CrearCuentaPorPagarAsync(Guid sucursalId, Guid usuarioId, CrearCuentaPorPagarRequestDto request, CancellationToken ct = default)
     {
         var cuenta = new CuentaPorPagar
         {
@@ -147,7 +184,8 @@ public class CxcCxpAppService(IAppDbContext db)
             DocumentoReferencia = request.DocumentoReferencia,
             MontoOriginal = request.MontoOriginal,
             SaldoPendiente = request.MontoOriginal,
-            FechaVencimiento = request.FechaVencimiento
+            FechaVencimiento = request.FechaVencimiento,
+            CreadoPorUsuarioId = usuarioId
         };
 
         db.CuentasPorPagar.Add(cuenta);
@@ -156,7 +194,7 @@ public class CxcCxpAppService(IAppDbContext db)
     }
 
     public async Task<ResultadoPaginado<CuentaPorPagarDto>> ListarPorPagarAsync(
-        Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, CancellationToken ct = default)
+        Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, string? texto = null, CancellationToken ct = default)
     {
         pagina = pagina < 1 ? 1 : pagina;
         tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
@@ -165,11 +203,25 @@ public class CxcCxpAppService(IAppDbContext db)
         if (!incluirPagadas)
             query = query.Where(c => c.Estado != EstadoCuenta.Pagada);
 
-        var total = await query.CountAsync(ct);
+        var consulta =
+            from c in query
+            join pr in db.Proveedores on c.ProveedorId equals pr.Id
+            join u in db.Usuarios on c.CreadoPorUsuarioId equals u.Id into usuarios
+            from u in usuarios.DefaultIfEmpty()
+            select new { Cuenta = c, Proveedor = pr, Usuario = u };
+
+        if (!string.IsNullOrWhiteSpace(texto))
+            consulta = consulta.Where(x =>
+                EF.Functions.Like(x.Proveedor.NombreORazonSocial, $"%{texto}%") ||
+                EF.Functions.Like(x.Cuenta.DocumentoReferencia, $"%{texto}%") ||
+                (x.Proveedor.Rnc != null && EF.Functions.Like(x.Proveedor.Rnc, $"%{texto}%")));
+
+        var total = await consulta.CountAsync(ct);
 
         var items = await (
-                from c in query
-                join pr in db.Proveedores on c.ProveedorId equals pr.Id
+                from x in consulta
+                let c = x.Cuenta
+                let pr = x.Proveedor
                 orderby c.FechaVencimiento
                 select new CuentaPorPagarDto
                 {
@@ -180,7 +232,8 @@ public class CxcCxpAppService(IAppDbContext db)
                     MontoOriginal = c.MontoOriginal,
                     SaldoPendiente = c.SaldoPendiente,
                     FechaVencimiento = c.FechaVencimiento,
-                    Estado = c.Estado
+                    Estado = c.Estado,
+                    RegistradaPorNombre = x.Usuario != null ? x.Usuario.Nombre : "—"
                 })
             .Skip((pagina - 1) * tamanoPagina)
             .Take(tamanoPagina)
@@ -198,9 +251,18 @@ public class CxcCxpAppService(IAppDbContext db)
         return await (
                 from p in db.PagosCxP
                 join m in db.MetodosPago on p.MetodoPagoId equals m.Id
+                join u in db.Usuarios on p.CreadoPorUsuarioId equals u.Id
                 where p.CuentaPorPagarId == cuentaId
                 orderby p.FechaPago descending
-                select new PagoCuentaDto { Id = p.Id, FechaPago = p.FechaPago, Monto = p.Monto, MetodoPagoNombre = m.Nombre }
+                select new PagoCuentaDto
+                {
+                    Id = p.Id,
+                    FechaPago = p.FechaPago,
+                    Monto = p.Monto,
+                    MetodoPagoNombre = m.Nombre,
+                    NumeroComprobante = p.NumeroComprobante,
+                    RegistradoPorNombre = u.Nombre
+                }
             )
             .ToListAsync(ct);
     }
@@ -213,7 +275,20 @@ public class CxcCxpAppService(IAppDbContext db)
         if (request.Monto <= 0 || request.Monto > cuenta.SaldoPendiente)
             throw new InvalidOperationException("El monto del pago no es válido para el saldo pendiente.");
 
-        db.PagosCxP.Add(new PagoCxP { CuentaPorPagarId = cuenta.Id, Monto = request.Monto, MetodoPagoId = request.MetodoPagoId, CreadoPorUsuarioId = usuarioId });
+        var metodoPago = await db.MetodosPago.FirstOrDefaultAsync(m => m.Id == request.MetodoPagoId, ct)
+            ?? throw new InvalidOperationException("El método de pago no existe.");
+
+        if (metodoPago.RequiereComprobante && string.IsNullOrWhiteSpace(request.NumeroComprobante))
+            throw new InvalidOperationException($"El método de pago \"{metodoPago.Nombre}\" requiere número de comprobante.");
+
+        db.PagosCxP.Add(new PagoCxP
+        {
+            CuentaPorPagarId = cuenta.Id,
+            Monto = request.Monto,
+            MetodoPagoId = request.MetodoPagoId,
+            CreadoPorUsuarioId = usuarioId,
+            NumeroComprobante = metodoPago.RequiereComprobante ? request.NumeroComprobante : null
+        });
 
         cuenta.SaldoPendiente -= request.Monto;
         cuenta.Estado = cuenta.SaldoPendiente == 0 ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial;

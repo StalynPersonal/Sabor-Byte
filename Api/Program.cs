@@ -115,6 +115,7 @@ if (app.Environment.IsDevelopment())
     await SeedData.EjecutarAsync(db, passwordHasher);
     await SeedData.SeedCatalogoDemoAsync(db);
     await SeedData.SeedConfiguracionCajaAsync(db);
+    await SeedData.SeedCxcCxpDemoAsync(db);
 }
 
 app.UseHttpsRedirection();

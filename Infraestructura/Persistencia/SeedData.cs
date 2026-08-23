@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.Clientes;
+using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Sucursales;
 
@@ -198,6 +200,96 @@ public static class SeedData
             db.DenominacionesEfectivo.AddRange(
                 new int[] { 2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1 }
                     .Select(v => new DenominacionEfectivo { Valor = v }));
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    // 15 proveedores + 15 clientes + 15 CxC + 15 CxP de demo, para poder probar la pantalla
+    // CxC/CxP con volumen (búsqueda, paginación) sin depender de que el usuario los cree a mano.
+    public static async Task SeedCxcCxpDemoAsync(SaborByteDbContext db)
+    {
+        if (await db.Proveedores.AnyAsync(p => p.NombreORazonSocial == "Distribuidora La Económica SRL"))
+            return;
+
+        var sucursal = await db.Sucursales.FirstAsync();
+        var admin = await db.Usuarios.FirstAsync(u => u.NombreUsuario == "admin");
+
+        string[] proveedoresNombres =
+        [
+            "Distribuidora La Económica SRL", "Suplidora Caribeña EIRL", "Carnes y Embutidos del Cibao SRL",
+            "Frutas y Vegetales Quisqueya SRL", "Bebidas del Este SA", "Panadería y Repostería Dominicana SRL",
+            "Mariscos del Atlántico SRL", "Distribuidora de Licores Antillana SRL", "Suministros de Cocina Industrial SRL",
+            "Empaques y Desechables RD SRL", "Lácteos Cibao SRL", "Distribuidora Avícola del Sur SRL",
+            "Gas y Combustibles Duarte SRL", "Servicios de Limpieza ProClean SRL", "Ferretería y Mantenimiento Central SRL"
+        ];
+
+        var proveedores = proveedoresNombres.Select((nombre, i) => new Proveedor
+        {
+            SucursalId = sucursal.Id,
+            NombreORazonSocial = nombre,
+            Rnc = $"1{30000000 + i * 7}",
+            Telefono = $"809-{555 + i:000}-{1000 + i}",
+            CreadoPorUsuarioId = admin.Id
+        }).ToList();
+        db.Proveedores.AddRange(proveedores);
+
+        string[] clientesNombres =
+        [
+            "Hotel Playa Dorada SRL", "Colegio San Rafael", "Constructora Vega Real SRL",
+            "Farmacia Popular Este SRL", "Supermercado La Cosecha SRL", "Autos y Repuestos del Norte SRL",
+            "Clínica Santa Fe SRL", "Ferretería El Constructor SRL", "Gimnasio PowerFit SRL",
+            "Distribuidora de Textiles Caribe SRL", "Salón de Eventos Villa Real SRL", "Óptica Visión Clara SRL",
+            "Agropecuaria Los Almácigos SRL", "Taller Mecánico Rápido SRL", "Papelería Escolar Unidos SRL"
+        ];
+
+        var clientes = clientesNombres.Select((nombre, i) => new Cliente
+        {
+            SucursalId = sucursal.Id,
+            NombreORazonSocial = nombre,
+            RncOCedula = $"1{31000000 + i * 11}",
+            Telefono = $"809-{600 + i:000}-{2000 + i}",
+            TipoCliente = TipoCliente.Fiscal,
+            CreadoPorUsuarioId = admin.Id
+        }).ToList();
+        db.Clientes.AddRange(clientes);
+
+        await db.SaveChangesAsync();
+
+        var random = new Random(2026);
+
+        for (var i = 0; i < 15; i++)
+        {
+            var monto = 800m + random.Next(0, 40) * 100m;
+            var yaPagado = i % 3 == 0 ? monto : i % 3 == 1 ? monto / 2m : 0m;
+            db.CuentasPorCobrar.Add(new CuentaPorCobrar
+            {
+                SucursalId = sucursal.Id,
+                ClienteId = clientes[i].Id,
+                FacturaId = Guid.NewGuid(),
+                MontoOriginal = monto,
+                SaldoPendiente = monto - yaPagado,
+                FechaVencimiento = DateTime.Today.AddDays(random.Next(-20, 40)),
+                Estado = yaPagado == 0 ? EstadoCuenta.Pendiente : yaPagado == monto ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial,
+                CreadoPorUsuarioId = admin.Id
+            });
+        }
+
+        for (var i = 0; i < 15; i++)
+        {
+            var monto = 1500m + random.Next(0, 60) * 100m;
+            var yaPagado = i % 3 == 0 ? monto : i % 3 == 1 ? monto / 2m : 0m;
+            db.CuentasPorPagar.Add(new CuentaPorPagar
+            {
+                SucursalId = sucursal.Id,
+                ProveedorId = proveedores[i].Id,
+                DocumentoReferencia = $"FACT-{2000 + i}",
+                MontoOriginal = monto,
+                SaldoPendiente = monto - yaPagado,
+                FechaVencimiento = DateTime.Today.AddDays(random.Next(-20, 40)),
+                Estado = yaPagado == 0 ? EstadoCuenta.Pendiente : yaPagado == monto ? EstadoCuenta.Pagada : EstadoCuenta.PagadaParcial,
+                CreadoPorUsuarioId = admin.Id
+            });
         }
 
         await db.SaveChangesAsync();

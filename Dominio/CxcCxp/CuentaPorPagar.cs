@@ -14,6 +14,7 @@ public class CuentaPorPagar
     public DateTime FechaVencimiento { get; set; }
     public EstadoCuenta Estado { get; set; } = EstadoCuenta.Pendiente;
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
+    public Guid CreadoPorUsuarioId { get; set; }
 
     public ICollection<PagoCxP> Pagos { get; set; } = [];
 }
@@ -29,4 +30,8 @@ public class PagoCxP
     public Guid CreadoPorUsuarioId { get; set; }
     public Guid MetodoPagoId { get; set; }
     public MetodoPago? MetodoPago { get; set; }
+
+    // Solo aplica cuando MetodoPago.RequiereComprobante (ej. Transferencia, Depósito):
+    // número de referencia/autorización del pago.
+    public string? NumeroComprobante { get; set; }
 }

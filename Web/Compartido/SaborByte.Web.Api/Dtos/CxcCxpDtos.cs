@@ -42,6 +42,7 @@ public class CuentaPorCobrarDto
     public decimal SaldoPendiente { get; set; }
     public DateTime FechaVencimiento { get; set; }
     public EstadoCuenta Estado { get; set; }
+    public string RegistradaPorNombre { get; set; } = string.Empty;
 }
 
 public class CrearCuentaPorPagarRequestDto
@@ -62,12 +63,14 @@ public class CuentaPorPagarDto
     public decimal SaldoPendiente { get; set; }
     public DateTime FechaVencimiento { get; set; }
     public EstadoCuenta Estado { get; set; }
+    public string RegistradaPorNombre { get; set; } = string.Empty;
 }
 
 public class RegistrarPagoRequestDto
 {
     public decimal Monto { get; set; }
     public Guid MetodoPagoId { get; set; }
+    public string? NumeroComprobante { get; set; }
 }
 
 public class PagoCuentaDto
@@ -76,4 +79,6 @@ public class PagoCuentaDto
     public DateTime FechaPago { get; set; }
     public decimal Monto { get; set; }
     public string MetodoPagoNombre { get; set; } = string.Empty;
+    public string? NumeroComprobante { get; set; }
+    public string RegistradoPorNombre { get; set; } = string.Empty;
 }

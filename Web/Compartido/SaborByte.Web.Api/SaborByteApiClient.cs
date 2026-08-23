@@ -622,11 +622,13 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<ResultadoPaginadoDto<CuentaPorCobrarDto>> ListarPorCobrarAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false)
+    public async Task<ResultadoPaginadoDto<CuentaPorCobrarDto>> ListarPorCobrarAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, string? texto = null)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<ResultadoPaginadoDto<CuentaPorCobrarDto>>(
-            $"api/cxccxp/porcobrar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&incluirPagadas={incluirPagadas}") ?? new();
+        var url = $"api/cxccxp/porcobrar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&incluirPagadas={incluirPagadas}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<CuentaPorCobrarDto>>(url) ?? new();
     }
 
     public async Task<List<PagoCuentaDto>> ListarPagosPorCobrarAsync(Guid sucursalId, Guid cuentaId)
@@ -649,11 +651,13 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<ResultadoPaginadoDto<CuentaPorPagarDto>> ListarPorPagarAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false)
+    public async Task<ResultadoPaginadoDto<CuentaPorPagarDto>> ListarPorPagarAsync(Guid sucursalId, int pagina, int tamanoPagina, bool incluirPagadas = false, string? texto = null)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<ResultadoPaginadoDto<CuentaPorPagarDto>>(
-            $"api/cxccxp/porpagar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&incluirPagadas={incluirPagadas}") ?? new();
+        var url = $"api/cxccxp/porpagar?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&incluirPagadas={incluirPagadas}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<CuentaPorPagarDto>>(url) ?? new();
     }
 
     public async Task<List<PagoCuentaDto>> ListarPagosPorPagarAsync(Guid sucursalId, Guid cuentaId)

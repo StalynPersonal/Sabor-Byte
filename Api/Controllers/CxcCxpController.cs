@@ -52,10 +52,10 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 
     [HttpGet("porcobrar")]
     public async Task<IActionResult> ListarPorCobrar(
-        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirPagadas, CancellationToken ct)
+        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirPagadas, [FromQuery] string? texto, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        return Ok(await cxcCxp.ListarPorCobrarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, incluirPagadas, ct));
+        return Ok(await cxcCxp.ListarPorCobrarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, incluirPagadas, texto, ct));
     }
 
     [HttpGet("porcobrar/{cuentaId:guid}/pagos")]
@@ -80,7 +80,7 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 
         try
         {
-            var id = await cxcCxp.CrearCuentaPorCobrarAsync(sucursalId, request, ct);
+            var id = await cxcCxp.CrearCuentaPorCobrarAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
             return Ok(new { id });
         }
         catch (InvalidOperationException ex)
@@ -107,10 +107,10 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 
     [HttpGet("porpagar")]
     public async Task<IActionResult> ListarPorPagar(
-        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirPagadas, CancellationToken ct)
+        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, [FromQuery] bool incluirPagadas, [FromQuery] string? texto, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-        return Ok(await cxcCxp.ListarPorPagarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, incluirPagadas, ct));
+        return Ok(await cxcCxp.ListarPorPagarAsync(sucursalId, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, incluirPagadas, texto, ct));
     }
 
     [HttpGet("porpagar/{cuentaId:guid}/pagos")]
@@ -135,7 +135,7 @@ public class CxcCxpController(CxcCxpAppService cxcCxp) : ControllerBase
 
         try
         {
-            var id = await cxcCxp.CrearCuentaPorPagarAsync(sucursalId, request, ct);
+            var id = await cxcCxp.CrearCuentaPorPagarAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
             return Ok(new { id });
         }
         catch (InvalidOperationException ex)

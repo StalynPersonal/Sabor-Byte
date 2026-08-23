@@ -18,8 +18,13 @@ else
 
     <MudTabs>
         <MudTabPanel Text="Por Cobrar">
-            <div class="d-flex justify-space-between align-center mt-2 mb-2">
-                <MudCheckBox T="bool" Value="_incluirPagadasCxC" ValueChanged="v => OnIncluirPagadasCxCAsync(v)" Label="Incluir pagadas" />
+            <div class="d-flex flex-wrap justify-space-between align-center mt-2 mb-2 gap-2">
+                <div class="d-flex align-center gap-4">
+                    <MudTextField T="string" Label="Buscar por cliente o RNC/cédula" @bind-Value="_textoCxC"
+                                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarCxCAsync"
+                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="min-width:280px" />
+                    <MudCheckBox T="bool" Value="_incluirPagadasCxC" ValueChanged="v => OnIncluirPagadasCxCAsync(v)" Label="Incluir pagadas" />
+                </div>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirNuevaCxC">
                     Nueva cuenta por cobrar
                 </MudButton>
@@ -32,6 +37,7 @@ else
                     <MudTh>Monto original</MudTh>
                     <MudTh>Saldo pendiente</MudTh>
                     <MudTh>Estado</MudTh>
+                    <MudTh>Registrada por</MudTh>
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate Context="cuenta">
@@ -40,6 +46,7 @@ else
                     <MudTd>RD$ @cuenta.MontoOriginal.ToString("0.00")</MudTd>
                     <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
                     <MudTd>@TextoEstado(cuenta.Estado)</MudTd>
+                    <MudTd>@cuenta.RegistradaPorNombre</MudTd>
                     <MudTd>
                         <MudTooltip Text="Ver pagos">
                             <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" OnClick="() => VerPagosCxCAsync(cuenta)" />
@@ -59,8 +66,13 @@ else
         </MudTabPanel>
 
         <MudTabPanel Text="Por Pagar">
-            <div class="d-flex justify-space-between align-center mt-2 mb-2">
-                <MudCheckBox T="bool" Value="_incluirPagadasCxP" ValueChanged="v => OnIncluirPagadasCxPAsync(v)" Label="Incluir pagadas" />
+            <div class="d-flex flex-wrap justify-space-between align-center mt-2 mb-2 gap-2">
+                <div class="d-flex align-center gap-4">
+                    <MudTextField T="string" Label="Buscar por proveedor, RNC o documento" @bind-Value="_textoCxP"
+                                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarCxPAsync"
+                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="min-width:280px" />
+                    <MudCheckBox T="bool" Value="_incluirPagadasCxP" ValueChanged="v => OnIncluirPagadasCxPAsync(v)" Label="Incluir pagadas" />
+                </div>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirNuevaCxP">
                     Nueva cuenta por pagar
                 </MudButton>
@@ -73,6 +85,7 @@ else
                     <MudTh>Vencimiento</MudTh>
                     <MudTh>Saldo pendiente</MudTh>
                     <MudTh>Estado</MudTh>
+                    <MudTh>Registrada por</MudTh>
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate Context="cuenta">
@@ -81,6 +94,7 @@ else
                     <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
                     <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
                     <MudTd>@TextoEstado(cuenta.Estado)</MudTd>
+                    <MudTd>@cuenta.RegistradaPorNombre</MudTd>
                     <MudTd>
                         <MudTooltip Text="Ver pagos">
                             <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" OnClick="() => VerPagosCxPAsync(cuenta)" />
@@ -171,6 +185,11 @@ else
                 <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
             }
         </MudSelect>
+        @if (RequiereComprobante(_formPagoCxC.MetodoPagoId))
+        {
+            <MudTextField T="string" Label="N° de comprobante" @bind-Value="_formPagoCxC.NumeroComprobante"
+                           Required="true" RequiredError="Este método de pago requiere número de comprobante." Class="mb-2" />
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _pagandoCxC = false">Cancelar</MudButton>
@@ -192,11 +211,15 @@ else
                     <MudTh>Fecha</MudTh>
                     <MudTh>Monto</MudTh>
                     <MudTh>Forma de pago</MudTh>
+                    <MudTh>N° comprobante</MudTh>
+                    <MudTh>Registrado por</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
                     <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
                     <MudTd>@context.MetodoPagoNombre</MudTd>
+                    <MudTd>@(context.NumeroComprobante ?? "—")</MudTd>
+                    <MudTd>@context.RegistradoPorNombre</MudTd>
                 </RowTemplate>
             </MudTable>
         }
@@ -253,6 +276,11 @@ else
                 <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
             }
         </MudSelect>
+        @if (RequiereComprobante(_formPagoCxP.MetodoPagoId))
+        {
+            <MudTextField T="string" Label="N° de comprobante" @bind-Value="_formPagoCxP.NumeroComprobante"
+                           Required="true" RequiredError="Este método de pago requiere número de comprobante." Class="mb-2" />
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _pagandoCxP = false">Cancelar</MudButton>
@@ -267,6 +295,8 @@ else
     private MudTable<CuentaPorPagarDto>? _tablaCxP;
     private bool _incluirPagadasCxC;
     private bool _incluirPagadasCxP;
+    private string _textoCxC = string.Empty;
+    private string _textoCxP = string.Empty;
 
     private List<ProveedorDto> _proveedoresActivos = [];
     private List<ProveedorDto> _proveedoresGestion = [];
@@ -320,13 +350,13 @@ else
 
     private async Task<TableData<CuentaPorCobrarDto>> CargarPaginaCxCAsync(TableState estado, CancellationToken ct)
     {
-        var resultado = await ApiClient.ListarPorCobrarAsync(SucursalId, estado.Page + 1, estado.PageSize, _incluirPagadasCxC);
+        var resultado = await ApiClient.ListarPorCobrarAsync(SucursalId, estado.Page + 1, estado.PageSize, _incluirPagadasCxC, _textoCxC);
         return new TableData<CuentaPorCobrarDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
 
     private async Task<TableData<CuentaPorPagarDto>> CargarPaginaCxPAsync(TableState estado, CancellationToken ct)
     {
-        var resultado = await ApiClient.ListarPorPagarAsync(SucursalId, estado.Page + 1, estado.PageSize, _incluirPagadasCxP);
+        var resultado = await ApiClient.ListarPorPagarAsync(SucursalId, estado.Page + 1, estado.PageSize, _incluirPagadasCxP, _textoCxP);
         return new TableData<CuentaPorPagarDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
 
@@ -421,10 +451,26 @@ else
         _pagandoCxC = true;
     }
 
+    private bool RequiereComprobante(Guid metodoPagoId) =>
+        _metodosPago.FirstOrDefault(m => m.Id == metodoPagoId)?.RequiereComprobante ?? false;
+
     private async Task ConfirmarPagoCxCAsync()
     {
         if (_cuentaPagoCxC is null) return;
-        await ApiClient.PagarCuentaPorCobrarAsync(SucursalId, _cuentaPagoCxC.Id, _formPagoCxC);
+
+        if (RequiereComprobante(_formPagoCxC.MetodoPagoId) && string.IsNullOrWhiteSpace(_formPagoCxC.NumeroComprobante))
+        {
+            Snackbar.Add("Este método de pago requiere número de comprobante.", Severity.Error);
+            return;
+        }
+
+        var (exito, error) = await ApiClient.PagarCuentaPorCobrarAsync(SucursalId, _cuentaPagoCxC.Id, _formPagoCxC);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
         Snackbar.Add("Pago registrado.", Severity.Success);
         _pagandoCxC = false;
         await RecargarCxCAsync();
@@ -533,7 +579,20 @@ else
     private async Task ConfirmarPagoCxPAsync()
     {
         if (_cuentaPagoCxP is null) return;
-        await ApiClient.PagarCuentaPorPagarAsync(SucursalId, _cuentaPagoCxP.Id, _formPagoCxP);
+
+        if (RequiereComprobante(_formPagoCxP.MetodoPagoId) && string.IsNullOrWhiteSpace(_formPagoCxP.NumeroComprobante))
+        {
+            Snackbar.Add("Este método de pago requiere número de comprobante.", Severity.Error);
+            return;
+        }
+
+        var (exito, error) = await ApiClient.PagarCuentaPorPagarAsync(SucursalId, _cuentaPagoCxP.Id, _formPagoCxP);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
         Snackbar.Add("Pago registrado.", Severity.Success);
         _pagandoCxP = false;
         await RecargarCxPAsync();
