@@ -52,6 +52,7 @@ else
 
     <MudTable Items="_insumos" Hover="true" Dense="true">
         <HeaderContent>
+            <MudTh>Código</MudTh>
             <MudTh>Producto</MudTh>
             <MudTh>Tipo</MudTh>
             <MudTh>Stock actual</MudTh>
@@ -61,6 +62,7 @@ else
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
+            <MudTd>@(context.Codigo ?? "—")</MudTd>
             <MudTd>@context.Nombre</MudTd>
             <MudTd>@(context.TipoProducto == TipoProducto.Insumo ? "Insumo" : "Vendible (reventa)")</MudTd>
             <MudTd Style="@(EsStockBajo(context) ? "color:var(--mud-palette-error); font-weight:bold" : "")">
