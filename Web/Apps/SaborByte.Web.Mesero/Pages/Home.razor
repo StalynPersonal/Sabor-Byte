@@ -137,7 +137,10 @@ else
                                 {
                                     <div class="d-flex justify-space-between align-center mb-1">
                                         <div>
-                                            <MudText Typo="Typo.body2">@item.Cantidad x @item.NombreProducto — @item.Estado</MudText>
+                                            <div class="d-flex align-center gap-2">
+                                                <MudText Typo="Typo.body2">@item.Cantidad x @item.NombreProducto</MudText>
+                                                <MudChip T="string" Size="Size.Small" Color="@ColorEstadoItem(item.Estado)">@TextoEstadoItem(item.Estado)</MudChip>
+                                            </div>
                                             @if (item.IngredientesExcluidosNombres.Count > 0)
                                             {
                                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Sin: @string.Join(", ", item.IngredientesExcluidosNombres)</MudText>
@@ -215,6 +218,26 @@ else
     private ProductoResumenDto? _productoParaPersonalizar;
     private List<RecetaItemDto> _ingredientesOpcionales = [];
     private readonly HashSet<Guid> _excluidosSeleccionados = [];
+
+    private static Color ColorEstadoItem(EstadoItemComanda estado) => estado switch
+    {
+        EstadoItemComanda.Pendiente => Color.Default,
+        EstadoItemComanda.EnPreparacion => Color.Warning,
+        EstadoItemComanda.Listo => Color.Success,
+        EstadoItemComanda.Entregado => Color.Info,
+        EstadoItemComanda.Cancelado => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string TextoEstadoItem(EstadoItemComanda estado) => estado switch
+    {
+        EstadoItemComanda.Pendiente => "Pendiente",
+        EstadoItemComanda.EnPreparacion => "En preparación",
+        EstadoItemComanda.Listo => "Listo",
+        EstadoItemComanda.Entregado => "Entregado",
+        EstadoItemComanda.Cancelado => "Cancelado",
+        _ => estado.ToString()
+    };
 
     protected override async Task OnInitializedAsync()
     {
