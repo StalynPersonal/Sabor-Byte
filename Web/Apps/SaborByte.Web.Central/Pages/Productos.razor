@@ -219,7 +219,7 @@ else
     </DialogActions>
 </MudDialog>
 
-<MudDialog @bind-Visible="_editandoReceta" Options="_opcionesDialogo">
+<MudDialog @bind-Visible="_editandoReceta" Options="_opcionesDialogoGrande">
     <TitleContent>Receta — @_form.Nombre</TitleContent>
     <DialogContent>
         @foreach (var linea in _form.Receta)
@@ -245,7 +245,7 @@ else
     </DialogActions>
 </MudDialog>
 
-<MudDialog @bind-Visible="_editandoCombo" Options="_opcionesDialogo">
+<MudDialog @bind-Visible="_editandoCombo" Options="_opcionesDialogoGrande">
     <TitleContent>@(_comboIdEditando is null ? "Nuevo combo" : "Editar combo")</TitleContent>
     <DialogContent>
         <MudTextField T="string" Label="Nombre del combo" @bind-Value="_formCombo.Nombre" Class="mb-2" />
@@ -405,6 +405,7 @@ else
 @code {
     private MudTable<ProductoDetalleDto>? _tabla;
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
 
     private string _textoBusqueda = string.Empty;
     private TipoProducto? _filtroTipo;
