@@ -53,8 +53,16 @@ else if (_turnoCajaId is null)
 
                 <MudNumericField T="decimal" Label="Monto de apertura (efectivo)" @bind-Value="_montoApertura" Class="mb-3" />
 
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AbrirTurnoAsync">
-                    Abrir turno
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AbrirTurnoAsync" Disabled="_procesandoAccion">
+                    @if (_procesandoAccion)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Abriendo...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Abrir turno</MudText>
+                    }
                 </MudButton>
             }
         </MudPaper>
@@ -300,10 +308,18 @@ else
                 }
 
                 <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
-                           Disabled="_carrito.Count == 0 || _clienteSeleccionado is null" OnClick="FacturarAsync" Class="mb-2">
-                    Facturar
+                           Disabled="@(_carrito.Count == 0 || _clienteSeleccionado is null || _procesandoAccion)" OnClick="FacturarAsync" Class="mb-2">
+                    @if (_procesandoAccion)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Facturando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Facturar</MudText>
+                    }
                 </MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="IniciarCierreAsync">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="IniciarCierreAsync" Disabled="_procesandoAccion">
                     Cerrar turno
                 </MudButton>
             </MudPaper>
@@ -1071,6 +1087,10 @@ else
 
     private async Task AbrirTurnoAsync()
     {
+        if (_procesandoAccion) return;
+        _procesandoAccion = true;
+        try
+        {
         var (exito, turnoId, error) = await ApiClient.AbrirTurnoAsync(_cajaSeleccionadaId, _montoApertura);
 
         if (!exito)
@@ -1090,6 +1110,11 @@ else
         };
         await BuscarAsync();
         await CargarComandasAbiertasAsync();
+        }
+        finally
+        {
+            _procesandoAccion = false;
+        }
     }
 
     private async Task BuscarAsync()
@@ -1413,6 +1438,10 @@ else
 
     private async Task FacturarAsync()
     {
+        if (_procesandoAccion) return;
+        _procesandoAccion = true;
+        try
+        {
         // Caso común (un solo pago): se ajusta solo al total, sin obligar a escribirlo.
         // Si el usuario agregó una segunda forma de pago (split), ahí sí escribe los montos.
         if (_pagos.Count == 1)
@@ -1483,6 +1512,11 @@ else
         // pintar el recibo — sale la hoja con el encabezado pero sin las líneas.
         await Task.Delay(50);
         await JS.InvokeVoidAsync("print");
+        }
+        finally
+        {
+            _procesandoAccion = false;
+        }
     }
 
     private async Task IniciarCierreAsync()
