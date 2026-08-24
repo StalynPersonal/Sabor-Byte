@@ -69,7 +69,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -79,6 +88,7 @@ else
     private List<ClienteDto> _clientes = [];
     private string _textoBusqueda = string.Empty;
     private bool _editando;
+    private bool _procesando;
     private Guid? _clienteId;
     private GuardarClienteRequestDto _form = new();
 
@@ -144,24 +154,33 @@ else
 
     private async Task GuardarAsync()
     {
-        var sucursalId = Sesion.SucursalActivaId;
-
-        bool exito;
-        string? error;
-        if (_clienteId is null)
-            (exito, _, error) = await ApiClient.CrearClienteAsync(sucursalId, _form);
-        else
-            (exito, error) = await ApiClient.ActualizarClienteAsync(sucursalId, _clienteId.Value, _form);
-
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-            return;
-        }
+            var sucursalId = Sesion.SucursalActivaId;
 
-        Snackbar.Add(_clienteId is null ? "Cliente creado." : "Cliente actualizado.", Severity.Success);
-        _editando = false;
-        await CargarAsync();
+            bool exito;
+            string? error;
+            if (_clienteId is null)
+                (exito, _, error) = await ApiClient.CrearClienteAsync(sucursalId, _form);
+            else
+                (exito, error) = await ApiClient.ActualizarClienteAsync(sucursalId, _clienteId.Value, _form);
+
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_clienteId is null ? "Cliente creado." : "Cliente actualizado.", Severity.Success);
+            _editando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task DesactivarAsync(Guid id)

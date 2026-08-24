@@ -179,7 +179,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _creandoCxC = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxCAsync">Crear</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxCAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Crear</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -201,7 +210,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _pagandoCxC = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxCAsync">Confirmar pago</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxCAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Confirmar pago</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -271,7 +289,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _anulandoPago = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarAnulacionPagoAsync">Anular pago</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarAnulacionPagoAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Anular pago</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -288,7 +315,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editandoProveedor = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarProveedorAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarProveedorAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -308,7 +344,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _creandoCxP = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxPAsync">Crear</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearCxPAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Crear</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -330,7 +375,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _pagandoCxP = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxPAsync">Confirmar pago</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarPagoCxPAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Confirmar pago</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -338,6 +392,7 @@ else
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
     private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
 
+    private bool _procesando;
     private MudTable<CuentaPorCobrarDto>? _tablaCxC;
     private MudTable<CuentaPorPagarDto>? _tablaCxP;
     private bool _incluirPagadasCxC;
@@ -476,7 +531,7 @@ else
 
     private async Task ConfirmarAnulacionPagoAsync()
     {
-        if (_pagoAAnular is null) return;
+        if (_pagoAAnular is null || _procesando) return;
 
         if (string.IsNullOrWhiteSpace(_motivoAnulacion))
         {
@@ -484,28 +539,36 @@ else
             return;
         }
 
-        var request = new AnularPagoRequestDto { Motivo = _motivoAnulacion };
-        var (exito, error) = _viendoPagosEsCxC
-            ? await ApiClient.AnularPagoPorCobrarAsync(SucursalId, _cuentaPagosVistaId, _pagoAAnular.Id, request)
-            : await ApiClient.AnularPagoPorPagarAsync(SucursalId, _cuentaPagosVistaId, _pagoAAnular.Id, request);
-
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
+            var request = new AnularPagoRequestDto { Motivo = _motivoAnulacion };
+            var (exito, error) = _viendoPagosEsCxC
+                ? await ApiClient.AnularPagoPorCobrarAsync(SucursalId, _cuentaPagosVistaId, _pagoAAnular.Id, request)
+                : await ApiClient.AnularPagoPorPagarAsync(SucursalId, _cuentaPagosVistaId, _pagoAAnular.Id, request);
+
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Pago anulado.", Severity.Success);
+            _anulandoPago = false;
+
+            _pagosVistos = _viendoPagosEsCxC
+                ? await ApiClient.ListarPagosPorCobrarAsync(SucursalId, _cuentaPagosVistaId)
+                : await ApiClient.ListarPagosPorPagarAsync(SucursalId, _cuentaPagosVistaId);
+
+            if (_viendoPagosEsCxC)
+                await RecargarCxCAsync();
+            else
+                await RecargarCxPAsync();
         }
-
-        Snackbar.Add("Pago anulado.", Severity.Success);
-        _anulandoPago = false;
-
-        _pagosVistos = _viendoPagosEsCxC
-            ? await ApiClient.ListarPagosPorCobrarAsync(SucursalId, _cuentaPagosVistaId)
-            : await ApiClient.ListarPagosPorPagarAsync(SucursalId, _cuentaPagosVistaId);
-
-        if (_viendoPagosEsCxC)
-            await RecargarCxCAsync();
-        else
-            await RecargarCxPAsync();
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct) =>
@@ -528,26 +591,36 @@ else
 
     private async Task CrearCxCAsync()
     {
+        if (_procesando) return;
+
         if (_clienteCxC is null || _facturaCxC is null)
         {
             Snackbar.Add("Selecciona un cliente y una factura.", Severity.Error);
             return;
         }
 
-        _formCxC.ClienteId = _clienteCxC.Id;
-        _formCxC.FacturaId = _facturaCxC.Id;
-        _formCxC.FechaVencimiento = _fechaVencimientoCxC ?? DateTime.Today.AddDays(30);
-
-        var (exito, error) = await ApiClient.CrearCuentaPorCobrarAsync(SucursalId, _formCxC);
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            _formCxC.ClienteId = _clienteCxC.Id;
+            _formCxC.FacturaId = _facturaCxC.Id;
+            _formCxC.FechaVencimiento = _fechaVencimientoCxC ?? DateTime.Today.AddDays(30);
 
-        Snackbar.Add("Cuenta por cobrar creada.", Severity.Success);
-        _creandoCxC = false;
-        await RecargarCxCAsync();
+            var (exito, error) = await ApiClient.CrearCuentaPorCobrarAsync(SucursalId, _formCxC);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Cuenta por cobrar creada.", Severity.Success);
+            _creandoCxC = false;
+            await RecargarCxCAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private void AbrirPagoCxC(CuentaPorCobrarDto cuenta)
@@ -562,7 +635,7 @@ else
 
     private async Task ConfirmarPagoCxCAsync()
     {
-        if (_cuentaPagoCxC is null) return;
+        if (_cuentaPagoCxC is null || _procesando) return;
 
         if (RequiereComprobante(_formPagoCxC.MetodoPagoId) && string.IsNullOrWhiteSpace(_formPagoCxC.NumeroComprobante))
         {
@@ -570,16 +643,24 @@ else
             return;
         }
 
-        var (exito, error) = await ApiClient.PagarCuentaPorCobrarAsync(SucursalId, _cuentaPagoCxC.Id, _formPagoCxC);
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.PagarCuentaPorCobrarAsync(SucursalId, _cuentaPagoCxC.Id, _formPagoCxC);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Pago registrado.", Severity.Success);
-        _pagandoCxC = false;
-        await RecargarCxCAsync();
+            Snackbar.Add("Pago registrado.", Severity.Success);
+            _pagandoCxC = false;
+            await RecargarCxCAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private void AbrirNuevoProveedor()
@@ -604,26 +685,36 @@ else
 
     private async Task GuardarProveedorAsync()
     {
+        if (_procesando) return;
+
         if (string.IsNullOrWhiteSpace(_formProveedor.NombreORazonSocial))
         {
             Snackbar.Add("El nombre del proveedor es obligatorio.", Severity.Error);
             return;
         }
 
-        var (exito, error) = _proveedorId is null
-            ? await ApiClient.CrearProveedorAsync(SucursalId, _formProveedor)
-            : await ApiClient.ActualizarProveedorAsync(SucursalId, _proveedorId.Value, _formProveedor);
-
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = _proveedorId is null
+                ? await ApiClient.CrearProveedorAsync(SucursalId, _formProveedor)
+                : await ApiClient.ActualizarProveedorAsync(SucursalId, _proveedorId.Value, _formProveedor);
 
-        Snackbar.Add(_proveedorId is null ? "Proveedor creado." : "Proveedor actualizado.", Severity.Success);
-        _editandoProveedor = false;
-        await CargarProveedoresAsync();
-        await RecargarProveedoresAsync();
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_proveedorId is null ? "Proveedor creado." : "Proveedor actualizado.", Severity.Success);
+            _editandoProveedor = false;
+            await CargarProveedoresAsync();
+            await RecargarProveedoresAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task AlternarActivoProveedorAsync(ProveedorDto proveedor)
@@ -657,24 +748,34 @@ else
 
     private async Task CrearCxPAsync()
     {
+        if (_procesando) return;
+
         if (_formCxP.ProveedorId == Guid.Empty)
         {
             Snackbar.Add("Selecciona un proveedor.", Severity.Error);
             return;
         }
 
-        _formCxP.FechaVencimiento = _fechaVencimientoCxP ?? DateTime.Today.AddDays(30);
-
-        var (exito, error) = await ApiClient.CrearCuentaPorPagarAsync(SucursalId, _formCxP);
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            _formCxP.FechaVencimiento = _fechaVencimientoCxP ?? DateTime.Today.AddDays(30);
 
-        Snackbar.Add("Cuenta por pagar creada.", Severity.Success);
-        _creandoCxP = false;
-        await RecargarCxPAsync();
+            var (exito, error) = await ApiClient.CrearCuentaPorPagarAsync(SucursalId, _formCxP);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Cuenta por pagar creada.", Severity.Success);
+            _creandoCxP = false;
+            await RecargarCxPAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private void AbrirPagoCxP(CuentaPorPagarDto cuenta)
@@ -686,7 +787,7 @@ else
 
     private async Task ConfirmarPagoCxPAsync()
     {
-        if (_cuentaPagoCxP is null) return;
+        if (_cuentaPagoCxP is null || _procesando) return;
 
         if (RequiereComprobante(_formPagoCxP.MetodoPagoId) && string.IsNullOrWhiteSpace(_formPagoCxP.NumeroComprobante))
         {
@@ -694,15 +795,23 @@ else
             return;
         }
 
-        var (exito, error) = await ApiClient.PagarCuentaPorPagarAsync(SucursalId, _cuentaPagoCxP.Id, _formPagoCxP);
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.PagarCuentaPorPagarAsync(SucursalId, _cuentaPagoCxP.Id, _formPagoCxP);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Pago registrado.", Severity.Success);
-        _pagandoCxP = false;
-        await RecargarCxPAsync();
+            Snackbar.Add("Pago registrado.", Severity.Success);
+            _pagandoCxP = false;
+            await RecargarCxPAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 }

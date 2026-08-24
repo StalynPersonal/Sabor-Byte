@@ -134,7 +134,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _mostrarFormulario = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -191,7 +200,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editandoUmbrales = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarUmbralesAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarUmbralesAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -200,6 +218,7 @@ else
     private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
 
     private string _textoBusqueda = string.Empty;
+    private bool _procesando;
     private List<ProductoDetalleDto> _insumos = [];
     private List<UnidadMedidaDto> _unidadesMedida = [];
 
@@ -286,34 +305,43 @@ else
 
     private async Task GuardarAsync()
     {
-        var sucursalId = Sesion.SucursalActivaId;
-
-        var (exito, error) = _esAjuste
-            ? await ApiClient.RegistrarAjusteInventarioAsync(sucursalId, new RegistrarAjusteRequestDto
-            {
-                ProductoId = _productoIdSeleccionado,
-                NuevoStock = _nuevoStock,
-                Motivo = _motivo
-            })
-            : await ApiClient.RegistrarEntradaInventarioAsync(sucursalId, new RegistrarEntradaRequestDto
-            {
-                ProductoId = _productoIdSeleccionado,
-                Cantidad = _cantidad,
-                CostoUnitario = _costoUnitario,
-                Nota = _nota
-            });
-
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var sucursalId = Sesion.SucursalActivaId;
 
-        Snackbar.Add(_esAjuste ? "Ajuste registrado." : "Entrada registrada.", Severity.Success);
-        _mostrarFormulario = false;
-        await CargarStockAsync();
-        if (_mostrarMovimientos)
-            await (_tablaMovimientos?.ReloadServerData() ?? Task.CompletedTask);
+            var (exito, error) = _esAjuste
+                ? await ApiClient.RegistrarAjusteInventarioAsync(sucursalId, new RegistrarAjusteRequestDto
+                {
+                    ProductoId = _productoIdSeleccionado,
+                    NuevoStock = _nuevoStock,
+                    Motivo = _motivo
+                })
+                : await ApiClient.RegistrarEntradaInventarioAsync(sucursalId, new RegistrarEntradaRequestDto
+                {
+                    ProductoId = _productoIdSeleccionado,
+                    Cantidad = _cantidad,
+                    CostoUnitario = _costoUnitario,
+                    Nota = _nota
+                });
+
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_esAjuste ? "Ajuste registrado." : "Entrada registrada.", Severity.Success);
+            _mostrarFormulario = false;
+            await CargarStockAsync();
+            if (_mostrarMovimientos)
+                await (_tablaMovimientos?.ReloadServerData() ?? Task.CompletedTask);
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private void AbrirUmbrales(ProductoDetalleDto insumo)
@@ -326,21 +354,30 @@ else
 
     private async Task GuardarUmbralesAsync()
     {
-        var (exito, error) = await ApiClient.ConfigurarUmbralesInventarioAsync(Sesion.SucursalActivaId, new ConfigurarUmbralesRequestDto
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            ProductoId = _insumoUmbrales!.Id,
-            StockMinimo = _umbralMinimo,
-            StockMaximo = _umbralMaximo
-        });
+            var (exito, error) = await ApiClient.ConfigurarUmbralesInventarioAsync(Sesion.SucursalActivaId, new ConfigurarUmbralesRequestDto
+            {
+                ProductoId = _insumoUmbrales!.Id,
+                StockMinimo = _umbralMinimo,
+                StockMaximo = _umbralMaximo
+            });
 
-        if (!exito)
-        {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Umbrales actualizados.", Severity.Success);
+            _editandoUmbrales = false;
+            await CargarStockAsync();
         }
-
-        Snackbar.Add("Umbrales actualizados.", Severity.Success);
-        _editandoUmbrales = false;
-        await CargarStockAsync();
+        finally
+        {
+            _procesando = false;
+        }
     }
 }

@@ -215,7 +215,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -241,7 +250,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editandoReceta = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarRecetaAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarRecetaAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -283,7 +301,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => { _editandoCombo = false; _comboIdEditando = null; }">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarComboAsync">Guardar combo</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarComboAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar combo</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -295,7 +322,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _creandoCategoria = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarCategoriaAsync">Crear</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarCategoriaAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Crear</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -306,7 +342,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _creandoUnidadMedida = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarUnidadMedidaAsync">Crear</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarUnidadMedidaAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Crear</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -403,6 +448,7 @@ else
 </MudDialog>
 
 @code {
+    private bool _procesando;
     private MudTable<ProductoDetalleDto>? _tabla;
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
     private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
@@ -508,26 +554,36 @@ else
 
     private async Task GuardarUnidadMedidaAsync()
     {
+        if (_procesando) return;
+
         if (string.IsNullOrWhiteSpace(_formUnidadMedida.Nombre))
         {
             Snackbar.Add("El nombre es obligatorio.", Severity.Error);
             return;
         }
 
-        var (exito, error) = await ApiClient.CrearUnidadMedidaAsync(_formUnidadMedida);
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-            return;
+            var (exito, error) = await ApiClient.CrearUnidadMedidaAsync(_formUnidadMedida);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Unidad de medida creada.", Severity.Success);
+            _unidadesMedida = await ApiClient.ListarUnidadesMedidaAsync();
+            var nueva = _unidadesMedida.FirstOrDefault(u => u.Nombre == _formUnidadMedida.Nombre);
+            if (nueva is not null && _editando)
+                _form.UnidadMedidaId = nueva.Id;
+
+            _creandoUnidadMedida = false;
         }
-
-        Snackbar.Add("Unidad de medida creada.", Severity.Success);
-        _unidadesMedida = await ApiClient.ListarUnidadesMedidaAsync();
-        var nueva = _unidadesMedida.FirstOrDefault(u => u.Nombre == _formUnidadMedida.Nombre);
-        if (nueva is not null && _editando)
-            _form.UnidadMedidaId = nueva.Id;
-
-        _creandoUnidadMedida = false;
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private void AbrirNuevaCategoria()
@@ -538,29 +594,39 @@ else
 
     private async Task GuardarCategoriaAsync()
     {
+        if (_procesando) return;
+
         if (string.IsNullOrWhiteSpace(_formCategoria.Nombre))
         {
             Snackbar.Add("El nombre es obligatorio.", Severity.Error);
             return;
         }
 
-        var (exito, error) = await ApiClient.CrearCategoriaAsync(_formCategoria);
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.CrearCategoriaAsync(_formCategoria);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Categoría creada.", Severity.Success);
-        _categorias = await ApiClient.ListarCategoriasAsync();
-        var nueva = _categorias.FirstOrDefault(c => c.Nombre == _formCategoria.Nombre);
-        if (nueva is not null)
+            Snackbar.Add("Categoría creada.", Severity.Success);
+            _categorias = await ApiClient.ListarCategoriasAsync();
+            var nueva = _categorias.FirstOrDefault(c => c.Nombre == _formCategoria.Nombre);
+            if (nueva is not null)
+            {
+                if (_editando) _form.CategoriaId = nueva.Id;
+                if (_editandoCombo) _formCombo.CategoriaId = nueva.Id;
+            }
+
+            _creandoCategoria = false;
+        }
+        finally
         {
-            if (_editando) _form.CategoriaId = nueva.Id;
-            if (_editandoCombo) _formCombo.CategoriaId = nueva.Id;
+            _procesando = false;
         }
-
-        _creandoCategoria = false;
     }
 
     private async Task<TableData<ProductoDetalleDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
@@ -656,28 +722,38 @@ else
 
     private async Task GuardarComboAsync()
     {
+        if (_procesando) return;
+
         if (_formCombo.Componentes.Count == 0)
         {
             Snackbar.Add("El combo debe tener al menos un componente.", Severity.Error);
             return;
         }
 
-        var esNuevo = _comboIdEditando is null;
-        var (exito, error) = esNuevo
-            ? await ApiClient.CrearComboAsync(_formCombo)
-            : await ApiClient.ActualizarComboAsync(_comboIdEditando!.Value, _formCombo);
-
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-            return;
-        }
+            var esNuevo = _comboIdEditando is null;
+            var (exito, error) = esNuevo
+                ? await ApiClient.CrearComboAsync(_formCombo)
+                : await ApiClient.ActualizarComboAsync(_comboIdEditando!.Value, _formCombo);
 
-        Snackbar.Add(esNuevo ? "Combo creado." : "Combo actualizado.", Severity.Success);
-        _editandoCombo = false;
-        _comboIdEditando = null;
-        await CargarListasParaFormulariosAsync();
-        await RecargarTablaAsync();
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(esNuevo ? "Combo creado." : "Combo actualizado.", Severity.Success);
+            _editandoCombo = false;
+            _comboIdEditando = null;
+            await CargarListasParaFormulariosAsync();
+            await RecargarTablaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task VerDetalleAsync(Guid id)
@@ -746,21 +822,30 @@ else
 
     private async Task GuardarAsync()
     {
-        var esNuevo = _productoId is null;
-        var (exito, error) = _productoId is null
-            ? await ApiClient.CrearProductoAsync(_form)
-            : await ApiClient.ActualizarProductoAsync(_productoId.Value, _form);
-
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-            return;
-        }
+            var esNuevo = _productoId is null;
+            var (exito, error) = _productoId is null
+                ? await ApiClient.CrearProductoAsync(_form)
+                : await ApiClient.ActualizarProductoAsync(_productoId.Value, _form);
 
-        Snackbar.Add(esNuevo ? "Producto creado." : "Producto actualizado.", Severity.Success);
-        _editando = false;
-        await CargarListasParaFormulariosAsync();
-        await RecargarTablaAsync();
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(esNuevo ? "Producto creado." : "Producto actualizado.", Severity.Success);
+            _editando = false;
+            await CargarListasParaFormulariosAsync();
+            await RecargarTablaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private static string TextoTipo(ProductoDetalleDto p) => p.TipoProducto switch
@@ -791,17 +876,26 @@ else
 
     private async Task GuardarRecetaAsync()
     {
-        var (exito, error) = await ApiClient.ActualizarProductoAsync(_productoId!.Value, _form);
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.ActualizarProductoAsync(_productoId!.Value, _form);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Receta actualizada.", Severity.Success);
-        _editandoReceta = false;
-        await CargarListasParaFormulariosAsync();
-        await RecargarTablaAsync();
+            Snackbar.Add("Receta actualizada.", Severity.Success);
+            _editandoReceta = false;
+            await CargarListasParaFormulariosAsync();
+            await RecargarTablaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task DesactivarAsync(Guid id)
