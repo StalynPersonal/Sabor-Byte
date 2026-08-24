@@ -423,7 +423,13 @@ else
                 </RowTemplate>
             </MudTable>
 
-            @if (_notaAutorizada)
+            @if (!HayLineasDisponiblesParaNota)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                    Esta factura ya no tiene productos disponibles para acreditar — todas sus líneas ya fueron acreditadas por completo.
+                </MudAlert>
+            }
+            else if (_notaAutorizada)
             {
                 <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">Autorización obtenida — ya se puede emitir.</MudAlert>
             }
@@ -434,7 +440,7 @@ else
                 </MudButton>
             }
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!_notaAutorizada" OnClick="EmitirNotaAsync">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_notaAutorizada || !HayLineasDisponiblesParaNota)" OnClick="EmitirNotaAsync">
                 Emitir nota de crédito
             </MudButton>
         }
@@ -899,6 +905,7 @@ else
     private List<MotivoNotaCreditoDto> _motivosNota = [];
     private Guid? _motivoNotaId;
     private List<FacturaDetalleDisponibleDto> _lineasDisponiblesNota = [];
+    private bool HayLineasDisponiblesParaNota => _lineasDisponiblesNota.Any(l => l.CantidadDisponible > 0);
     private readonly Dictionary<Guid, decimal> _cantidadesNota = [];
 
     private bool _mostrarDialogoAutorizacionNota;
