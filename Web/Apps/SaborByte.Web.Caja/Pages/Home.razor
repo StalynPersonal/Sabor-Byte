@@ -127,7 +127,15 @@ else if (_cerrando)
         <DialogActions>
             <MudButton OnClick="() => _confirmandoCierre = false" Disabled="_procesandoCierre">Cancelar</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarCierreAsync" Disabled="_procesandoCierre">
-                Sí, cerrar turno
+                @if (_procesandoCierre)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Cerrando...</MudText>
+                }
+                else
+                {
+                    <MudText>Sí, cerrar turno</MudText>
+                }
             </MudButton>
         </DialogActions>
     </MudDialog>
@@ -456,8 +464,16 @@ else
                 </MudButton>
             }
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_notaAutorizada || !HayLineasDisponiblesParaNota)" OnClick="EmitirNotaAsync">
-                Emitir nota de crédito
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_notaAutorizada || !HayLineasDisponiblesParaNota || _procesandoAccion)" OnClick="EmitirNotaAsync">
+                @if (_procesandoAccion)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Emitiendo...</MudText>
+                }
+                else
+                {
+                    <MudText>Emitir nota de crédito</MudText>
+                }
             </MudButton>
         }
     </MudTabPanel>
@@ -473,7 +489,16 @@ else
                 <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_supervisorPasswordNota" Class="mb-2" />
 
                 <div class="d-flex gap-2 mt-3">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SolicitarAutorizacionNotaAsync">Autorizar</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SolicitarAutorizacionNotaAsync" Disabled="_procesandoAutorizacion">
+                        @if (_procesandoAutorizacion)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                        else
+                        {
+                            <MudText>Autorizar</MudText>
+                        }
+                    </MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoAutorizacionNota = false">Cancelar</MudButton>
                 </div>
             </MudPaper>
@@ -490,7 +515,16 @@ else
                 <MudNumericField T="decimal" Label="Monto del descuento" @bind-Value="_montoDescuento" Class="mb-2" />
 
                 <div class="d-flex gap-2 mt-3">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SolicitarAutorizacionAsync">Autorizar</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SolicitarAutorizacionAsync" Disabled="_procesandoAutorizacion">
+                        @if (_procesandoAutorizacion)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                        else
+                        {
+                            <MudText>Autorizar</MudText>
+                        }
+                    </MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoDescuento = false">Cancelar</MudButton>
                 </div>
             </MudPaper>
@@ -516,7 +550,17 @@ else
                 <MudTextField T="string" Label="Teléfono" @bind-Value="_formNuevoCliente.Telefono" Required="true" Class="mb-2" />
 
                 <div class="d-flex gap-2 mt-3">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearClienteRapidoAsync">Crear y seleccionar</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearClienteRapidoAsync" Disabled="_procesandoCliente">
+                        @if (_procesandoCliente)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Creando...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Crear y seleccionar</MudText>
+                        }
+                    </MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoNuevoCliente = false">Cancelar</MudButton>
                 </div>
             </MudPaper>
@@ -898,6 +942,8 @@ else
     private bool _confirmandoCierre;
     private bool _procesandoCierre;
     private bool _procesandoAccion;
+    private bool _procesandoCliente;
+    private bool _procesandoAutorizacion;
     private ResumenTurnoDto? _resumenCierre;
     private List<int> _denominacionesEfectivo = [];
     private readonly Dictionary<int, int> _cantidadesPorDenominacion = [];
@@ -1185,6 +1231,8 @@ else
 
     private async Task CrearClienteRapidoAsync()
     {
+        if (_procesandoCliente) return;
+
         if (string.IsNullOrWhiteSpace(_formNuevoCliente.NombreORazonSocial))
         {
             Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Error);
@@ -1203,22 +1251,30 @@ else
             return;
         }
 
-        var sucursalId = Sesion.SucursalActivaId;
-        var (exito, clienteId, error) = await ApiClient.CrearClienteAsync(sucursalId, _formNuevoCliente);
-
-        if (!exito || clienteId is null)
+        _procesandoCliente = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
+            var sucursalId = Sesion.SucursalActivaId;
+            var (exito, clienteId, error) = await ApiClient.CrearClienteAsync(sucursalId, _formNuevoCliente);
+
+            if (!exito || clienteId is null)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Cliente creado.", Severity.Success);
+            _mostrarDialogoNuevoCliente = false;
+
+            // Se recarga por nombre en vez de armar el ClienteDto a mano — así queda igual
+            // a como lo devolvería una búsqueda normal (mismo shape, sin inventar datos).
+            var resultados = await ApiClient.BuscarClientesAsync(sucursalId, _formNuevoCliente.NombreORazonSocial);
+            _clienteSeleccionado = resultados.FirstOrDefault(c => c.Id == clienteId) ?? resultados.FirstOrDefault();
         }
-
-        Snackbar.Add("Cliente creado.", Severity.Success);
-        _mostrarDialogoNuevoCliente = false;
-
-        // Se recarga por nombre en vez de armar el ClienteDto a mano — así queda igual
-        // a como lo devolvería una búsqueda normal (mismo shape, sin inventar datos).
-        var resultados = await ApiClient.BuscarClientesAsync(sucursalId, _formNuevoCliente.NombreORazonSocial);
-        _clienteSeleccionado = resultados.FirstOrDefault(c => c.Id == clienteId) ?? resultados.FirstOrDefault();
+        finally
+        {
+            _procesandoCliente = false;
+        }
     }
 
     private async Task<List<RecetaItemDto>> ObtenerRecetaAsync(Guid productoId)
@@ -1301,18 +1357,27 @@ else
 
     private async Task SolicitarAutorizacionAsync()
     {
-        var (exito, codigo, error) = await ApiClient.SolicitarAutorizacionAsync(_supervisorUsuario, _supervisorPassword, "Descuento");
-
-        if (!exito)
+        if (_procesandoAutorizacion) return;
+        _procesandoAutorizacion = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, codigo, error) = await ApiClient.SolicitarAutorizacionAsync(_supervisorUsuario, _supervisorPassword, "Descuento");
 
-        _codigoAutorizacionDescuento = codigo;
-        _descuentoAutorizado = true;
-        _mostrarDialogoDescuento = false;
-        _supervisorPassword = string.Empty;
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            _codigoAutorizacionDescuento = codigo;
+            _descuentoAutorizado = true;
+            _mostrarDialogoDescuento = false;
+            _supervisorPassword = string.Empty;
+        }
+        finally
+        {
+            _procesandoAutorizacion = false;
+        }
     }
 
     private async Task<TableData<FacturaResumenDto>> CargarPaginaFacturasNotaAsync(TableState estado, CancellationToken ct)
@@ -1364,22 +1429,35 @@ else
 
     private async Task SolicitarAutorizacionNotaAsync()
     {
-        var (exito, codigo, error) = await ApiClient.SolicitarAutorizacionAsync(_supervisorUsuarioNota, _supervisorPasswordNota, "EmitirNotaCredito");
-
-        if (!exito)
+        if (_procesandoAutorizacion) return;
+        _procesandoAutorizacion = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, codigo, error) = await ApiClient.SolicitarAutorizacionAsync(_supervisorUsuarioNota, _supervisorPasswordNota, "EmitirNotaCredito");
 
-        _codigoAutorizacionNota = codigo;
-        _notaAutorizada = true;
-        _mostrarDialogoAutorizacionNota = false;
-        _supervisorPasswordNota = string.Empty;
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            _codigoAutorizacionNota = codigo;
+            _notaAutorizada = true;
+            _mostrarDialogoAutorizacionNota = false;
+            _supervisorPasswordNota = string.Empty;
+        }
+        finally
+        {
+            _procesandoAutorizacion = false;
+        }
     }
 
     private async Task EmitirNotaAsync()
     {
+        if (_procesandoAccion) return;
+        _procesandoAccion = true;
+        try
+        {
         if (_motivoNotaId is null)
         {
             Snackbar.Add("Selecciona un motivo.", Severity.Error);
@@ -1434,6 +1512,11 @@ else
         // de que el navegador termine de pintar el recibo de la nota.
         await Task.Delay(50);
         await JS.InvokeVoidAsync("print");
+        }
+        finally
+        {
+            _procesandoAccion = false;
+        }
     }
 
     private async Task FacturarAsync()

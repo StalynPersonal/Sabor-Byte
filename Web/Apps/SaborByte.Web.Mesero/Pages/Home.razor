@@ -95,8 +95,16 @@ else
                         }
 
                         <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
-                                   Disabled="_pedido.Count == 0 || _mesaId is null" OnClick="EnviarACocinaAsync" Class="mt-2">
-                            Enviar a cocina
+                                   Disabled="@(_pedido.Count == 0 || _mesaId is null || _procesandoEnvio)" OnClick="EnviarACocinaAsync" Class="mt-2">
+                            @if (_procesandoEnvio)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                <MudText Class="ms-2">Enviando...</MudText>
+                            }
+                            else
+                            {
+                                <MudText>Enviar a cocina</MudText>
+                            }
                         </MudButton>
                     </MudPaper>
                 </MudItem>
@@ -171,7 +179,16 @@ else
                 <MudTextField T="string" Label="Motivo" @bind-Value="_motivoCancelacion" Class="mb-2" />
 
                 <div class="d-flex gap-2 mt-3">
-                    <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarCancelarComandaAsync">Cancelar comanda</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarCancelarComandaAsync" Disabled="_procesandoCancelacion">
+                        @if (_procesandoCancelacion)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                        else
+                        {
+                            <MudText>Cancelar comanda</MudText>
+                        }
+                    </MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoCancelarComanda = false">Volver</MudButton>
                 </div>
             </MudPaper>
@@ -206,6 +223,8 @@ else
     private List<CategoriaDto> _categorias = [];
     private Guid? _categoriaId;
     private readonly List<LineaPedido> _pedido = [];
+    private bool _procesandoEnvio;
+    private bool _procesandoCancelacion;
     private List<MesaDto> _mesas = [];
     private Guid? _mesaId;
 
@@ -381,38 +400,48 @@ else
 
     private async Task EnviarACocinaAsync()
     {
+        if (_procesandoEnvio) return;
+
         if (_mesaId is null)
         {
             Snackbar.Add("Debes seleccionar una mesa.", Severity.Error);
             return;
         }
 
-        var request = new CrearComandaRequestDto
+        _procesandoEnvio = true;
+        try
         {
-            MesaId = _mesaId,
-            Items = _pedido.Select(l => new ItemComandaRequestDto
+            var request = new CrearComandaRequestDto
             {
-                ProductoId = l.ProductoId,
-                Cantidad = l.Cantidad,
-                Notas = l.Notas,
-                IngredientesExcluidosIds = [.. l.IngredientesExcluidosIds]
-            }).ToList()
-        };
+                MesaId = _mesaId,
+                Items = _pedido.Select(l => new ItemComandaRequestDto
+                {
+                    ProductoId = l.ProductoId,
+                    Cantidad = l.Cantidad,
+                    Notas = l.Notas,
+                    IngredientesExcluidosIds = [.. l.IngredientesExcluidosIds]
+                }).ToList()
+            };
 
-        var sucursalId = Sesion.SucursalActivaId;
-        var (exito, comanda, error) = await ApiClient.CrearComandaAsync(sucursalId, request);
+            var sucursalId = Sesion.SucursalActivaId;
+            var (exito, comanda, error) = await ApiClient.CrearComandaAsync(sucursalId, request);
 
-        if (!exito)
-        {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Comanda #{comanda!.NumeroComanda} enviada a cocina.", Severity.Success);
+            _pedido.Clear();
+            _mesaId = null;
+            _mesas = await ApiClient.ListarMesasAsync(sucursalId);
+            await CargarComandasAsync();
         }
-
-        Snackbar.Add($"Comanda #{comanda!.NumeroComanda} enviada a cocina.", Severity.Success);
-        _pedido.Clear();
-        _mesaId = null;
-        _mesas = await ApiClient.ListarMesasAsync(sucursalId);
-        await CargarComandasAsync();
+        finally
+        {
+            _procesandoEnvio = false;
+        }
     }
 
     private async Task MarcarEntregadoAsync(Guid comandaItemId)
@@ -432,26 +461,36 @@ else
 
     private async Task ConfirmarCancelarComandaAsync()
     {
+        if (_procesandoCancelacion) return;
+
         if (string.IsNullOrWhiteSpace(_motivoCancelacion))
         {
             Snackbar.Add("El motivo es obligatorio.", Severity.Error);
             return;
         }
 
-        var sucursalId = Sesion.SucursalActivaId;
-        var (exito, error) = await ApiClient.CancelarComandaAsync(
-            sucursalId, _comandaACancelar!.Value, _motivoCancelacion, RolQueCancelo.Mesero);
-
-        if (!exito)
+        _procesandoCancelacion = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var sucursalId = Sesion.SucursalActivaId;
+            var (exito, error) = await ApiClient.CancelarComandaAsync(
+                sucursalId, _comandaACancelar!.Value, _motivoCancelacion, RolQueCancelo.Mesero);
 
-        Snackbar.Add("Comanda cancelada.", Severity.Success);
-        _mostrarDialogoCancelarComanda = false;
-        _mesas = await ApiClient.ListarMesasAsync(sucursalId);
-        await CargarComandasAsync();
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Comanda cancelada.", Severity.Success);
+            _mostrarDialogoCancelarComanda = false;
+            _mesas = await ApiClient.ListarMesasAsync(sucursalId);
+            await CargarComandasAsync();
+        }
+        finally
+        {
+            _procesandoCancelacion = false;
+        }
     }
 
     public async ValueTask DisposeAsync()
