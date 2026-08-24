@@ -77,7 +77,16 @@ else
                     <MudNumericField T="int" Label="Capacidad" @bind-Value="_form.Capacidad" Min="1" Required="true" Class="mb-2" />
 
                     <div class="d-flex gap-2 mt-4">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+                            @if (_procesando)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            }
+                            else
+                            {
+                                <MudText>Guardar</MudText>
+                            }
+                        </MudButton>
                         <MudButton Variant="Variant.Outlined" OnClick="() => _editando = false">Cancelar</MudButton>
                     </div>
                 </MudPaper>
@@ -91,6 +100,7 @@ else
     private List<SucursalResumenDto> _sucursales = [];
     private Guid _sucursalSeleccionadaId;
     private bool _editando;
+    private bool _procesando;
     private Guid? _mesaId;
     private GuardarMesaRequestDto _form = new();
 
@@ -152,6 +162,8 @@ else
 
     private async Task GuardarAsync()
     {
+        if (_procesando) return;
+
         if (string.IsNullOrWhiteSpace(_form.Numero))
         {
             Snackbar.Add("El número es obligatorio.", Severity.Error);
@@ -170,19 +182,27 @@ else
             return;
         }
 
-        var (exito, error) = _mesaId is null
-            ? await ApiClient.CrearMesaAsync(_sucursalSeleccionadaId, _form)
-            : await ApiClient.ActualizarMesaAsync(_sucursalSeleccionadaId, _mesaId.Value, _form);
-
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = _mesaId is null
+                ? await ApiClient.CrearMesaAsync(_sucursalSeleccionadaId, _form)
+                : await ApiClient.ActualizarMesaAsync(_sucursalSeleccionadaId, _mesaId.Value, _form);
 
-        Snackbar.Add(_mesaId is null ? "Mesa creada." : "Mesa actualizada.", Severity.Success);
-        _editando = false;
-        await CargarAsync();
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_mesaId is null ? "Mesa creada." : "Mesa actualizada.", Severity.Success);
+            _editando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task LiberarAsync(Guid mesaId)

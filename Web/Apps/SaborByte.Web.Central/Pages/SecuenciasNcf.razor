@@ -94,6 +94,7 @@ else
 
     private List<SecuenciaNcfDto> _secuencias = [];
     private bool _editando;
+    private bool _procesando;
     private Guid? _secuenciaId;
     private GuardarSecuenciaNcfRequestDto _form = new();
     private DateTime? _fechaVencimiento;
@@ -161,6 +162,10 @@ else
 
     private async Task GuardarAsync()
     {
+        if (_procesando) return;
+        _procesando = true;
+        try
+        {
         _form.FechaVencimiento = _fechaVencimiento ?? DateTime.Today.AddYears(1);
 
         var (exito, error) = _secuenciaId is null
@@ -176,5 +181,10 @@ else
         Snackbar.Add(_secuenciaId is null ? "Secuencia creada." : "Secuencia actualizada.", Severity.Success);
         _editando = false;
         await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 }

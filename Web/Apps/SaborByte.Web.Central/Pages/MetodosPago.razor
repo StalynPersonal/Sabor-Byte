@@ -65,7 +65,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -74,6 +83,7 @@ else
 
     private List<MetodoPagoDto> _metodos = [];
     private bool _editando;
+    private bool _procesando;
     private Guid? _metodoId;
     private GuardarMetodoPagoRequestDto _form = new();
 
@@ -112,19 +122,28 @@ else
 
     private async Task GuardarAsync()
     {
-        var (exito, error) = _metodoId is null
-            ? await ApiClient.CrearMetodoPagoAsync(_form)
-            : await ApiClient.ActualizarMetodoPagoAsync(_metodoId.Value, _form);
-
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = _metodoId is null
+                ? await ApiClient.CrearMetodoPagoAsync(_form)
+                : await ApiClient.ActualizarMetodoPagoAsync(_metodoId.Value, _form);
 
-        Snackbar.Add(_metodoId is null ? "Método de pago creado." : "Método de pago actualizado.", Severity.Success);
-        _editando = false;
-        await CargarAsync();
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_metodoId is null ? "Método de pago creado." : "Método de pago actualizado.", Severity.Success);
+            _editando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task AlternarActivoAsync(MetodoPagoDto metodo)
