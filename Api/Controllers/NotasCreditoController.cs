@@ -14,6 +14,7 @@ namespace SaborByte.Api.Controllers;
 public class NotasCreditoController(NotaCreditoAppService notas) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = "Cajero,Supervisor,Admin")]
     public async Task<IActionResult> Crear([FromQuery] Guid sucursalId, CrearNotaRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId))

@@ -28,7 +28,17 @@ else
             }
             <MudDatePicker Label="Desde" @bind-Date="_desde" Style="min-width:180px" />
             <MudDatePicker Label="Hasta" @bind-Date="_hasta" Style="min-width:180px" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarTodoAsync">Aplicar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarTodoAsync" Disabled="_cargando">
+                @if (_cargando)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Aplicando...</MudText>
+                }
+                else
+                {
+                    <MudText>Aplicar</MudText>
+                }
+            </MudButton>
             <MudButton Href="@UriActual()" download="@ArchivoActual()" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Download">
                 Exportar a Excel
             </MudButton>
@@ -256,6 +266,7 @@ else
     }
 
     private TipoReporte _reporte = TipoReporte.VentasResumen;
+    private bool _cargando;
 
     private DateTime? _desde = DateTime.Today.AddDays(-30);
     private DateTime? _hasta = DateTime.Today;
@@ -310,25 +321,46 @@ else
 
     private async Task CargarTodoAsync()
     {
+        _cargando = true;
         var rango = RangoActual();
 
         try
         {
-            _ventasResumen = await ApiClient.VentasResumenPorDiaAsync(SucursalId, rango);
-            _ventasDetalle = await ApiClient.VentasDetalleAsync(SucursalId, rango);
-            _ventasPorProducto = await ApiClient.VentasPorProductoAsync(SucursalId, rango);
-            _ventasPorMetodoPago = await ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
-            _movimientosInventario = await ApiClient.MovimientosInventarioReporteAsync(SucursalId, rango);
-            _cxcPendientes = await ApiClient.CxCPendientesAsync(SucursalId);
-            _cxpPendientes = await ApiClient.CxPPendientesAsync(SucursalId);
-            _cxcPagos = await ApiClient.CxCPagosAsync(SucursalId, rango);
-            _cxpPagos = await ApiClient.CxPPagosAsync(SucursalId, rango);
+            // Ninguna de estas llamadas depende de otra — se disparan todas a la vez en vez
+            // de esperar una por una, para no multiplicar la latencia de red innecesariamente.
+            var tareaVentasResumen = ApiClient.VentasResumenPorDiaAsync(SucursalId, rango);
+            var tareaVentasDetalle = ApiClient.VentasDetalleAsync(SucursalId, rango);
+            var tareaVentasPorProducto = ApiClient.VentasPorProductoAsync(SucursalId, rango);
+            var tareaVentasPorMetodoPago = ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
+            var tareaMovimientosInventario = ApiClient.MovimientosInventarioReporteAsync(SucursalId, rango);
+            var tareaCxcPendientes = ApiClient.CxCPendientesAsync(SucursalId);
+            var tareaCxpPendientes = ApiClient.CxPPendientesAsync(SucursalId);
+            var tareaCxcPagos = ApiClient.CxCPagosAsync(SucursalId, rango);
+            var tareaCxpPagos = ApiClient.CxPPagosAsync(SucursalId, rango);
+
+            await Task.WhenAll(
+                tareaVentasResumen, tareaVentasDetalle, tareaVentasPorProducto, tareaVentasPorMetodoPago,
+                tareaMovimientosInventario, tareaCxcPendientes, tareaCxpPendientes, tareaCxcPagos, tareaCxpPagos);
+
+            _ventasResumen = tareaVentasResumen.Result;
+            _ventasDetalle = tareaVentasDetalle.Result;
+            _ventasPorProducto = tareaVentasPorProducto.Result;
+            _ventasPorMetodoPago = tareaVentasPorMetodoPago.Result;
+            _movimientosInventario = tareaMovimientosInventario.Result;
+            _cxcPendientes = tareaCxcPendientes.Result;
+            _cxpPendientes = tareaCxpPendientes.Result;
+            _cxcPagos = tareaCxcPagos.Result;
+            _cxpPagos = tareaCxpPagos.Result;
         }
         catch (HttpRequestException)
         {
             // Sesión vencida (ver SesionExpiradaHandler) u otro problema de red: no tumbar
             // toda la pantalla, simplemente dejar los reportes en blanco.
             return;
+        }
+        finally
+        {
+            _cargando = false;
         }
 
         // Top 10 por total vendido, para que el gráfico de barras no se sature.

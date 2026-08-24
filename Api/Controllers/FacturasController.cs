@@ -9,7 +9,7 @@ namespace SaborByte.Api.Controllers;
 // consultan (listado + detalle completo para el ícono de "ver" en Central).
 [ApiController]
 [Route("api/facturas")]
-[Authorize]
+[Authorize(Roles = "Cajero,Supervisor,Admin")]
 public class FacturasController(FacturaAppService facturas) : ControllerBase
 {
     [HttpGet]

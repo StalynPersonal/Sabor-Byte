@@ -12,6 +12,7 @@ namespace SaborByte.Api.Controllers;
 public class VentasController(VentaAppService ventas) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = "Cajero,Supervisor,Admin")]
     public async Task<ActionResult<VentaResultadoDto>> Crear(
         [FromQuery] Guid sucursalId, CrearVentaRequestDto request, CancellationToken ct)
     {

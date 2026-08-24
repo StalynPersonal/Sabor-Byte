@@ -8,7 +8,7 @@ namespace SaborByte.Api.Controllers;
 
 [ApiController]
 [Route("api/reportes")]
-[Authorize]
+[Authorize(Roles = "Admin,Supervisor")]
 public class ReportesController(ReporteAppService reportes) : ControllerBase
 {
     [HttpPost("ventas-por-sucursal")]

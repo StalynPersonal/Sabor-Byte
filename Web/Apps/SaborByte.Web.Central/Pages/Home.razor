@@ -333,14 +333,25 @@
 
         try
         {
-            var porSucursal = await ApiClient.VentasPorSucursalAsync([SucursalId], rango.Desde, rango.Hasta);
+            // Ninguna de estas 5 llamadas depende de otra — se disparan todas a la vez en
+            // vez de esperar una por una, para no multiplicar la latencia de red.
+            var tareaPorSucursal = ApiClient.VentasPorSucursalAsync([SucursalId], rango.Desde, rango.Hasta);
+            var tareaPorProducto = ApiClient.VentasPorProductoAsync(SucursalId, rango);
+            var tareaPorHora = ApiClient.VentasPorHoraAsync(SucursalId, rango);
+            var tareaPorMetodoPago = ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
+            var tareaPorCategoria = ApiClient.VentasPorCategoriaAsync(SucursalId, rango);
+            var tareaInventariables = ApiClient.ListarInventariablesAsync(SucursalId);
+
+            await Task.WhenAll(tareaPorSucursal, tareaPorProducto, tareaPorHora, tareaPorMetodoPago, tareaPorCategoria, tareaInventariables);
+
+            var porSucursal = tareaPorSucursal.Result;
             var propia = porSucursal.PorSucursal.FirstOrDefault(p => p.SucursalId == SucursalId);
             _totalVendidoReporte = propia?.TotalVendido ?? 0m;
             _cantidadFacturasReporte = propia?.CantidadFacturas ?? 0;
             _ticketPromedioReporte = propia?.TicketPromedio ?? 0m;
 
-            _ventasPorProductoReporte = await ApiClient.VentasPorProductoAsync(SucursalId, rango);
-            _ventasPorHoraReporte = await ApiClient.VentasPorHoraAsync(SucursalId, rango);
+            _ventasPorProductoReporte = tareaPorProducto.Result;
+            _ventasPorHoraReporte = tareaPorHora.Result;
 
             // Top 10 por total vendido, para que el grafico de barras no se sature.
             var top = _ventasPorProductoReporte.Take(10).ToList();
@@ -351,15 +362,15 @@
             _etiquetasHorasReporte = horas.Select(h => $"{h.Hora}:00").ToArray();
             _serieHorasReporte = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = horas.Select(h => (double)h.TotalVendido).ToArray() }];
 
-            _ventasPorMetodoPagoReporte = await ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
+            _ventasPorMetodoPagoReporte = tareaPorMetodoPago.Result;
             _etiquetasMetodoPagoReporte = _ventasPorMetodoPagoReporte.Select(v => v.NombreMetodo).ToArray();
             _serieMetodoPagoReporte = [new ChartSeries<double> { Name = "Total (RD$)", Data = _ventasPorMetodoPagoReporte.Select(v => (double)v.TotalCobrado).ToArray() }];
 
-            _ventasPorCategoriaReporte = await ApiClient.VentasPorCategoriaAsync(SucursalId, rango);
+            _ventasPorCategoriaReporte = tareaPorCategoria.Result;
             _etiquetasCategoriaReporte = _ventasPorCategoriaReporte.Select(v => v.NombreCategoria).ToArray();
             _serieCategoriaReporte = [new ChartSeries<double> { Name = "Total (RD$)", Data = _ventasPorCategoriaReporte.Select(v => (double)v.TotalVendido).ToArray() }];
 
-            var inventariables = await ApiClient.ListarInventariablesAsync(SucursalId);
+            var inventariables = tareaInventariables.Result;
             _insumosStockBajo = inventariables
                 .Where(p => p.StockMinimo is decimal min && p.StockActual < min)
                 .OrderBy(p => p.Nombre)
