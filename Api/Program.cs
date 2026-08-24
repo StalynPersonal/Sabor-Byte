@@ -59,12 +59,27 @@ builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<INotificadorComandas, NotificadorComandasSignalR>();
 
-// Las 4 apps Blazor viven en orígenes/puertos distintos al de la Api; se autentican
-// con JWT (no cookies), por lo que permitir cualquier origen aquí no compromete CSRF.
+// Las 4 apps Blazor viven en orígenes distintos al de la Api; se autentican con JWT
+// (no cookies), así que restringir a estos orígenes es defensa en profundidad, no lo
+// único que evita CSRF. En desarrollo se permite cualquier origen para no depender de
+// tener las 4 apps corriendo en puertos fijos conocidos.
+var origenesPermitidos = new[]
+{
+    "https://wonderful-grass-0dd2dd60f.7.azurestaticapps.net", // Mesero
+    "https://zealous-moss-0a8da5e0f.7.azurestaticapps.net",    // Cocina
+    "https://white-bush-01696d50f.7.azurestaticapps.net",      // Caja
+    "https://orange-hill-00088080f.7.azurestaticapps.net"      // Central
+};
+
 builder.Services.AddCors(opciones =>
 {
     opciones.AddPolicy("AppsBlazor", politica =>
-        politica.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+    {
+        if (builder.Environment.IsDevelopment())
+            politica.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        else
+            politica.WithOrigins(origenesPermitidos).AllowAnyHeader().AllowAnyMethod();
+    });
 });
 
 // Rate limiting nativo de .NET: política estricta para login, más permisiva para el resto.
