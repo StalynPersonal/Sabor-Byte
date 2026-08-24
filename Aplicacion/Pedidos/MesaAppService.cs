@@ -91,12 +91,25 @@ public class MesaAppService(IAppDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task CambiarActivoAsync(Guid sucursalId, Guid mesaId, bool activo, CancellationToken ct = default)
+    {
+        var mesa = await db.Mesas.FirstOrDefaultAsync(m => m.Id == mesaId && m.SucursalId == sucursalId, ct)
+            ?? throw new InvalidOperationException("La mesa no existe.");
+
+        if (!activo && mesa.Estado == EstadoMesa.Ocupada)
+            throw new InvalidOperationException("No se puede desactivar una mesa ocupada. Libérala primero.");
+
+        mesa.Activo = activo;
+        await db.SaveChangesAsync(ct);
+    }
+
     private static MesaDto MapearMesa(Mesa m) => new()
     {
         Id = m.Id,
         Numero = m.Numero,
         Salon = m.Salon,
         Capacidad = m.Capacidad,
-        Estado = m.Estado
+        Estado = m.Estado,
+        Activo = m.Activo
     };
 }

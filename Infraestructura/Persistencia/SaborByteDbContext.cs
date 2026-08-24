@@ -370,6 +370,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.ToTable("Mesas", "pedidos");
             b.Property(x => x.Numero).HasMaxLength(20).IsRequired();
             b.Property(x => x.Salon).HasMaxLength(100);
+            b.Property(x => x.Activo).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<Comanda>(b =>

@@ -253,6 +253,20 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<(bool Exito, string? Error)> DesactivarMesaAsync(Guid sucursalId, Guid mesaId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsync($"api/mesas/{mesaId}/desactivar?sucursalId={sucursalId}", null);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> ActivarMesaAsync(Guid sucursalId, Guid mesaId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsync($"api/mesas/{mesaId}/activar?sucursalId={sucursalId}", null);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<(bool Exito, Guid? Codigo, string? Error)> SolicitarAutorizacionAsync(
         string nombreUsuario, string password, string accion)
     {

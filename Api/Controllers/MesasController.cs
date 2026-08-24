@@ -69,4 +69,34 @@ public class MesasController(MesaAppService mesas) : ControllerBase
             return NotFound(new { mensaje = ex.Message });
         }
     }
+
+    [HttpPost("{mesaId:guid}/desactivar")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Desactivar([FromQuery] Guid sucursalId, Guid mesaId, CancellationToken ct)
+    {
+        try
+        {
+            await mesas.CambiarActivoAsync(sucursalId, mesaId, activo: false, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
+    [HttpPost("{mesaId:guid}/activar")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Activar([FromQuery] Guid sucursalId, Guid mesaId, CancellationToken ct)
+    {
+        try
+        {
+            await mesas.CambiarActivoAsync(sucursalId, mesaId, activo: true, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
 }

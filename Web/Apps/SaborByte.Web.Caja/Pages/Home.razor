@@ -1049,7 +1049,7 @@ else
 
     private decimal FaltaPorCubrir => Math.Max(0, Math.Round(TotalConPropina - _pagos.Sum(p => p.Monto), 2));
     private decimal CambioCarrito => Math.Max(0, Math.Round(_pagos.Sum(p => p.Monto) - TotalConPropina, 2));
-    private decimal CambioUltimaVenta => _ultimaVenta is null ? 0 : Math.Max(0, Math.Round(_ultimaVenta.Pagos.Sum(p => p.Monto) - _ultimaVenta.Total, 2));
+    private decimal CambioUltimaVenta => _ultimaVenta?.Cambio ?? 0;
 
     private decimal TotalEfectivoContado => _denominacionesEfectivo.Sum(d => d * (_cantidadesPorDenominacion.GetValueOrDefault(d)));
 
@@ -1525,10 +1525,25 @@ else
         _procesandoAccion = true;
         try
         {
-        // Caso común (un solo pago): se ajusta solo al total, sin obligar a escribirlo.
-        // Si el usuario agregó una segunda forma de pago (split), ahí sí escribe los montos.
-        if (_pagos.Count == 1)
-            _pagos[0].Monto = TotalConPropina;
+        // El monto de cada forma de pago lo escribe el cajero — no se asume. Solo se
+        // permite cobrar de más (y devolver cambio) cuando hay una única forma de pago
+        // y es en efectivo; en cualquier otro caso la suma debe cuadrar exacto con el total.
+        var esPagoUnicoEnEfectivo = _pagos.Count == 1 && _metodosPago.FirstOrDefault(m => m.Id == _pagos[0].MetodoPagoId)?.EsEfectivo == true;
+        var sumaPagos = _pagos.Sum(p => p.Monto);
+
+        if (esPagoUnicoEnEfectivo)
+        {
+            if (sumaPagos < TotalConPropina - 0.01m)
+            {
+                Snackbar.Add($"El efectivo recibido (RD$ {sumaPagos:0.00}) es menor al total de la venta (RD$ {TotalConPropina:0.00}).", Severity.Error);
+                return;
+            }
+        }
+        else if (Math.Abs(sumaPagos - TotalConPropina) > 0.01m)
+        {
+            Snackbar.Add($"La suma de las formas de pago (RD$ {sumaPagos:0.00}) no coincide con el total de la venta (RD$ {TotalConPropina:0.00}).", Severity.Error);
+            return;
+        }
 
         // Si se está cobrando una comanda, sus líneas (EsDeComanda = true) NO viajan en
         // Items: el backend las toma de la comanda directo de la base de datos (ver
@@ -1644,6 +1659,16 @@ else
             }
 
             Snackbar.Add("Turno cerrado.", Severity.Success);
+
+            // Cierra el diálogo primero y deja que Blazor renderice ese cambio antes de
+            // desmontar el bloque "_cerrando" que lo contiene — si ambos se ocultan en el
+            // mismo ciclo, MudBlazor no alcanza a retirar el overlay del diálogo y este
+            // queda visualmente pegado mostrando "Cerrando..." aunque el turno ya cerró.
+            _confirmandoCierre = false;
+            _procesandoCierre = false;
+            StateHasChanged();
+            await Task.Delay(50);
+
             _turnoCajaId = null;
             _cerrando = false;
             _resumenCierre = null;

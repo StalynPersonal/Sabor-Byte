@@ -48,16 +48,34 @@ else
                                         <MudText Typo="Typo.subtitle1">Mesa @mesa.Numero</MudText>
                                         <MudText Typo="Typo.body2">Capacidad: @mesa.Capacidad</MudText>
                                         <MudText Typo="Typo.body2">@(mesa.Estado == EstadoMesa.Libre ? "Libre" : "Ocupada")</MudText>
+                                        @if (!mesa.Activo)
+                                        {
+                                            <MudText Typo="Typo.body2" Color="Color.Error">Inactiva</MudText>
+                                        }
                                     </MudCardContent>
-                                    @if (mesa.Estado == EstadoMesa.Ocupada)
-                                    {
-                                        <MudCardActions>
+                                    <MudCardActions>
+                                        @if (mesa.Estado == EstadoMesa.Ocupada)
+                                        {
                                             <MudButton Size="Size.Small" Color="Color.Warning"
                                                        OnClick="@(async (MouseEventArgs e) => await LiberarAsync(mesa.Id))">
                                                 Liberar
                                             </MudButton>
-                                        </MudCardActions>
-                                    }
+                                        }
+                                        @if (mesa.Activo)
+                                        {
+                                            <MudButton Size="Size.Small" Color="Color.Error" Disabled="@(mesa.Estado == EstadoMesa.Ocupada)"
+                                                       OnClick="@(async (MouseEventArgs e) => await DesactivarAsync(mesa.Id))">
+                                                Desactivar
+                                            </MudButton>
+                                        }
+                                        else
+                                        {
+                                            <MudButton Size="Size.Small" Color="Color.Success"
+                                                       OnClick="@(async (MouseEventArgs e) => await ActivarAsync(mesa.Id))">
+                                                Activar
+                                            </MudButton>
+                                        }
+                                    </MudCardActions>
                                 </MudCard>
                             </MudItem>
                         }
@@ -138,8 +156,15 @@ else
         _mesas = await ApiClient.ListarMesasAsync(_sucursalSeleccionadaId);
     }
 
-    private static string EstiloTarjeta(MesaDto mesa) =>
-        mesa.Estado == EstadoMesa.Ocupada ? "border-left: 4px solid var(--mud-palette-warning)" : "border-left: 4px solid var(--mud-palette-success)";
+    private static string EstiloTarjeta(MesaDto mesa)
+    {
+        if (!mesa.Activo)
+            return "border-left: 4px solid var(--mud-palette-error); opacity: 0.6";
+
+        return mesa.Estado == EstadoMesa.Ocupada
+            ? "border-left: 4px solid var(--mud-palette-warning)"
+            : "border-left: 4px solid var(--mud-palette-success)";
+    }
 
     private void NuevaMesa()
     {
@@ -209,6 +234,32 @@ else
     {
         await ApiClient.LiberarMesaAsync(_sucursalSeleccionadaId, mesaId);
         Snackbar.Add("Mesa liberada.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task DesactivarAsync(Guid mesaId)
+    {
+        var (exito, error) = await ApiClient.DesactivarMesaAsync(_sucursalSeleccionadaId, mesaId);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Mesa desactivada.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task ActivarAsync(Guid mesaId)
+    {
+        var (exito, error) = await ApiClient.ActivarMesaAsync(_sucursalSeleccionadaId, mesaId);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Mesa activada.", Severity.Success);
         await CargarAsync();
     }
 }

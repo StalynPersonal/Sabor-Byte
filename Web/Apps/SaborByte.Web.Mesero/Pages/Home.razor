@@ -68,7 +68,7 @@ else
                         <MudText Typo="Typo.h6" Class="mb-2">Pedido</MudText>
 
                         <MudSelect T="Guid?" Label="Mesa" @bind-Value="_mesaId" Class="mb-3" Required="true">
-                            @foreach (var mesa in _mesas)
+                            @foreach (var mesa in _mesas.Where(m => m.Activo))
                             {
                                 <MudSelectItem Value="@((Guid?)mesa.Id)">
                                     Mesa @mesa.Numero @(string.IsNullOrEmpty(mesa.Salon) ? "" : $"— {mesa.Salon}") @(mesa.Estado == EstadoMesa.Ocupada ? "(ocupada)" : "")

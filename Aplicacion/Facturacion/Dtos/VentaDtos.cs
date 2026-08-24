@@ -57,6 +57,10 @@ public class VentaResultadoDto
     public DateTime FechaEmision { get; set; }
     public List<PagoVentaRequestDto> Pagos { get; set; } = [];
 
+    // Solo aplica cuando se pagó completo con una única forma de pago en efectivo y se
+    // recibió de más — ver VentaAppService.ValidarPagosYCalcularCambio.
+    public decimal Cambio { get; set; }
+
     public string ClienteNombre { get; set; } = string.Empty;
     public string? ClienteRncOCedula { get; set; }
     public string? CajeroNombre { get; set; }

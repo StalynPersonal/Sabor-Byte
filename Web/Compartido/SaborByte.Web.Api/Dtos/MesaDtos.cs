@@ -13,6 +13,7 @@ public class MesaDto
     public string? Salon { get; set; }
     public int Capacidad { get; set; }
     public EstadoMesa Estado { get; set; }
+    public bool Activo { get; set; }
 }
 
 public class GuardarMesaRequestDto

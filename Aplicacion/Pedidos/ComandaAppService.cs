@@ -34,6 +34,9 @@ public class ComandaAppService(
         var mesa = await db.Mesas.FirstOrDefaultAsync(m => m.Id == request.MesaId && m.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La mesa no existe.");
 
+        if (!mesa.Activo)
+            throw new InvalidOperationException("La mesa está inactiva.");
+
         var meseroId = request.MeseroId ?? usuarioMeseroId;
         var nombreMesero = meseroId is null
             ? null

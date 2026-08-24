@@ -56,6 +56,8 @@ public class VentaResultadoDto
     public DateTime FechaEmision { get; set; }
     public List<PagoVentaRequestDto> Pagos { get; set; } = [];
 
+    public decimal Cambio { get; set; }
+
     public string ClienteNombre { get; set; } = string.Empty;
     public string? ClienteRncOCedula { get; set; }
     public string? CajeroNombre { get; set; }
