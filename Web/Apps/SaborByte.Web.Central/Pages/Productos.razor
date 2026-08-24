@@ -59,14 +59,14 @@ else
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.Codigo</MudTd>
-            <MudTd>@context.Nombre</MudTd>
-            <MudTd>@TextoTipo(context)</MudTd>
-            <MudTd>@(context.EsCombo ? "Sí" : "No")</MudTd>
-            <MudTd>RD$ @((context.Precio * (1 + context.TasaItbis)).ToString("0.00"))</MudTd>
-            <MudTd>@(context.Inventariable ? context.StockActual.ToString("0.###") : "-")</MudTd>
-            <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
-            <MudTd>
+            <MudTd DataLabel="Código">@context.Codigo</MudTd>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Tipo">@TextoTipo(context)</MudTd>
+            <MudTd DataLabel="Combo">@(context.EsCombo ? "Sí" : "No")</MudTd>
+            <MudTd DataLabel="Precio (con ITBIS)">RD$ @((context.Precio * (1 + context.TasaItbis)).ToString("0.00"))</MudTd>
+            <MudTd DataLabel="Stock">@(context.Inventariable ? context.StockActual.ToString("0.###") : "-")</MudTd>
+            <MudTd DataLabel="Activo">@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd DataLabel="Acciones">
                 <MudTooltip Text="Ver detalle">
                     <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerDetalleAsync(context.Id)" />
                 </MudTooltip>
