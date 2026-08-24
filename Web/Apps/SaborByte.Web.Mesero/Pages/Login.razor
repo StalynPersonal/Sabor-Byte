@@ -29,7 +29,15 @@
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_cargando"
                        OnClick="EntrarAsync" Class="formulario-login__boton">
-                @(_cargando ? "Entrando..." : "Entrar")
+                @if (_cargando)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Entrando...</MudText>
+                }
+                else
+                {
+                    <MudText>Entrar</MudText>
+                }
             </MudButton>
         </div>
     </div>
@@ -48,6 +56,7 @@
 
     private async Task EntrarAsync()
     {
+        if (_cargando) return;
         _cargando = true;
 
         var resultado = await ApiClient.LoginAsync(_nombreUsuario, _password);

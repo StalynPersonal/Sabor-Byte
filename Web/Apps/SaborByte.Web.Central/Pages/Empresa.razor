@@ -30,13 +30,23 @@ else
             <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
             <MudTextField T="string" Label="RNC" @bind-Value="_form.Rnc" Class="mb-2" />
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Class="mt-2">Guardar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Class="mt-2" Disabled="_procesando">
+                @if (_procesando)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <MudText>Guardar</MudText>
+                }
+            </MudButton>
         </MudPaper>
     </MudContainer>
 }
 
 @code {
     private GuardarEmpresaRequestDto? _form;
+    private bool _procesando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -55,13 +65,22 @@ else
 
     private async Task GuardarAsync()
     {
-        var (exito, error) = await ApiClient.ActualizarEmpresaAsync(_form!);
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.ActualizarEmpresaAsync(_form!);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Guardado correctamente.", Severity.Success);
+            Snackbar.Add("Guardado correctamente.", Severity.Success);
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 }

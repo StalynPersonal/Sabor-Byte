@@ -93,7 +93,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -104,6 +113,7 @@ else
     private readonly string[] _rolesDisponibles = ["Admin", "Supervisor", "Cajero", "Mesero", "Cocina", "AutorizaNotaCredito"];
     private List<SucursalResumenDto> _sucursales = [];
     private bool _editando;
+    private bool _procesando;
     private Guid? _usuarioId;
     private ActualizarUsuarioRequestDto _form = new();
 
@@ -166,6 +176,8 @@ else
 
     private async Task GuardarAsync()
     {
+        if (_procesando) return;
+
         if (string.IsNullOrWhiteSpace(_form.NombreUsuario))
         {
             Snackbar.Add("El nombre de usuario es obligatorio.", Severity.Error);
@@ -190,27 +202,35 @@ else
             return;
         }
 
-        var (exito, error) = _usuarioId is null
-            ? await ApiClient.CrearUsuarioAsync(new CrearUsuarioRequestDto
-            {
-                NombreUsuario = _form.NombreUsuario,
-                Password = _form.Password ?? string.Empty,
-                Nombre = _form.Nombre,
-                Email = _form.Email,
-                Roles = _form.Roles,
-                SucursalesAsignadas = _form.SucursalesAsignadas
-            })
-            : await ApiClient.ActualizarUsuarioAsync(_usuarioId.Value, _form);
-
-        if (!exito)
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = _usuarioId is null
+                ? await ApiClient.CrearUsuarioAsync(new CrearUsuarioRequestDto
+                {
+                    NombreUsuario = _form.NombreUsuario,
+                    Password = _form.Password ?? string.Empty,
+                    Nombre = _form.Nombre,
+                    Email = _form.Email,
+                    Roles = _form.Roles,
+                    SucursalesAsignadas = _form.SucursalesAsignadas
+                })
+                : await ApiClient.ActualizarUsuarioAsync(_usuarioId.Value, _form);
 
-        Snackbar.Add(_usuarioId is null ? "Usuario creado." : "Usuario actualizado.", Severity.Success);
-        _editando = false;
-        await RecargarTablaAsync();
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_usuarioId is null ? "Usuario creado." : "Usuario actualizado.", Severity.Success);
+            _editando = false;
+            await RecargarTablaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task DesactivarAsync(Guid id)

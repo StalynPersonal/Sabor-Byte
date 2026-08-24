@@ -38,7 +38,16 @@ else
             }
 
             <div class="mt-2">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync">Guardar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+                    @if (_procesando)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudText>Guardar</MudText>
+                    }
+                </MudButton>
             </div>
         </MudPaper>
     }
@@ -48,6 +57,7 @@ else
     private List<SucursalResumenDto> _sucursales = [];
     private Guid _sucursalSeleccionadaId;
     private ActualizarSmtpRequestDto? _form;
+    private bool _procesando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -99,14 +109,23 @@ else
 
     private async Task GuardarAsync()
     {
-        var (exito, error) = await ApiClient.ActualizarSmtpSucursalAsync(_sucursalSeleccionadaId, _form!);
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.ActualizarSmtpSucursalAsync(_sucursalSeleccionadaId, _form!);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Configuración de correo guardada.", Severity.Success);
-        await CargarAsync();
+            Snackbar.Add("Configuración de correo guardada.", Severity.Success);
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 }

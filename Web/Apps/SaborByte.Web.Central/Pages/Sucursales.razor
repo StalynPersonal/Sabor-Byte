@@ -75,7 +75,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _creando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearAsync">Crear</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CrearAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Crear</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -99,7 +108,16 @@ else
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarEdicionAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarEdicionAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -110,6 +128,7 @@ else
     private List<SucursalResumenDto> _sucursales = [];
 
     private bool _creando;
+    private bool _procesando;
     private CrearSucursalRequestDto _formCrear = new();
 
     private bool _editando;
@@ -137,16 +156,25 @@ else
 
     private async Task CrearAsync()
     {
-        var (exito, error) = await ApiClient.CrearSucursalAsync(_formCrear);
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.CrearSucursalAsync(_formCrear);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Sucursal creada.", Severity.Success);
-        _creando = false;
-        await CargarAsync();
+            Snackbar.Add("Sucursal creada.", Severity.Success);
+            _creando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 
     private async Task AbrirEditarAsync(SucursalResumenDto resumen)
@@ -203,15 +231,24 @@ else
 
     private async Task GuardarEdicionAsync()
     {
-        var (exito, error) = await ApiClient.ActualizarSucursalAsync(_sucursalEditandoId, _formEditar!);
-        if (!exito)
+        if (_procesando) return;
+        _procesando = true;
+        try
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
+            var (exito, error) = await ApiClient.ActualizarSucursalAsync(_sucursalEditandoId, _formEditar!);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
 
-        Snackbar.Add("Sucursal actualizada.", Severity.Success);
-        _editando = false;
-        await CargarAsync();
+            Snackbar.Add("Sucursal actualizada.", Severity.Success);
+            _editando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 }
