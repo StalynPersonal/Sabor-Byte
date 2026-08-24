@@ -23,9 +23,9 @@
             <p class="formulario-login__ayuda">Ingresa tus credenciales para continuar.</p>
 
             <MudTextField T="string" Label="Usuario" @bind-Value="_nombreUsuario" Variant="Variant.Outlined"
-                           Class="mb-4" @onkeydown="OnKeyDown" />
+                           Immediate="true" Class="mb-4" @onkeydown="OnKeyDown" />
             <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_password"
-                           Variant="Variant.Outlined" Class="mb-4" @onkeydown="OnKeyDown" />
+                           Variant="Variant.Outlined" Immediate="true" Class="mb-4" @onkeydown="OnKeyDown" />
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_cargando"
                        OnClick="EntrarAsync" Class="formulario-login__boton">

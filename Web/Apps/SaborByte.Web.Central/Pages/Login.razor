@@ -23,13 +23,21 @@
             <p class="formulario-login__ayuda">Ingresa tus credenciales para continuar.</p>
 
             <MudTextField T="string" Label="Usuario" @bind-Value="_nombreUsuario" Variant="Variant.Outlined"
-                           Class="mb-4" @onkeydown="OnKeyDown" />
+                           Immediate="true" Class="mb-4" @onkeydown="OnKeyDown" />
             <MudTextField T="string" Label="Contraseña" InputType="InputType.Password" @bind-Value="_password"
-                           Variant="Variant.Outlined" Class="mb-4" @onkeydown="OnKeyDown" />
+                           Variant="Variant.Outlined" Immediate="true" Class="mb-4" @onkeydown="OnKeyDown" />
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_cargando"
                        OnClick="EntrarAsync" Class="formulario-login__boton">
-                @(_cargando ? "Entrando..." : "Entrar")
+                @if (_cargando)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Entrando...</MudText>
+                }
+                else
+                {
+                    <MudText>Entrar</MudText>
+                }
             </MudButton>
         </div>
     </div>
@@ -48,6 +56,7 @@
 
     private async Task EntrarAsync()
     {
+        if (_cargando) return;
         _cargando = true;
 
         var resultado = await ApiClient.LoginAsync(_nombreUsuario, _password);
