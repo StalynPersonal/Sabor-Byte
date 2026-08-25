@@ -324,14 +324,27 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
             ?? new ResultadoPaginadoDto<ProductoDetalleDto>();
     }
 
-    public async Task<List<ProductoDetalleDto>> ListarInventariablesAsync(Guid sucursalId, string? texto = null)
+    public async Task<ResultadoPaginadoDto<ProductoDetalleDto>> ListarInventariablesAsync(
+        Guid sucursalId, string? texto, int pagina, int tamanoPagina)
     {
         AdjuntarToken();
-        var url = $"api/productos/inventariables?sucursalId={sucursalId}";
+        var url = $"api/productos/inventariables?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
         if (!string.IsNullOrWhiteSpace(texto))
             url += $"&texto={Uri.EscapeDataString(texto)}";
 
-        return await http.GetFromJsonAsync<List<ProductoDetalleDto>>(url) ?? [];
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<ProductoDetalleDto>>(url) ?? new();
+    }
+
+    public async Task<int> ContarInventariablesBajoMinimoAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<int>($"api/productos/inventariables/bajo-minimo?sucursalId={sucursalId}");
+    }
+
+    public async Task<List<ProductoDetalleDto>> ListarInventariablesBajoMinimoAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<ProductoDetalleDto>>($"api/productos/inventariables/bajo-minimo/detalle?sucursalId={sucursalId}") ?? [];
     }
 
     public async Task<ResultadoPaginadoDto<MovimientoInventarioDto>> ListarMovimientosInventarioAsync(

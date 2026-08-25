@@ -340,7 +340,7 @@
             var tareaPorHora = ApiClient.VentasPorHoraAsync(SucursalId, rango);
             var tareaPorMetodoPago = ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
             var tareaPorCategoria = ApiClient.VentasPorCategoriaAsync(SucursalId, rango);
-            var tareaInventariables = ApiClient.ListarInventariablesAsync(SucursalId);
+            var tareaInventariables = ApiClient.ListarInventariablesBajoMinimoAsync(SucursalId);
 
             await Task.WhenAll(tareaPorSucursal, tareaPorProducto, tareaPorHora, tareaPorMetodoPago, tareaPorCategoria, tareaInventariables);
 
@@ -370,11 +370,7 @@
             _etiquetasCategoriaReporte = _ventasPorCategoriaReporte.Select(v => v.NombreCategoria).ToArray();
             _serieCategoriaReporte = [new ChartSeries<double> { Name = "Total (RD$)", Data = _ventasPorCategoriaReporte.Select(v => (double)v.TotalVendido).ToArray() }];
 
-            var inventariables = tareaInventariables.Result;
-            _insumosStockBajo = inventariables
-                .Where(p => p.StockMinimo is decimal min && p.StockActual < min)
-                .OrderBy(p => p.Nombre)
-                .ToList();
+            _insumosStockBajo = tareaInventariables.Result;
         }
         catch (HttpRequestException)
         {

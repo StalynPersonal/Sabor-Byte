@@ -31,7 +31,7 @@ else
 
     <div class="d-flex flex-wrap justify-space-between align-center mb-3 gap-2">
         <MudTextField T="string" Label="Buscar por nombre, código o código de barra" @bind-Value="_textoBusqueda"
-                       Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarStockAsync"
+                       Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="BuscarStockAsync"
                        Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="max-width:320px" />
         <div class="d-flex gap-2">
             <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" OnClick="() => AbrirMovimientosAsync(null)">
@@ -50,7 +50,7 @@ else
         </div>
     </div>
 
-    <MudTable Items="_insumos" Hover="true" Dense="true">
+    <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="ProductoDetalleDto">
         <HeaderContent>
             <MudTh>Código</MudTh>
             <MudTh>Producto</MudTh>
@@ -82,7 +82,7 @@ else
                     <MudIconButton Icon="@Icons.Material.Filled.Tune" Size="Size.Small" OnClick="() => AbrirUmbrales(context)" />
                 </MudTooltip>
                 <MudTooltip Text="Ver movimientos de este producto">
-                    <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" OnClick="() => AbrirMovimientosAsync(context.Id)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" OnClick="() => AbrirMovimientosAsync(context)" />
                 </MudTooltip>
             </MudTd>
         </RowTemplate>
@@ -93,6 +93,9 @@ else
                     : "Sin resultados para esa búsqueda.")
             </MudText>
         </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 10, 20, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
     </MudTable>
 }
 
@@ -113,12 +116,9 @@ else
             </MudAlert>
         }
 
-        <MudSelect T="Guid" Label="Producto" @bind-Value="_productoIdSeleccionado" Class="mb-2">
-            @foreach (var insumo in _insumos)
-            {
-                <MudSelectItem Value="@insumo.Id">@insumo.Nombre (stock: @insumo.StockActual.ToString("0.###"))</MudSelectItem>
-            }
-        </MudSelect>
+        <MudAutocomplete T="ProductoDetalleDto" Label="Producto" Value="_productoSeleccionadoForm" ValueChanged="p => _productoSeleccionadoForm = p"
+                          SearchFunc="BuscarInsumosAsync" ToStringFunc="@(p => p is null ? string.Empty : $"{p.Nombre} (stock: {p.StockActual:0.###})")"
+                          Clearable="true" Class="mb-2" />
 
         @if (_esAjuste)
         {
@@ -219,7 +219,7 @@ else
 
     private string _textoBusqueda = string.Empty;
     private bool _procesando;
-    private List<ProductoDetalleDto> _insumos = [];
+    private MudTable<ProductoDetalleDto>? _tabla;
     private List<UnidadMedidaDto> _unidadesMedida = [];
 
     private bool _mostrarMovimientos;
@@ -227,11 +227,11 @@ else
     private Guid? _productoFiltradoId;
     private string? _productoFiltradoNombre;
 
-    private int _insumosBajoMinimo => _insumos.Count(EsStockBajo);
+    private int _insumosBajoMinimo;
 
     private bool _mostrarFormulario;
     private bool _esAjuste;
-    private Guid _productoIdSeleccionado;
+    private ProductoDetalleDto? _productoSeleccionadoForm;
     private decimal _cantidad;
     private decimal? _costoUnitario;
     private decimal _nuevoStock;
@@ -252,14 +252,24 @@ else
         }
 
         _unidadesMedida = await ApiClient.ListarUnidadesMedidaAsync(incluirInactivos: true);
-        await CargarStockAsync();
+        await CargarBajoMinimoAsync();
     }
 
-    private async Task CargarStockAsync()
+    private async Task<TableData<ProductoDetalleDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
     {
-        var sucursalId = Sesion.SucursalActivaId;
-        var productos = await ApiClient.ListarInventariablesAsync(sucursalId, _textoBusqueda);
-        _insumos = productos.OrderBy(p => p.Nombre).ToList();
+        var resultado = await ApiClient.ListarInventariablesAsync(Sesion.SucursalActivaId, _textoBusqueda, estado.Page + 1, estado.PageSize);
+        return new TableData<ProductoDetalleDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private async Task CargarBajoMinimoAsync() =>
+        _insumosBajoMinimo = await ApiClient.ContarInventariablesBajoMinimoAsync(Sesion.SucursalActivaId);
+
+    private async Task BuscarStockAsync() => await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+
+    private async Task<IEnumerable<ProductoDetalleDto>> BuscarInsumosAsync(string texto, CancellationToken ct)
+    {
+        var resultado = await ApiClient.ListarInventariablesAsync(Sesion.SucursalActivaId, texto, 1, 20);
+        return resultado.Items;
     }
 
     private async Task<TableData<MovimientoInventarioDto>> CargarPaginaMovimientosAsync(TableState estado, CancellationToken ct)
@@ -269,10 +279,10 @@ else
         return new TableData<MovimientoInventarioDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
 
-    private async Task AbrirMovimientosAsync(Guid? productoId)
+    private async Task AbrirMovimientosAsync(ProductoDetalleDto? producto)
     {
-        _productoFiltradoId = productoId;
-        _productoFiltradoNombre = productoId is null ? null : _insumos.FirstOrDefault(p => p.Id == productoId)?.Nombre;
+        _productoFiltradoId = producto?.Id;
+        _productoFiltradoNombre = producto?.Nombre;
         _mostrarMovimientos = true;
         await (_tablaMovimientos?.ReloadServerData() ?? Task.CompletedTask);
     }
@@ -294,7 +304,7 @@ else
     private void AbrirFormulario(bool esAjuste)
     {
         _esAjuste = esAjuste;
-        _productoIdSeleccionado = _insumos.Count > 0 ? _insumos[0].Id : Guid.Empty;
+        _productoSeleccionadoForm = null;
         _cantidad = 0;
         _costoUnitario = null;
         _nuevoStock = 0;
@@ -306,21 +316,29 @@ else
     private async Task GuardarAsync()
     {
         if (_procesando) return;
+
+        if (_productoSeleccionadoForm is null)
+        {
+            Snackbar.Add("Selecciona un producto.", Severity.Error);
+            return;
+        }
+
         _procesando = true;
         try
         {
             var sucursalId = Sesion.SucursalActivaId;
+            var productoId = _productoSeleccionadoForm.Id;
 
             var (exito, error) = _esAjuste
                 ? await ApiClient.RegistrarAjusteInventarioAsync(sucursalId, new RegistrarAjusteRequestDto
                 {
-                    ProductoId = _productoIdSeleccionado,
+                    ProductoId = productoId,
                     NuevoStock = _nuevoStock,
                     Motivo = _motivo
                 })
                 : await ApiClient.RegistrarEntradaInventarioAsync(sucursalId, new RegistrarEntradaRequestDto
                 {
-                    ProductoId = _productoIdSeleccionado,
+                    ProductoId = productoId,
                     Cantidad = _cantidad,
                     CostoUnitario = _costoUnitario,
                     Nota = _nota
@@ -334,7 +352,8 @@ else
 
             Snackbar.Add(_esAjuste ? "Ajuste registrado." : "Entrada registrada.", Severity.Success);
             _mostrarFormulario = false;
-            await CargarStockAsync();
+            await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+            await CargarBajoMinimoAsync();
             if (_mostrarMovimientos)
                 await (_tablaMovimientos?.ReloadServerData() ?? Task.CompletedTask);
         }
@@ -373,7 +392,8 @@ else
 
             Snackbar.Add("Umbrales actualizados.", Severity.Success);
             _editandoUmbrales = false;
-            await CargarStockAsync();
+            await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+            await CargarBajoMinimoAsync();
         }
         finally
         {

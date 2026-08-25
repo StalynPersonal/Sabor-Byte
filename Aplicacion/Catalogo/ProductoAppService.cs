@@ -98,8 +98,12 @@ public class ProductoAppService(IAppDbContext db)
     // Todo lo que lleva stock propio en una sucursal: Insumos y Vendibles-Inventariables
     // (ej. agua embotellada) — usado por la pantalla "Inventario" de Central, que ya no
     // distingue por TipoProducto sino por esta bandera.
-    public async Task<List<ProductoDetalleDto>> ListarInventariablesAsync(Guid sucursalId, string? texto, CancellationToken ct = default)
+    public async Task<ResultadoPaginado<ProductoDetalleDto>> ListarInventariablesAsync(
+        Guid sucursalId, string? texto, int pagina, int tamanoPagina, CancellationToken ct = default)
     {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
         var query = db.Productos.Where(p => p.Activo && p.Inventariable);
 
         if (!string.IsNullOrWhiteSpace(texto))
@@ -110,15 +114,57 @@ public class ProductoAppService(IAppDbContext db)
                 p.CodigosBarra.Any(cb => EF.Functions.Like(cb.CodigoBarra, $"%{texto}%")));
         }
 
+        var total = await query.CountAsync(ct);
+
         var items = await query
             .OrderBy(p => p.Nombre)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
             .Select(p => MapearDetalle(p))
             .ToListAsync(ct);
 
         if (items.Count > 0)
             await AdjuntarStockAsync(items, sucursalId, ct);
 
-        return items;
+        return new ResultadoPaginado<ProductoDetalleDto>
+        {
+            Items = items,
+            Pagina = pagina,
+            TamanoPagina = tamanoPagina,
+            TotalRegistros = total
+        };
+    }
+
+    // Cantidad de productos por debajo de su stock mínimo — para el aviso en la pantalla
+    // de Inventario, que ya no puede derivarlo de la lista completa ahora que se pagina.
+    public Task<int> ContarBajoMinimoAsync(Guid sucursalId, CancellationToken ct = default) =>
+        db.StockPorSucursal.CountAsync(s => s.SucursalId == sucursalId && s.StockMinimo != null && s.StockActual < s.StockMinimo, ct);
+
+    // Detalle de los productos bajo mínimo — para el aviso del dashboard de Inicio, que
+    // siempre son pocos (a diferencia del catálogo completo) así que no hace falta paginar.
+    public async Task<List<ProductoDetalleDto>> ListarBajoMinimoAsync(Guid sucursalId, CancellationToken ct = default)
+    {
+        var stocksBajos = await db.StockPorSucursal
+            .Where(s => s.SucursalId == sucursalId && s.StockMinimo != null && s.StockActual < s.StockMinimo)
+            .ToListAsync(ct);
+
+        var productoIds = stocksBajos.Select(s => s.ProductoId).ToList();
+        var productos = await db.Productos
+            .Where(p => productoIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        return stocksBajos
+            .Where(s => productos.ContainsKey(s.ProductoId))
+            .Select(s =>
+            {
+                var dto = MapearDetalle(productos[s.ProductoId]);
+                dto.StockActual = s.StockActual;
+                dto.StockMinimo = s.StockMinimo;
+                dto.StockMaximo = s.StockMaximo;
+                return dto;
+            })
+            .OrderBy(p => p.Nombre)
+            .ToList();
     }
 
     // sucursalId es opcional: si se pasa, el detalle trae el stock de esa sucursal

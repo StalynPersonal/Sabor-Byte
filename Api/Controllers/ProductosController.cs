@@ -36,12 +36,32 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
     // Todo lo que lleva stock propio (Insumos y Vendibles-Inventariables) para la
     // pantalla "Inventario" de Central — ver ProductoAppService.ListarInventariablesAsync.
     [HttpGet("inventariables")]
-    public async Task<IActionResult> ListarInventariables([FromQuery] Guid sucursalId, [FromQuery] string? texto, CancellationToken ct)
+    public async Task<IActionResult> ListarInventariables(
+        [FromQuery] Guid sucursalId, [FromQuery] string? texto,
+        [FromQuery] int pagina = 1, [FromQuery] int tamanoPagina = 20, CancellationToken ct = default)
     {
         if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
-        return Ok(await productos.ListarInventariablesAsync(sucursalId, texto, ct));
+        return Ok(await productos.ListarInventariablesAsync(sucursalId, texto, pagina, tamanoPagina, ct));
+    }
+
+    [HttpGet("inventariables/bajo-minimo")]
+    public async Task<IActionResult> ContarBajoMinimo([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await productos.ContarBajoMinimoAsync(sucursalId, ct));
+    }
+
+    [HttpGet("inventariables/bajo-minimo/detalle")]
+    public async Task<IActionResult> ListarBajoMinimo([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await productos.ListarBajoMinimoAsync(sucursalId, ct));
     }
 
     [HttpGet("{productoId:guid}")]
