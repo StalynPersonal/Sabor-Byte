@@ -261,7 +261,8 @@ else
 
     private async Task<TableData<ProductoDetalleDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
     {
-        var resultado = await ApiClient.ListarInventariablesAsync(Sesion.SucursalActivaId, _textoBusqueda, estado.Page + 1, estado.PageSize);
+        var resultado = await ApiClient.ListarInventariablesAsync(
+            Sesion.SucursalActivaId, _textoBusqueda, _soloBajoMinimo, estado.Page + 1, estado.PageSize);
         return new TableData<ProductoDetalleDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
 
@@ -270,9 +271,15 @@ else
 
     private async Task BuscarStockAsync() => await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
 
+    private async Task OnFiltroBajoMinimoCambiadoAsync(bool valor)
+    {
+        _soloBajoMinimo = valor;
+        await BuscarStockAsync();
+    }
+
     private async Task<IEnumerable<ProductoDetalleDto>> BuscarInsumosAsync(string texto, CancellationToken ct)
     {
-        var resultado = await ApiClient.ListarInventariablesAsync(Sesion.SucursalActivaId, texto, 1, 20);
+        var resultado = await ApiClient.ListarInventariablesAsync(Sesion.SucursalActivaId, texto, soloBajoMinimo: false, 1, 20);
         return resultado.Items;
     }
 
