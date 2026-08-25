@@ -4,7 +4,19 @@
 self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
-self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
+self.addEventListener('fetch', event => {
+    // Este service worker solo existe para cachear los archivos estáticos de la app (GET,
+    // mismo origen) para que cargue offline/rápido. Interceptar además las llamadas a la
+    // Api (otro dominio, con PUT/POST/DELETE) y reenviarlas manualmente con
+    // fetch(event.request) dentro del propio worker falla intermitentemente en varios
+    // navegadores ("TypeError: Failed to fetch") — se deja pasar esas peticiones sin tocar,
+    // como si el service worker no existiera.
+    const esMismoOrigen = new URL(event.request.url).origin === self.origin;
+    if (event.request.method !== 'GET' || !esMismoOrigen)
+        return;
+
+    event.respondWith(onFetch(event));
+});
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
