@@ -17,9 +17,18 @@ public class SmtpEmailSender(SaborByteDbContext db) : IEmailSender
         if (sucursal is null || !sucursal.SmtpActivo || string.IsNullOrWhiteSpace(sucursal.SmtpHost))
             return;
 
+        // La dirección real del From siempre tiene que ser el buzón autenticado
+        // (SmtpUsuario), o MailAddress lanza FormatException si se le pasa algo sin forma
+        // de email. El nombre para mostrar es el de la Empresa (sistema multisucursal, una
+        // sola Empresa — ver Empresa.cs), no un texto libre por sucursal.
+        var direccionRemitente = !string.IsNullOrWhiteSpace(sucursal.SmtpUsuario)
+            ? sucursal.SmtpUsuario
+            : "no-reply@saborbyte.local";
+        var nombreEmpresa = await db.Empresas.Select(e => e.Nombre).FirstOrDefaultAsync(ct);
+
         using var mensaje = new MailMessage
         {
-            From = new MailAddress(sucursal.SmtpRemitente ?? sucursal.SmtpUsuario ?? "no-reply@saborbyte.local"),
+            From = new MailAddress(direccionRemitente, nombreEmpresa),
             Subject = asunto,
             Body = cuerpoHtml,
             IsBodyHtml = true

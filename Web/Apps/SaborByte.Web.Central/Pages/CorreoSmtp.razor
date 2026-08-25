@@ -33,8 +33,10 @@ else
                 <MudNumericField T="int?" Label="Puerto" @bind-Value="_form.SmtpPuerto" Class="mb-2" />
                 <MudTextField T="string" Label="Usuario" @bind-Value="_form.SmtpUsuario" Class="mb-2" />
                 <MudTextField T="string" Label="Contraseña (dejar en blanco para no cambiarla)" InputType="InputType.Password" @bind-Value="_form.SmtpPassword" Class="mb-2" />
-                <MudTextField T="string" Label="Remitente" @bind-Value="_form.SmtpRemitente" Class="mb-2" />
                 <MudCheckBox T="bool" @bind-Value="_form.SmtpUsaSsl" Label="Usar SSL/TLS" Class="mb-2" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-2">
+                    El nombre que verá quien reciba el correo es el de la empresa (Central → Empresa).
+                </MudText>
             }
 
             <div class="mt-2">
