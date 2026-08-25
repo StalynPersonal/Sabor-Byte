@@ -268,7 +268,12 @@ else
     <DialogContent>
         <MudTextField T="string" Label="Nombre del combo" @bind-Value="_formCombo.Nombre" Class="mb-2" />
         <MudTextField T="string" Label="Código (único)" @bind-Value="_formCombo.Codigo" Class="mb-2" Required="true" />
-        <MudNumericField T="decimal" Label="Precio del combo" @bind-Value="_formCombo.Precio" Min="0" Class="mb-2" />
+        <MudNumericField T="decimal" Label="Precio del combo (con ITBIS incluido)" @bind-Value="_precioComboConItbis" Min="0" Class="mb-2" />
+        <MudSelect T="decimal" Label="Tasa de ITBIS" @bind-Value="_formCombo.TasaItbis" Class="mb-2">
+            <MudSelectItem Value="0.18m">18% (general)</MudSelectItem>
+            <MudSelectItem Value="0.16m">16%</MudSelectItem>
+            <MudSelectItem Value="0m">0% (tasa cero)</MudSelectItem>
+        </MudSelect>
 
         <div class="d-flex gap-2 align-center mb-2">
             <MudSelect T="Guid" Label="Categoría" @bind-Value="_formCombo.CategoriaId" Style="flex:1">
@@ -487,6 +492,8 @@ else
     private bool _editandoCombo;
     private Guid? _comboIdEditando;
     private CrearComboRequestDto _formCombo = new();
+    // Mismo criterio que _precioConItbis para productos normales — ver comentario ahí.
+    private decimal _precioComboConItbis;
 
     protected override async Task OnInitializedAsync()
     {
@@ -675,6 +682,7 @@ else
     {
         _comboIdEditando = null;
         _formCombo = new CrearComboRequestDto { CategoriaId = _categorias.FirstOrDefault()?.Id ?? Guid.Empty };
+        _precioComboConItbis = 0;
         _editandoCombo = true;
     }
 
@@ -739,6 +747,8 @@ else
         _procesando = true;
         try
         {
+            _formCombo.Precio = Math.Round(_precioComboConItbis / (1 + _formCombo.TasaItbis), 2);
+
             var esNuevo = _comboIdEditando is null;
             var (exito, error) = esNuevo
                 ? await ApiClient.CrearComboAsync(_formCombo)
@@ -808,6 +818,7 @@ else
                 Nombre = producto.Nombre,
                 Codigo = producto.Codigo ?? string.Empty,
                 Precio = producto.Precio,
+                TasaItbis = producto.TasaItbis,
                 CategoriaId = producto.CategoriaId,
                 Componentes = producto.Componentes.Select(c => new ComponenteComboRequestDto
                 {
@@ -815,6 +826,7 @@ else
                     Cantidad = c.Cantidad
                 }).ToList()
             };
+            _precioComboConItbis = Math.Round(producto.Precio * (1 + producto.TasaItbis), 2);
             _editandoCombo = true;
             return;
         }

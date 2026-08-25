@@ -443,6 +443,7 @@ public class ProductoAppService(IAppDbContext db)
             Nombre = request.Nombre,
             Codigo = request.Codigo,
             Precio = request.Precio,
+            TasaItbis = request.TasaItbis,
             CategoriaId = request.CategoriaId,
             TipoProducto = TipoProducto.Vendible,
             UnidadMedidaId = unidadPorDefecto.Id,
@@ -504,6 +505,7 @@ public class ProductoAppService(IAppDbContext db)
         combo.Nombre = request.Nombre;
         combo.Codigo = request.Codigo;
         combo.Precio = request.Precio;
+        combo.TasaItbis = request.TasaItbis;
         combo.CategoriaId = request.CategoriaId;
         combo.ActualizadoEn = DateTime.UtcNow;
         combo.ActualizadoPorUsuarioId = usuarioId;
