@@ -514,7 +514,13 @@ public class ProductoAppService(IAppDbContext db)
         combo.ComponentesCombo.Clear();
         foreach (var componente in request.Componentes)
         {
-            combo.ComponentesCombo.Add(new ComboItem
+            // Se agrega al DbSet, no a combo.ComponentesCombo (la colección de navegación)
+            // — mismo criterio que la Receta de un producto normal más arriba. Agregarlo a
+            // la navegación justo después de RemoveRange+Clear sobre esa misma colección
+            // confundía al change tracker de EF, que terminaba generando un UPDATE en vez
+            // de un INSERT para las filas nuevas (no existían aún) y tumbaba el guardado
+            // con un DbUpdateConcurrencyException.
+            db.ComboItems.Add(new ComboItem
             {
                 ComboId = combo.Id,
                 ProductoIncluidoId = componente.ProductoIncluidoId,
