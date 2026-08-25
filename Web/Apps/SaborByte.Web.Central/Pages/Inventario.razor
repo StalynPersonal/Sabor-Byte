@@ -30,9 +30,12 @@ else
     }
 
     <div class="d-flex flex-wrap justify-space-between align-center mb-3 gap-2">
-        <MudTextField T="string" Label="Buscar por nombre, código o código de barra" @bind-Value="_textoBusqueda"
-                       Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="BuscarStockAsync"
-                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="max-width:320px" />
+        <div class="d-flex flex-wrap align-center gap-3">
+            <MudTextField T="string" Label="Buscar por nombre, código o código de barra" @bind-Value="_textoBusqueda"
+                           Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="BuscarStockAsync"
+                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="max-width:320px" />
+            <MudCheckBox T="bool" Value="_soloBajoMinimo" ValueChanged="OnFiltroBajoMinimoCambiadoAsync" Label="Solo stock bajo mínimo" />
+        </div>
         <div class="d-flex gap-2">
             <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" OnClick="() => AbrirMovimientosAsync(null)">
                 Ver movimientos
@@ -218,6 +221,7 @@ else
     private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
 
     private string _textoBusqueda = string.Empty;
+    private bool _soloBajoMinimo;
     private bool _procesando;
     private MudTable<ProductoDetalleDto>? _tabla;
     private List<UnidadMedidaDto> _unidadesMedida = [];

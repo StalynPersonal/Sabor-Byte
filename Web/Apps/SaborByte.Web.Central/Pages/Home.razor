@@ -299,13 +299,31 @@
 
         _sucursalIdReporte = Sesion.SucursalActivaId;
         await CargarAsync();
+        // No depende del rango de fechas del reporte ni de sus consultas (más pesadas) —
+        // va aparte para que se muestre en cuanto esté lista, sin esperar por las demás.
+        _ = CargarStockBajoAsync();
         await CargarReporteAsync();
         _temporizador = new Timer(async _ => await InvokeAsync(CargarAsync), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task CargarStockBajoAsync()
+    {
+        try
+        {
+            _insumosStockBajo = await ApiClient.ListarInventariablesBajoMinimoAsync(SucursalId);
+        }
+        catch (HttpRequestException)
+        {
+            // Igual que CargarAsync: no tumbar la pantalla por un problema de red/sesión.
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnSucursalReporteCambiadaAsync(Guid sucursalId)
     {
         _sucursalIdReporte = sucursalId;
+        _ = CargarStockBajoAsync();
         await CargarReporteAsync();
     }
 
@@ -344,9 +362,8 @@
             var tareaPorHora = ApiClient.VentasPorHoraAsync(SucursalId, rango);
             var tareaPorMetodoPago = ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
             var tareaPorCategoria = ApiClient.VentasPorCategoriaAsync(SucursalId, rango);
-            var tareaInventariables = ApiClient.ListarInventariablesBajoMinimoAsync(SucursalId);
 
-            await Task.WhenAll(tareaPorSucursal, tareaPorProducto, tareaPorHora, tareaPorMetodoPago, tareaPorCategoria, tareaInventariables);
+            await Task.WhenAll(tareaPorSucursal, tareaPorProducto, tareaPorHora, tareaPorMetodoPago, tareaPorCategoria);
 
             var porSucursal = tareaPorSucursal.Result;
             var propia = porSucursal.PorSucursal.FirstOrDefault(p => p.SucursalId == SucursalId);
@@ -373,8 +390,6 @@
             _ventasPorCategoriaReporte = tareaPorCategoria.Result;
             _etiquetasCategoriaReporte = _ventasPorCategoriaReporte.Select(v => v.NombreCategoria).ToArray();
             _serieCategoriaReporte = [new ChartSeries<double> { Name = "Total (RD$)", Data = _ventasPorCategoriaReporte.Select(v => (double)v.TotalVendido).ToArray() }];
-
-            _insumosStockBajo = tareaInventariables.Result;
         }
         catch (HttpRequestException)
         {

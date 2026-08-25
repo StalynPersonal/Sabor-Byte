@@ -325,10 +325,10 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
     }
 
     public async Task<ResultadoPaginadoDto<ProductoDetalleDto>> ListarInventariablesAsync(
-        Guid sucursalId, string? texto, int pagina, int tamanoPagina)
+        Guid sucursalId, string? texto, bool soloBajoMinimo, int pagina, int tamanoPagina)
     {
         AdjuntarToken();
-        var url = $"api/productos/inventariables?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
+        var url = $"api/productos/inventariables?sucursalId={sucursalId}&soloBajoMinimo={soloBajoMinimo}&pagina={pagina}&tamanoPagina={tamanoPagina}";
         if (!string.IsNullOrWhiteSpace(texto))
             url += $"&texto={Uri.EscapeDataString(texto)}";
 

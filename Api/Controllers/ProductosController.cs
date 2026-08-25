@@ -37,13 +37,13 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
     // pantalla "Inventario" de Central — ver ProductoAppService.ListarInventariablesAsync.
     [HttpGet("inventariables")]
     public async Task<IActionResult> ListarInventariables(
-        [FromQuery] Guid sucursalId, [FromQuery] string? texto,
+        [FromQuery] Guid sucursalId, [FromQuery] string? texto, [FromQuery] bool soloBajoMinimo = false,
         [FromQuery] int pagina = 1, [FromQuery] int tamanoPagina = 20, CancellationToken ct = default)
     {
         if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
-        return Ok(await productos.ListarInventariablesAsync(sucursalId, texto, pagina, tamanoPagina, ct));
+        return Ok(await productos.ListarInventariablesAsync(sucursalId, texto, soloBajoMinimo, pagina, tamanoPagina, ct));
     }
 
     [HttpGet("inventariables/bajo-minimo")]

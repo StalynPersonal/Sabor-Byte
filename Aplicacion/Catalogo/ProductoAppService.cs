@@ -99,7 +99,7 @@ public class ProductoAppService(IAppDbContext db)
     // (ej. agua embotellada) — usado por la pantalla "Inventario" de Central, que ya no
     // distingue por TipoProducto sino por esta bandera.
     public async Task<ResultadoPaginado<ProductoDetalleDto>> ListarInventariablesAsync(
-        Guid sucursalId, string? texto, int pagina, int tamanoPagina, CancellationToken ct = default)
+        Guid sucursalId, string? texto, bool soloBajoMinimo, int pagina, int tamanoPagina, CancellationToken ct = default)
     {
         pagina = Math.Max(1, pagina);
         tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
@@ -112,6 +112,14 @@ public class ProductoAppService(IAppDbContext db)
                 EF.Functions.Like(p.Nombre, $"%{texto}%") ||
                 (p.Codigo != null && EF.Functions.Like(p.Codigo, $"%{texto}%")) ||
                 p.CodigosBarra.Any(cb => EF.Functions.Like(cb.CodigoBarra, $"%{texto}%")));
+        }
+
+        if (soloBajoMinimo)
+        {
+            var idsBajoMinimo = db.StockPorSucursal
+                .Where(s => s.SucursalId == sucursalId && s.StockMinimo != null && s.StockActual < s.StockMinimo)
+                .Select(s => s.ProductoId);
+            query = query.Where(p => idsBajoMinimo.Contains(p.Id));
         }
 
         var total = await query.CountAsync(ct);
