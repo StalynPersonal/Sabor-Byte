@@ -48,9 +48,29 @@ public class PromocionAppService(IAppDbContext db)
             Activo = request.Activo
         };
 
+        promocion.Codigo = await GenerarCodigoAsync(ct);
+
         db.Promociones.Add(promocion);
         await db.SaveChangesAsync(ct);
         return promocion.Id;
+    }
+
+    // Solo el Admin crea promociones, muy esporádicamente (a diferencia de facturas/NCF,
+    // que se generan por cada venta) — un simple MAX+1 basta, no hace falta el patrón de
+    // reserva con compare-and-swap que usa VentaAppService para números de alta concurrencia.
+    private async Task<string> GenerarCodigoAsync(CancellationToken ct)
+    {
+        var ultimoNumero = await db.Promociones
+            .Where(p => p.Codigo.StartsWith("PROMO-"))
+            .Select(p => p.Codigo)
+            .ToListAsync(ct);
+
+        var maximo = ultimoNumero
+            .Select(c => int.TryParse(c.AsSpan(6), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return $"PROMO-{(maximo + 1):D5}";
     }
 
     public async Task ActualizarAsync(Guid promocionId, GuardarPromocionRequestDto request, CancellationToken ct = default)
@@ -106,6 +126,7 @@ public class PromocionAppService(IAppDbContext db)
         return promociones.Select(p => new PromocionDto
         {
             Id = p.Id,
+            Codigo = p.Codigo,
             SucursalId = p.SucursalId,
             SucursalNombre = p.SucursalId is Guid sId ? nombresSucursales.GetValueOrDefault(sId, "?") : "Todas",
             Nombre = p.Nombre,

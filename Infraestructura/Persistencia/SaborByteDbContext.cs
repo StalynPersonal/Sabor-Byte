@@ -168,6 +168,8 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
         modelBuilder.Entity<Promocion>(b =>
         {
             b.ToTable("Promociones", "catalogo");
+            b.Property(x => x.Codigo).HasMaxLength(20).IsRequired();
+            b.HasIndex(x => x.Codigo).IsUnique();
             b.Property(x => x.Nombre).HasMaxLength(200).IsRequired();
             b.Property(x => x.Valor).HasColumnType("decimal(18,2)");
             b.Property(x => x.Activo).HasDefaultValue(true);

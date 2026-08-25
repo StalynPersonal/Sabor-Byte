@@ -9,6 +9,7 @@ public enum TipoDescuentoPromocion
 public class PromocionDto
 {
     public Guid Id { get; set; }
+    public string Codigo { get; set; } = string.Empty;
     public Guid? SucursalId { get; set; }
     public string? SucursalNombre { get; set; }
     public string Nombre { get; set; } = string.Empty;

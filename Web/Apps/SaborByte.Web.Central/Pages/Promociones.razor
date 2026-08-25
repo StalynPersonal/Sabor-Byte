@@ -23,6 +23,7 @@ else
 
     <MudTable Items="_promociones" Hover="true" Dense="true">
         <HeaderContent>
+            <MudTh>Código</MudTh>
             <MudTh>Nombre</MudTh>
             <MudTh>Aplica a</MudTh>
             <MudTh>Sucursal</MudTh>
@@ -32,6 +33,7 @@ else
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
+            <MudTd DataLabel="Código">@context.Codigo</MudTd>
             <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
             <MudTd DataLabel="Aplica a">@(context.ProductoNombre ?? $"Categoría: {context.CategoriaNombre}")</MudTd>
             <MudTd DataLabel="Sucursal">@context.SucursalNombre</MudTd>
@@ -69,12 +71,14 @@ else
 
         @if (_aplicaA == "producto")
         {
-            <MudSelect T="Guid?" Label="Producto" Value="_form.ProductoId" ValueChanged="v => _form.ProductoId = v" Class="mb-2">
-                @foreach (var producto in _productos)
-                {
-                    <MudSelectItem Value="@((Guid?)producto.Id)">@producto.Nombre</MudSelectItem>
-                }
-            </MudSelect>
+            <MudAutocomplete T="ProductoResumenDto" Label="Producto (código, código de barra o nombre)" Value="_productoSeleccionado"
+                              ValueChanged="OnProductoSeleccionado" SearchFunc="BuscarProductosAsync"
+                              ToStringFunc="@(p => p is null ? string.Empty : $"{p.Nombre} ({p.Codigo})")"
+                              Clearable="true" Class="mb-1" />
+            @if (_productoSeleccionado is not null)
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">Precio actual: RD$ @_productoSeleccionado.Precio.ToString("0.00")</MudText>
+            }
         }
         else
         {
@@ -120,8 +124,8 @@ else
 
     private List<PromocionDto> _promociones = [];
     private List<SucursalResumenDto> _sucursales = [];
-    private List<ProductoResumenDto> _productos = [];
     private List<CategoriaDto> _categorias = [];
+    private ProductoResumenDto? _productoSeleccionado;
 
     private bool _editando;
     private bool _procesando;
@@ -141,13 +145,23 @@ else
         }
 
         _sucursales = await ApiClient.ListarSucursalesGestionAsync();
-        _productos = await ApiClient.BuscarProductosAsync(null);
         _categorias = await ApiClient.ListarCategoriasAsync();
 
         await CargarAsync();
     }
 
     private async Task CargarAsync() => _promociones = await ApiClient.ListarPromocionesAsync();
+
+    // Busca por código propio, código de barra (exacto) o nombre (parcial) — mismo
+    // criterio que usa Caja para buscar productos al vender.
+    private async Task<IEnumerable<ProductoResumenDto>> BuscarProductosAsync(string texto, CancellationToken ct) =>
+        await ApiClient.BuscarProductosAsync(texto);
+
+    private void OnProductoSeleccionado(ProductoResumenDto? producto)
+    {
+        _productoSeleccionado = producto;
+        _form.ProductoId = producto?.Id;
+    }
 
     private void OnSucursalCambiada(Guid sucursalId) => _sucursalSeleccionadaId = sucursalId;
 
@@ -157,7 +171,10 @@ else
         if (valor == "producto")
             _form.CategoriaId = null;
         else
+        {
             _form.ProductoId = null;
+            _productoSeleccionado = null;
+        }
     }
 
     private void NuevaPromocion()
@@ -165,13 +182,14 @@ else
         _promocionId = null;
         _sucursalSeleccionadaId = Guid.Empty;
         _aplicaA = "producto";
+        _productoSeleccionado = null;
         _fechaInicio = DateTime.Today;
         _fechaFin = DateTime.Today.AddDays(7);
         _form = new GuardarPromocionRequestDto { Nombre = string.Empty, TipoDescuento = TipoDescuentoPromocion.Porcentaje };
         _editando = true;
     }
 
-    private void EditarPromocion(PromocionDto promocion)
+    private async Task EditarPromocion(PromocionDto promocion)
     {
         _promocionId = promocion.Id;
         _sucursalSeleccionadaId = promocion.SucursalId ?? Guid.Empty;
@@ -187,6 +205,17 @@ else
             Valor = promocion.Valor,
             Activo = promocion.Activo
         };
+
+        if (promocion.ProductoId is Guid productoId)
+        {
+            var candidatos = await ApiClient.BuscarProductosAsync(promocion.ProductoNombre ?? string.Empty);
+            _productoSeleccionado = candidatos.FirstOrDefault(p => p.Id == productoId);
+        }
+        else
+        {
+            _productoSeleccionado = null;
+        }
+
         _editando = true;
     }
 

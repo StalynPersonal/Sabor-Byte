@@ -14,6 +14,10 @@ public class Promocion
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    // Código corto secuencial (ej. "PROMO-00007") para identificar la promoción de un
+    // vistazo en el listado — ver PromocionAppService.CrearAsync.
+    public string Codigo { get; set; } = string.Empty;
+
     // null = aplica a todas las sucursales; si se especifica, solo esa.
     public Guid? SucursalId { get; set; }
 
