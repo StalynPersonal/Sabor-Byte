@@ -40,8 +40,13 @@ else
                     <MudGrid>
                         @foreach (var producto in _productos)
                         {
+                            var oferta = OfertaDeProducto(producto);
                             <MudItem xs="6" sm="4" md="3" lg="2">
-                                <MudCard Class="cursor-pointer" @onclick="() => AgregarAlPedidoAsync(producto)">
+                                <MudCard Class="cursor-pointer" Style="position:relative" @onclick="() => AgregarAlPedidoAsync(producto)">
+                                    @if (oferta.Promocion is not null)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:1">OFERTA</MudChip>
+                                    }
                                     @if (!string.IsNullOrEmpty(producto.ImagenUrl))
                                     {
                                         <MudCardMedia Image="@producto.ImagenUrl" Height="100" />
@@ -55,7 +60,15 @@ else
                                     <MudCardContent>
                                         <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Cód. @producto.Codigo</MudText>
-                                        <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                        @if (oferta.Promocion is not null)
+                                        {
+                                            <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("0.00")</strong></MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                        }
                                     </MudCardContent>
                                 </MudCard>
                             </MudItem>
@@ -221,6 +234,44 @@ else
     private string _textoBusqueda = string.Empty;
     private List<ProductoResumenDto> _productos = [];
     private List<CategoriaDto> _categorias = [];
+    private List<PromocionDto> _promocionesVigentes = [];
+
+    // Prioridad: una promoción específica del producto siempre le gana a una de su
+    // categoría. Si compiten varias del mismo nivel, gana la que dé mayor descuento en
+    // RD$ — nunca se acumulan dos promociones en la misma línea. Mismo criterio que
+    // VentaAppService.SeleccionarMejorPromocion (backend, autoritativo) y Caja.
+    private (PromocionDto? Promocion, decimal Descuento) MejorPromocion(Guid productoId, Guid categoriaId, decimal totalLinea, decimal cantidad)
+    {
+        decimal CalcularDescuento(PromocionDto promo) => Math.Min(totalLinea, promo.TipoDescuento switch
+        {
+            TipoDescuentoPromocion.Porcentaje => totalLinea * (promo.Valor / 100m),
+            _ => promo.Valor * cantidad
+        });
+
+        var candidatas = _promocionesVigentes.Where(p => p.ProductoId == productoId).ToList();
+        if (candidatas.Count == 0)
+            candidatas = _promocionesVigentes.Where(p => p.CategoriaId == categoriaId).ToList();
+
+        if (candidatas.Count == 0)
+            return (null, 0m);
+
+        return candidatas.Select(p => (Promocion: (PromocionDto?)p, Descuento: CalcularDescuento(p)))
+            .OrderByDescending(x => x.Descuento)
+            .First();
+    }
+
+    // Badge "OFERTA" en el catálogo: precio con descuento de una sola unidad, con ITBIS
+    // incluido para compararlo a simple vista con PrecioConItbis (el precio normal que
+    // ya se muestra en la tarjeta).
+    private (PromocionDto? Promocion, decimal PrecioConOferta) OfertaDeProducto(ProductoResumenDto producto)
+    {
+        var (promo, descuentoNeto) = MejorPromocion(producto.Id, producto.CategoriaId, producto.Precio, 1);
+        if (promo is null)
+            return (null, producto.PrecioConItbis);
+
+        var precioOfertaNeto = producto.Precio - descuentoNeto;
+        return (promo, precioOfertaNeto * (1 + producto.TasaItbis));
+    }
     private Guid? _categoriaId;
     private readonly List<LineaPedido> _pedido = [];
     private bool _procesandoEnvio;
@@ -274,6 +325,7 @@ else
 
         var sucursalId = Sesion.SucursalActivaId;
         _categorias = await ApiClient.ListarCategoriasAsync();
+        _promocionesVigentes = await ApiClient.ListarPromocionesVigentesAsync(sucursalId);
         await BuscarAsync();
         _mesas = await ApiClient.ListarMesasAsync(sucursalId);
         await CargarComandasAsync();

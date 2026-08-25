@@ -136,17 +136,9 @@ public class VentaAppService(
             if (!productos.TryGetValue(item.ProductoId, out var producto))
                 throw new InvalidOperationException($"El producto {item.ProductoId} no existe.");
 
-            // Promoción aplicable: primero busca una específica del producto, si no hay,
-            // una de su categoría — no se acumulan varias promociones en la misma línea.
-            var promocion = promocionesVigentes.FirstOrDefault(p => p.ProductoId == producto.Id)
-                ?? promocionesVigentes.FirstOrDefault(p => p.CategoriaId == producto.CategoriaId);
-
             var totalLineaSinDescuento = producto.Precio * item.Cantidad;
-            var descuentoPromocion = promocion is null ? 0m : Math.Min(totalLineaSinDescuento, promocion.TipoDescuento switch
-            {
-                Dominio.Catalogo.TipoDescuentoPromocion.Porcentaje => Math.Round(totalLineaSinDescuento * (promocion.Valor / 100m), 2),
-                _ => Math.Round(promocion.Valor * item.Cantidad, 2)
-            });
+            var (promocion, descuentoPromocion) = SeleccionarMejorPromocion(
+                promocionesVigentes, producto.Id, producto.CategoriaId, totalLineaSinDescuento, item.Cantidad);
 
             var descuentoLinea = item.Descuento + descuentoPromocion;
             var totalLinea = totalLineaSinDescuento - descuentoLinea;
@@ -313,6 +305,36 @@ public class VentaAppService(
             CodigoSeguridadDgii = factura.CodigoSeguridadDgii,
             MensajeDgii = mensajeDgii
         };
+    }
+
+    // Prioridad: una promoción específica del producto siempre le gana a una de su
+    // categoría (aunque dé menos descuento) — es la más "intencional" del catálogo. Si
+    // compiten varias del mismo nivel (dos del mismo producto, o dos de la misma
+    // categoría), gana la que dé mayor descuento en RD$ para esta línea — nunca se
+    // acumulan varias promociones en la misma línea.
+    private static (Aplicacion.Catalogo.Dtos.PromocionDto? Promocion, decimal Descuento) SeleccionarMejorPromocion(
+        List<Aplicacion.Catalogo.Dtos.PromocionDto> promocionesVigentes,
+        Guid productoId, Guid categoriaId, decimal totalLineaSinDescuento, decimal cantidad)
+    {
+        decimal CalcularDescuento(Aplicacion.Catalogo.Dtos.PromocionDto promo) => Math.Min(totalLineaSinDescuento, promo.TipoDescuento switch
+        {
+            Dominio.Catalogo.TipoDescuentoPromocion.Porcentaje => Math.Round(totalLineaSinDescuento * (promo.Valor / 100m), 2),
+            _ => Math.Round(promo.Valor * cantidad, 2)
+        });
+
+        var candidatas = promocionesVigentes.Where(p => p.ProductoId == productoId).ToList();
+        if (candidatas.Count == 0)
+            candidatas = promocionesVigentes.Where(p => p.CategoriaId == categoriaId).ToList();
+
+        if (candidatas.Count == 0)
+            return (null, 0m);
+
+        var mejor = candidatas
+            .Select(p => (Promocion: p, Descuento: CalcularDescuento(p)))
+            .OrderByDescending(x => x.Descuento)
+            .First();
+
+        return mejor;
     }
 
     // Al menos un pago y montos positivos siempre. La suma debe cuadrar exacto con el

@@ -175,8 +175,13 @@ else
             <MudGrid>
                 @foreach (var producto in _productos)
                 {
+                    var oferta = OfertaDeProducto(producto);
                     <MudItem xs="6" sm="4" md="3" lg="2">
-                        <MudCard Class="cursor-pointer" @onclick="() => AgregarAlCarritoAsync(producto)">
+                        <MudCard Class="cursor-pointer" Style="position:relative" @onclick="() => AgregarAlCarritoAsync(producto)">
+                            @if (oferta.Promocion is not null)
+                            {
+                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:1">OFERTA</MudChip>
+                            }
                             @if (!string.IsNullOrEmpty(producto.ImagenUrl))
                             {
                                 <MudCardMedia Image="@producto.ImagenUrl" Height="100" />
@@ -190,7 +195,15 @@ else
                             <MudCardContent>
                                 <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Cód. @producto.Codigo</MudText>
-                                <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                @if (oferta.Promocion is not null)
+                                {
+                                    <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("0.00")</strong></MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                }
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -1058,23 +1071,49 @@ else
     private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
     private decimal ItbisCarrito => TotalCarrito * 0.18m;
 
+    // Prioridad: una promoción específica del producto siempre le gana a una de su
+    // categoría. Si compiten varias del mismo nivel, gana la que dé mayor descuento en
+    // RD$ — nunca se acumulan dos promociones en la misma línea. Mismo criterio que
+    // VentaAppService.SeleccionarMejorPromocion (backend, autoritativo).
+    private (PromocionDto? Promocion, decimal Descuento) MejorPromocion(Guid productoId, Guid categoriaId, decimal totalLinea, decimal cantidad)
+    {
+        decimal CalcularDescuento(PromocionDto promo) => Math.Min(totalLinea, promo.TipoDescuento switch
+        {
+            TipoDescuentoPromocion.Porcentaje => totalLinea * (promo.Valor / 100m),
+            _ => promo.Valor * cantidad
+        });
+
+        var candidatas = _promocionesVigentes.Where(p => p.ProductoId == productoId).ToList();
+        if (candidatas.Count == 0)
+            candidatas = _promocionesVigentes.Where(p => p.CategoriaId == categoriaId).ToList();
+
+        if (candidatas.Count == 0)
+            return (null, 0m);
+
+        return candidatas.Select(p => (Promocion: (PromocionDto?)p, Descuento: CalcularDescuento(p)))
+            .OrderByDescending(x => x.Descuento)
+            .First();
+    }
+
     // Preview en pantalla, no autoritativo — el backend recalcula esto mismo con datos
     // frescos de la base al facturar (ver VentaAppService.CrearVentaAsync), así que una
     // promoción que cambió/venció entre que se cargó la pantalla y el momento de cobrar
     // se corrige sola ahí, sin bloquear al cajero.
     private decimal DescuentoPromocionesCarrito => _carrito.Sum(linea =>
-    {
-        var promo = _promocionesVigentes.FirstOrDefault(p => p.ProductoId == linea.ProductoId)
-            ?? _promocionesVigentes.FirstOrDefault(p => p.CategoriaId == linea.CategoriaId);
-        if (promo is null)
-            return 0m;
+        MejorPromocion(linea.ProductoId, linea.CategoriaId, linea.Precio * linea.Cantidad, linea.Cantidad).Descuento);
 
-        var totalLinea = linea.Precio * linea.Cantidad;
-        var descuento = promo.TipoDescuento == TipoDescuentoPromocion.Porcentaje
-            ? totalLinea * (promo.Valor / 100m)
-            : promo.Valor * linea.Cantidad;
-        return Math.Min(totalLinea, descuento);
-    });
+    // Badge "OFERTA" en el catálogo: precio con descuento de una sola unidad, con ITBIS
+    // incluido para que se compare a simple vista con PrecioConItbis (el precio normal
+    // que ya se muestra en la tarjeta).
+    private (PromocionDto? Promocion, decimal PrecioConOferta) OfertaDeProducto(ProductoResumenDto producto)
+    {
+        var (promo, descuentoNeto) = MejorPromocion(producto.Id, producto.CategoriaId, producto.Precio, 1);
+        if (promo is null)
+            return (null, producto.PrecioConItbis);
+
+        var precioOfertaNeto = producto.Precio - descuentoNeto;
+        return (promo, precioOfertaNeto * (1 + producto.TasaItbis));
+    }
 
     // Aproximación en pantalla (con ITBIS incluido de forma simplificada); el total real, con ITBIS
     // exacto por línea y la propina aplicada sobre el total con impuestos, lo calcula el backend.
