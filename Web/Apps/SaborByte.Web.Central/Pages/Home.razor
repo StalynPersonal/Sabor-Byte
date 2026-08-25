@@ -6,7 +6,7 @@
 @inject NavigationManager Navegacion
 @implements IDisposable
 
-<PageTitle>SaborByte — Central</PageTitle>
+<PageTitle>SaborByte</PageTitle>
 
 
 <MudText Typo="Typo.body1" Class="mt-2 mb-4">Módulo de administración, catálogos y reportes.</MudText>
@@ -87,11 +87,13 @@
         <MudText Typo="Typo.body2" Class="mb-2">@_insumosStockBajo.Count producto(s) con stock por debajo del mínimo.</MudText>
         <MudTable Items="_insumosStockBajo" Hover="true" Dense="true" T="ProductoDetalleDto">
             <HeaderContent>
+                <MudTh>Código</MudTh>
                 <MudTh>Producto</MudTh>
                 <MudTh>Stock</MudTh>
                 <MudTh>Mínimo</MudTh>
             </HeaderContent>
             <RowTemplate Context="p">
+                <MudTd>@(p.Codigo ?? "—")</MudTd>
                 <MudTd>@p.Nombre</MudTd>
                 <MudTd Style="color:var(--mud-palette-error); font-weight:bold">@p.StockActual.ToString("0.###")</MudTd>
                 <MudTd>@p.StockMinimo?.ToString("0.###")</MudTd>
