@@ -79,4 +79,26 @@ public class SucursalesController(SucursalAppService sucursales) : ControllerBas
             return NotFound(new { mensaje = ex.Message });
         }
     }
+
+    [HttpPost("{sucursalId:guid}/smtp/prueba")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> EnviarPruebaSmtp(Guid sucursalId, EnviarPruebaSmtpRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            await sucursales.EnviarPruebaSmtpAsync(sucursalId, request.Destinatario, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            // Errores de SMTP (host incorrecto, credenciales inválidas, timeout, etc.) —
+            // acá sí queremos que el mensaje real le llegue al Admin, a diferencia del
+            // resto del sistema donde un fallo de correo se traga en silencio.
+            return BadRequest(new { mensaje = $"No se pudo enviar: {ex.Message}" });
+        }
+    }
 }

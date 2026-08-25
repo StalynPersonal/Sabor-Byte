@@ -925,6 +925,13 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<(bool Exito, string? Error)> EnviarPruebaSmtpAsync(Guid sucursalId, string destinatario)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/sucursales/{sucursalId}/smtp/prueba", new EnviarPruebaSmtpRequestDto { Destinatario = destinatario });
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<List<SucursalResumenDto>> ListarSucursalesGestionAsync()
     {
         AdjuntarToken();

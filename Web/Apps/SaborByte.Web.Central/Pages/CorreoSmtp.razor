@@ -49,6 +49,29 @@ else
                     }
                 </MudButton>
             </div>
+
+            @if (_form.SmtpActivo)
+            {
+                <MudDivider Class="my-4" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Enviar correo de prueba</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-2">
+                    Usa la configuración ya guardada — si acabas de cambiar algo, guarda primero.
+                </MudText>
+                <div class="d-flex gap-2 align-end flex-wrap">
+                    <MudTextField T="string" Label="Correo de destino" @bind-Value="_correoPrueba" Style="max-width:320px" />
+                    <MudButton Variant="Variant.Outlined" OnClick="EnviarPruebaAsync" Disabled="_procesandoPrueba || string.IsNullOrWhiteSpace(_correoPrueba)">
+                        @if (_procesandoPrueba)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Enviando...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Enviar prueba</MudText>
+                        }
+                    </MudButton>
+                </div>
+            }
         </MudPaper>
     }
 }
@@ -58,6 +81,8 @@ else
     private Guid _sucursalSeleccionadaId;
     private ActualizarSmtpRequestDto? _form;
     private bool _procesando;
+    private string _correoPrueba = string.Empty;
+    private bool _procesandoPrueba;
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,6 +151,27 @@ else
         finally
         {
             _procesando = false;
+        }
+    }
+
+    private async Task EnviarPruebaAsync()
+    {
+        if (_procesandoPrueba || string.IsNullOrWhiteSpace(_correoPrueba)) return;
+        _procesandoPrueba = true;
+        try
+        {
+            var (exito, error) = await ApiClient.EnviarPruebaSmtpAsync(_sucursalSeleccionadaId, _correoPrueba);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "No se pudo enviar el correo de prueba.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Correo de prueba enviado a {_correoPrueba}.", Severity.Success);
+        }
+        finally
+        {
+            _procesandoPrueba = false;
         }
     }
 }

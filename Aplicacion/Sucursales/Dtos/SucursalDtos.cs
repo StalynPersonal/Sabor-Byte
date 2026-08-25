@@ -75,3 +75,8 @@ public class ActualizarSmtpRequestDto
     public string? SmtpRemitente { get; set; }
     public bool SmtpUsaSsl { get; set; } = true;
 }
+
+public class EnviarPruebaSmtpRequestDto
+{
+    public required string Destinatario { get; set; }
+}

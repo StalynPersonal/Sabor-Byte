@@ -6,7 +6,7 @@ using SaborByte.Dominio.Sucursales;
 
 namespace SaborByte.Aplicacion.Sucursales;
 
-public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria)
+public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria, IEmailSender emailSender)
 {
     // Admin: para la pantalla de gestión (crear sucursales nuevas, ver todas).
     public async Task<List<SucursalResumenDto>> ListarTodasAsync(CancellationToken ct = default) =>
@@ -146,5 +146,27 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria)
 
         await db.SaveChangesAsync(ct);
         await auditoria.RegistrarAsync(sucursalId, usuarioId, "CambioConfiguracion", "Sucursal.Smtp", sucursalId, ct: ct);
+    }
+
+    // Envía un correo real usando la configuración YA GUARDADA de la sucursal (por eso el
+    // botón de prueba en el frontend exige guardar primero) — a diferencia del resto de los
+    // usos de IEmailSender, acá SÍ debe fallar visiblemente (credenciales malas, host
+    // incorrecto, etc.) para que el Admin sepa que algo está mal antes de depender de las
+    // alertas de stock bajo.
+    public async Task EnviarPruebaSmtpAsync(Guid sucursalId, string destinatario, CancellationToken ct = default)
+    {
+        var sucursal = await db.Sucursales.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sucursalId, ct)
+            ?? throw new InvalidOperationException("La sucursal no existe.");
+
+        if (!sucursal.SmtpActivo || string.IsNullOrWhiteSpace(sucursal.SmtpHost))
+            throw new InvalidOperationException("Activa y guarda la configuración de correo antes de enviar una prueba.");
+
+        if (string.IsNullOrWhiteSpace(destinatario))
+            throw new InvalidOperationException("Indica un correo de destino para la prueba.");
+
+        await emailSender.EnviarAsync(
+            sucursalId, destinatario, "Correo de prueba — SaborByte",
+            $"<p>Este es un correo de prueba de la configuración SMTP de <strong>{sucursal.Nombre}</strong>.</p><p>Si lo recibiste, el envío de correo está funcionando correctamente.</p>",
+            ct);
     }
 }
