@@ -196,6 +196,10 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.StockMinimo).HasColumnType("decimal(18,3)");
             b.Property(x => x.StockMaximo).HasColumnType("decimal(18,3)");
             b.HasIndex(x => new { x.ProductoId, x.SucursalId }).IsUnique();
+            // El índice único de arriba tiene SucursalId en segundo lugar — no sirve para
+            // buscar "todo el stock de esta sucursal" (ej. alerta de stock bajo, Inventario)
+            // de forma eficiente. Este cubre exactamente ese filtro.
+            b.HasIndex(x => x.SucursalId);
             b.HasOne(x => x.Producto).WithMany(p => p.StockPorSucursal).HasForeignKey(x => x.ProductoId).OnDelete(DeleteBehavior.Cascade);
         });
 

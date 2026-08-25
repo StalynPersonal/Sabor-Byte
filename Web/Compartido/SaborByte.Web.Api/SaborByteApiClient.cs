@@ -341,10 +341,10 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await http.GetFromJsonAsync<int>($"api/productos/inventariables/bajo-minimo?sucursalId={sucursalId}");
     }
 
-    public async Task<List<ProductoDetalleDto>> ListarInventariablesBajoMinimoAsync(Guid sucursalId)
+    public async Task<List<ProductoStockBajoDto>> ListarInventariablesBajoMinimoAsync(Guid sucursalId)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<List<ProductoDetalleDto>>($"api/productos/inventariables/bajo-minimo/detalle?sucursalId={sucursalId}") ?? [];
+        return await http.GetFromJsonAsync<List<ProductoStockBajoDto>>($"api/productos/inventariables/bajo-minimo/detalle?sucursalId={sucursalId}") ?? [];
     }
 
     public async Task<ResultadoPaginadoDto<MovimientoInventarioDto>> ListarMovimientosInventarioAsync(

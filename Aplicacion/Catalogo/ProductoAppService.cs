@@ -150,30 +150,22 @@ public class ProductoAppService(IAppDbContext db)
 
     // Detalle de los productos bajo mínimo — para el aviso del dashboard de Inicio, que
     // siempre son pocos (a diferencia del catálogo completo) así que no hace falta paginar.
-    public async Task<List<ProductoDetalleDto>> ListarBajoMinimoAsync(Guid sucursalId, CancellationToken ct = default)
-    {
-        var stocksBajos = await db.StockPorSucursal
+    // Una sola consulta (join), solo las columnas que la pantalla necesita — antes eran dos
+    // idas a la base y se armaba un ProductoDetalleDto completo (con descripción, imagen,
+    // etc.) por cada fila, todo descartado salvo 4 campos.
+    public async Task<List<ProductoStockBajoDto>> ListarBajoMinimoAsync(Guid sucursalId, CancellationToken ct = default) =>
+        await db.StockPorSucursal
             .Where(s => s.SucursalId == sucursalId && s.StockMinimo != null && s.StockActual < s.StockMinimo)
-            .ToListAsync(ct);
-
-        var productoIds = stocksBajos.Select(s => s.ProductoId).ToList();
-        var productos = await db.Productos
-            .Where(p => productoIds.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id, ct);
-
-        return stocksBajos
-            .Where(s => productos.ContainsKey(s.ProductoId))
-            .Select(s =>
+            .Join(db.Productos, s => s.ProductoId, p => p.Id, (s, p) => new ProductoStockBajoDto
             {
-                var dto = MapearDetalle(productos[s.ProductoId]);
-                dto.StockActual = s.StockActual;
-                dto.StockMinimo = s.StockMinimo;
-                dto.StockMaximo = s.StockMaximo;
-                return dto;
+                Id = p.Id,
+                Codigo = p.Codigo,
+                Nombre = p.Nombre,
+                StockActual = s.StockActual,
+                StockMinimo = s.StockMinimo
             })
             .OrderBy(p => p.Nombre)
-            .ToList();
-    }
+            .ToListAsync(ct);
 
     // sucursalId es opcional: si se pasa, el detalle trae el stock de esa sucursal
     // (solo aplica cuando el producto es Insumo).

@@ -27,7 +27,7 @@ public class NotaCredito
     public decimal Monto { get; set; }
 
     public string? NumeroNcf { get; set; }
-    public string? TipoComprobante { get; set; } // siempre "33" (nota de crédito)
+    public string? TipoComprobante { get; set; } // siempre "34" (nota de crédito)
     public EstadoDgii EstadoDgii { get; set; } = EstadoDgii.NoAplica;
 
     public DateTime FechaEmision { get; set; } = DateTime.UtcNow;

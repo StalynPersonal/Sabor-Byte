@@ -39,6 +39,17 @@ public class ComponenteComboDto
     public decimal Cantidad { get; set; }
 }
 
+// Versión liviana de ProductoDetalleDto — solo lo que necesita el aviso de stock bajo
+// del dashboard (no descripción, imagen, códigos de barra, receta, etc.).
+public class ProductoStockBajoDto
+{
+    public Guid Id { get; set; }
+    public string? Codigo { get; set; }
+    public required string Nombre { get; set; }
+    public decimal StockActual { get; set; }
+    public decimal? StockMinimo { get; set; }
+}
+
 public class ProductoDetalleDto
 {
     public Guid Id { get; set; }

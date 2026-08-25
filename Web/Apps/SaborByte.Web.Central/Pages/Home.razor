@@ -85,7 +85,7 @@
     else
     {
         <MudText Typo="Typo.body2" Class="mb-2">@_insumosStockBajo.Count producto(s) con stock por debajo del mínimo.</MudText>
-        <MudTable Items="_insumosStockBajo" Hover="true" Dense="true" T="ProductoDetalleDto">
+        <MudTable Items="_insumosStockBajo" Hover="true" Dense="true" T="ProductoStockBajoDto">
             <HeaderContent>
                 <MudTh>Código</MudTh>
                 <MudTh>Producto</MudTh>
@@ -194,8 +194,18 @@
             }
             else
             {
-                <MudChart ChartType="ChartType.Bar" ChartSeries="_serieProductosReporte" ChartLabels="_etiquetasProductosReporte"
-                          Width="100%" Height="300px" />
+                <div class="pa-2">
+                    @foreach (var p in _ventasPorProductoReporte.Take(10))
+                    {
+                        <div class="d-flex align-center mb-2" style="gap:8px">
+                            <MudText Typo="Typo.body2" Style="width:200px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="@p.NombreProducto">@p.NombreProducto</MudText>
+                            <div style="flex:1; background:var(--mud-palette-table-hover); border-radius:4px; height:18px; overflow:hidden">
+                                <div style="width:@(AnchoBarraProducto(p.TotalVendido).ToString("0.##"))%; background:var(--mud-palette-primary); height:100%; border-radius:4px"></div>
+                            </div>
+                            <MudText Typo="Typo.body2" Style="width:110px; text-align:right; white-space:nowrap">RD$ @p.TotalVendido.ToString("N0")</MudText>
+                        </div>
+                    }
+                </div>
             }
         </MudPaper>
     </MudItem>
@@ -265,8 +275,6 @@
     private List<VentaPorProductoDto> _ventasPorProductoReporte = [];
     private List<VentaPorHoraDto> _ventasPorHoraReporte = [];
 
-    private List<ChartSeries<double>> _serieProductosReporte = [];
-    private string[] _etiquetasProductosReporte = [];
     private List<ChartSeries<double>> _serieHorasReporte = [];
     private string[] _etiquetasHorasReporte = [];
 
@@ -278,7 +286,7 @@
     private List<ChartSeries<double>> _serieCategoriaReporte = [];
     private string[] _etiquetasCategoriaReporte = [];
 
-    private List<ProductoDetalleDto> _insumosStockBajo = [];
+    private List<ProductoStockBajoDto> _insumosStockBajo = [];
 
     private Guid _sucursalIdReporte;
     private Guid SucursalId => _sucursalIdReporte;
@@ -304,6 +312,14 @@
         _ = CargarStockBajoAsync();
         await CargarReporteAsync();
         _temporizador = new Timer(async _ => await InvokeAsync(CargarAsync), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    // Barra horizontal en vez de MudChart de barras verticales — ver mismo comentario en
+    // Reportes.razor: con nombres largos las etiquetas del eje X se amontonaban.
+    private double AnchoBarraProducto(decimal valor)
+    {
+        var max = _ventasPorProductoReporte.Take(10).Select(p => p.TotalVendido).DefaultIfEmpty(0).Max();
+        return max > 0 ? (double)(valor / max) * 100 : 0;
     }
 
     private async Task CargarStockBajoAsync()
@@ -373,11 +389,6 @@
 
             _ventasPorProductoReporte = tareaPorProducto.Result;
             _ventasPorHoraReporte = tareaPorHora.Result;
-
-            // Top 10 por total vendido, para que el grafico de barras no se sature.
-            var top = _ventasPorProductoReporte.Take(10).ToList();
-            _etiquetasProductosReporte = top.Select(p => p.NombreProducto).ToArray();
-            _serieProductosReporte = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = top.Select(p => (double)p.TotalVendido).ToArray() }];
 
             var horas = _ventasPorHoraReporte.OrderBy(h => h.Hora).ToList();
             _etiquetasHorasReporte = horas.Select(h => $"{h.Hora}:00").ToArray();

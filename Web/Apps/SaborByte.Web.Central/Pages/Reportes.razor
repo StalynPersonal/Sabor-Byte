@@ -151,8 +151,18 @@ else
         }
         else
         {
-            <MudChart ChartType="ChartType.Bar" ChartSeries="_serieProductos" ChartLabels="_etiquetasProductos"
-                      Width="100%" Height="280px" Class="mb-4" />
+            <div class="pa-2 mb-4">
+                @foreach (var p in _ventasPorProducto.Take(10))
+                {
+                    <div class="d-flex align-center mb-2" style="gap:8px">
+                        <MudText Typo="Typo.body2" Style="width:200px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="@p.NombreProducto">@p.NombreProducto</MudText>
+                        <div style="flex:1; background:var(--mud-palette-table-hover); border-radius:4px; height:18px; overflow:hidden">
+                            <div style="width:@(AnchoBarra(p.TotalVendido, _ventasPorProducto).ToString("0.##"))%; background:var(--mud-palette-primary); height:100%; border-radius:4px"></div>
+                        </div>
+                        <MudText Typo="Typo.body2" Style="width:110px; text-align:right; white-space:nowrap">RD$ @p.TotalVendido.ToString("N0")</MudText>
+                    </div>
+                }
+            </div>
         }
         <MudTable Items="_ventasPorProducto" Hover="true" Dense="true" T="VentaPorProductoDto">
             <HeaderContent>
@@ -325,8 +335,14 @@ else
     private List<PagoCuentaReporteDto> _cxcPagos = [];
     private List<PagoCuentaReporteDto> _cxpPagos = [];
 
-    private List<ChartSeries<double>> _serieProductos = [];
-    private string[] _etiquetasProductos = [];
+    // Barra horizontal en vez de MudChart de barras verticales: con muchos productos o
+    // nombres largos, las etiquetas del eje X se amontonaban unas sobre otras — acá cada
+    // nombre tiene su propia línea, así que nunca hay colisión sin importar el largo.
+    private static double AnchoBarra(decimal valor, List<VentaPorProductoDto> todos)
+    {
+        var max = todos.Take(10).Select(p => p.TotalVendido).DefaultIfEmpty(0).Max();
+        return max > 0 ? (double)(valor / max) * 100 : 0;
+    }
 
     private Guid _sucursalIdSeleccionada;
     private Guid SucursalId => _sucursalIdSeleccionada;
@@ -414,10 +430,6 @@ else
             _cargando = false;
         }
 
-        // Top 10 por total vendido, para que el gráfico de barras no se sature.
-        var top = _ventasPorProducto.Take(10).ToList();
-        _etiquetasProductos = top.Select(p => p.NombreProducto).ToArray();
-        _serieProductos = [new ChartSeries<double> { Name = "Total vendido (RD$)", Data = top.Select(p => (double)p.TotalVendido).ToArray() }];
     }
 
     // --- Exportación a CSV (se abre directo en Excel) ---

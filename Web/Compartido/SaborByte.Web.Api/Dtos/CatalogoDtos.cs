@@ -6,6 +6,15 @@ public enum TipoProducto
     Vendible
 }
 
+public class ProductoStockBajoDto
+{
+    public Guid Id { get; set; }
+    public string? Codigo { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public decimal StockActual { get; set; }
+    public decimal? StockMinimo { get; set; }
+}
+
 public class ProductoDetalleDto
 {
     public Guid Id { get; set; }

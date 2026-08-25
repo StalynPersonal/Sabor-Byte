@@ -299,7 +299,7 @@ public class NotaCreditoAppService(IAppDbContext db, IAuditoriaService auditoria
     }
 
     // Número interno de la nota (no fiscal), siempre asignado: CodigoSucursal(2) +
-    // "33"(2) + Secuencia(5) = 9 dígitos — mismo patrón CAS que Factura.NumeroFactura,
+    // "34"(2) + Secuencia(5) = 9 dígitos — mismo patrón CAS que Factura.NumeroFactura,
     // pero el contador vive en Sucursal (las notas no tienen caja).
     private async Task AsignarNumeroNotaAsync(Guid sucursalId, NotaCredito nota, CancellationToken ct)
     {
@@ -309,7 +309,7 @@ public class NotaCreditoAppService(IAppDbContext db, IAuditoriaService auditoria
         if (string.IsNullOrWhiteSpace(sucursal.Codigo))
             throw new InvalidOperationException("La sucursal no tiene código configurado (2 dígitos); no se puede generar el número de la nota.");
 
-        const string tipoInterno = "33"; // e-CF 33 = Nota de Crédito (DGII)
+        const string tipoInterno = "34"; // e-CF 34 = Nota de Crédito (DGII) — 33 es Nota de Débito
 
         while (true)
         {
@@ -332,11 +332,11 @@ public class NotaCreditoAppService(IAppDbContext db, IAuditoriaService auditoria
 
     // Igual que la factura original (ver VentaAppService.AsignarNcfSiAplicaAsync): si la
     // sucursal no tiene "Facturación electrónica (e-CF/DGII)" activada, nunca se asigna
-    // NCF, aunque exista una secuencia vigente para el tipo 33 — el checkbox de la
+    // NCF, aunque exista una secuencia vigente para el tipo 34 — el checkbox de la
     // sucursal es el interruptor único.
     private async Task AsignarNcfSiAplicaAsync(Guid sucursalId, bool ecfActivo, NotaCredito nota, CancellationToken ct)
     {
-        const string tipoComprobante = "33"; // e-CF 33 = Nota de Crédito (DGII)
+        const string tipoComprobante = "34"; // e-CF 34 = Nota de Crédito (DGII) — 33 es Nota de Débito
 
         if (!ecfActivo)
         {
