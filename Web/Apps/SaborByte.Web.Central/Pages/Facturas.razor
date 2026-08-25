@@ -107,9 +107,12 @@ else
                     <MudText Typo="Typo.body2" Class="mb-2">@_detalle.SucursalNombre (@_detalle.SucursalCodigo)</MudText>
 
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Cliente</MudText>
-                    <MudText Typo="Typo.body2">
+                    <MudText Typo="Typo.body2" Class="mb-2">
                         @_detalle.ClienteNombre @(string.IsNullOrEmpty(_detalle.ClienteRncOCedula) ? "" : $"({_detalle.ClienteRncOCedula})")
                     </MudText>
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Cajero</MudText>
+                    <MudText Typo="Typo.body2">@(_detalle.CajeroNombre ?? "—")</MudText>
                 </MudItem>
                 <MudItem xs="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">NCF</MudText>
