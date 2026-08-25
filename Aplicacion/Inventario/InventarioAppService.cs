@@ -10,8 +10,14 @@ namespace SaborByte.Aplicacion.Inventario;
 // El producto (catálogo) es de toda la empresa, pero el STOCK es por sucursal (ver
 // StockSucursal.cs) — la sucursal Norte y la sucursal Sur del mismo insumo llevan
 // cada una su propio saldo, independiente.
-public class InventarioAppService(IAppDbContext db)
+public class InventarioAppService(IAppDbContext db, IEmailSender emailSender)
 {
+    // Sucursales donde algún producto acaba de cruzar a "stock bajo" dentro de la
+    // operación en curso (una venta puede descontar varios insumos a la vez) — se
+    // acumulan acá y se envían recién después de que el llamador confirma con
+    // EnviarAlertasPendientesAsync (normalmente justo después de su propio
+    // SaveChangesAsync), para no avisar de algo que al final no se llegó a persistir.
+    private readonly HashSet<Guid> _sucursalesConAlertaPendiente = [];
     // Entrada manual de stock (ej. llegó mercancía del proveedor). Sin esto, StockActual
     // solo podía bajar por venta — no había forma de reponerlo desde la app (ver sección
     // "Consideraciones Adicionales" del plan, kardex con tipo Entrada nunca usado).
@@ -60,7 +66,9 @@ public class InventarioAppService(IAppDbContext db)
         if (string.IsNullOrWhiteSpace(request.Motivo))
             throw new InvalidOperationException("El motivo del ajuste es obligatorio.");
 
+        var stockAntes = stock.StockActual;
         stock.StockActual = request.NuevoStock;
+        var cruzoABajo = CruzoABajo(stockAntes, stock.StockActual, stock.StockMinimo);
 
         var movimiento = new MovimientoInventario
         {
@@ -75,6 +83,10 @@ public class InventarioAppService(IAppDbContext db)
 
         db.MovimientosInventario.Add(movimiento);
         await db.SaveChangesAsync(ct);
+
+        if (cruzoABajo)
+            await EnviarAlertaStockBajoAsync(sucursalId, ct);
+
         return movimiento.Id;
     }
 
@@ -259,7 +271,11 @@ public class InventarioAppService(IAppDbContext db)
                 $"Stock insuficiente de '{insumo.Nombre}' en esta sucursal: disponible {stock.StockActual:0.###}, solicitado {-cantidadConSigno:0.###}.");
         }
 
+        var stockAntes = stock.StockActual;
         stock.StockActual += cantidadConSigno;
+
+        if (CruzoABajo(stockAntes, stock.StockActual, stock.StockMinimo))
+            _sucursalesConAlertaPendiente.Add(sucursalId);
 
         db.MovimientosInventario.Add(new MovimientoInventario
         {
@@ -271,5 +287,80 @@ public class InventarioAppService(IAppDbContext db)
             ReferenciaId = referenciaId,
             CreadoPorUsuarioId = usuarioId
         });
+    }
+
+    private static bool CruzoABajo(decimal antes, decimal despues, decimal? minimo) =>
+        minimo is decimal min && antes >= min && despues < min;
+
+    // Se llama después de que el llamador confirma su propio SaveChangesAsync (ver
+    // VentaAppService.CrearVentaAsync y ComandaAppService.CrearComandaAsync) — una venta
+    // puede descontar varios insumos de la misma sucursal a la vez, así que se manda un
+    // solo correo consolidado con TODO lo que esté bajo mínimo en ese momento, no uno por
+    // cada producto que cruzó.
+    public async Task EnviarAlertasPendientesAsync(CancellationToken ct = default)
+    {
+        if (_sucursalesConAlertaPendiente.Count == 0)
+            return;
+
+        var sucursales = _sucursalesConAlertaPendiente.ToList();
+        _sucursalesConAlertaPendiente.Clear();
+
+        foreach (var sucursalId in sucursales)
+            await EnviarAlertaStockBajoAsync(sucursalId, ct);
+    }
+
+    private async Task EnviarAlertaStockBajoAsync(Guid sucursalId, CancellationToken ct)
+    {
+        var sucursal = await db.Sucursales.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sucursalId, ct);
+        if (sucursal is null || !sucursal.SmtpActivo)
+            return;
+
+        var productosBajos = await db.StockPorSucursal
+            .Where(s => s.SucursalId == sucursalId && s.StockMinimo != null && s.StockActual < s.StockMinimo)
+            .Join(db.Productos, s => s.ProductoId, p => p.Id,
+                (s, p) => new { p.Nombre, p.Codigo, s.StockActual, s.StockMinimo })
+            .ToListAsync(ct);
+
+        if (productosBajos.Count == 0)
+            return;
+
+        var destinatarios = await db.UsuarioSucursales
+            .Where(us => us.SucursalId == sucursalId)
+            .Select(us => us.Usuario!)
+            .Where(u => u.Activo && u.RecibirAlertaStockBajo && u.Email != null)
+            .Select(u => u.Email!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (destinatarios.Count == 0)
+            return;
+
+        var filas = string.Join(string.Empty, productosBajos.Select(p =>
+            $"<tr><td>{p.Codigo}</td><td>{p.Nombre}</td><td>{p.StockActual:0.###}</td><td>{p.StockMinimo:0.###}</td></tr>"));
+
+        var cuerpo = $"""
+            <h3>Alerta de stock bajo — {sucursal.Nombre}</h3>
+            <p>{productosBajos.Count} producto(s) por debajo de su stock mínimo:</p>
+            <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">
+                <tr><th>Código</th><th>Producto</th><th>Stock actual</th><th>Mínimo</th></tr>
+                {filas}
+            </table>
+            """;
+
+        var asunto = $"SaborByte — Stock bajo en {sucursal.Nombre}";
+
+        foreach (var email in destinatarios)
+        {
+            try
+            {
+                await emailSender.EnviarAsync(sucursalId, email, asunto, cuerpo, ct);
+            }
+            catch
+            {
+                // Un fallo de correo (SMTP caído, credenciales vencidas, etc.) nunca debe
+                // tumbar la venta/ajuste que originó la alerta — SmtpEmailSender ya es
+                // defensivo con su propia config, esto cubre cualquier otro fallo inesperado.
+            }
+        }
     }
 }

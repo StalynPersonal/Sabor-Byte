@@ -9,6 +9,10 @@ public class Usuario
     public string? Email { get; set; }
     public bool Activo { get; set; } = true;
 
+    // Si está marcado (y tiene Email), recibe el correo de alerta de stock bajo de sus
+    // sucursales asignadas — ver InventarioAppService.EnviarAlertaStockBajoAsync.
+    public bool RecibirAlertaStockBajo { get; set; }
+
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     // Nullable: los usuarios "admin"/"supervisor" de la siembra inicial no tienen un
     // usuario autenticado que los haya creado.

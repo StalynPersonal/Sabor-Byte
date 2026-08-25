@@ -23,6 +23,7 @@ public interface IAppDbContext
     DbSet<Usuario> Usuarios { get; }
     DbSet<Rol> Roles { get; }
     DbSet<UsuarioRol> UsuarioRoles { get; }
+    DbSet<UsuarioSucursal> UsuarioSucursales { get; }
     DbSet<SesionActiva> SesionesActivas { get; }
 
     DbSet<Categoria> Categorias { get; }

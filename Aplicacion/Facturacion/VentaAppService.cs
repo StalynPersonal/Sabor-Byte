@@ -266,6 +266,7 @@ public class VentaAppService(
         }
 
         await db.SaveChangesAsync(ct);
+        await inventario.EnviarAlertasPendientesAsync(ct);
 
         if (comandaOrigen is not null)
             await notificadorComandas.ComandaCerradaAsync(sucursalId, comandaOrigen.Id);

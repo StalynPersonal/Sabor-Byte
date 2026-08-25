@@ -7,6 +7,7 @@ public class UsuarioDto
     public required string Nombre { get; set; }
     public string? Email { get; set; }
     public bool Activo { get; set; }
+    public bool RecibirAlertaStockBajo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
 
@@ -28,6 +29,7 @@ public class CrearUsuarioRequestDto
     public required string Password { get; set; }
     public required string Nombre { get; set; }
     public string? Email { get; set; }
+    public bool RecibirAlertaStockBajo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
 }
@@ -40,6 +42,7 @@ public class ActualizarUsuarioRequestDto
     public required string Nombre { get; set; }
     public string? Email { get; set; }
     public bool Activo { get; set; } = true;
+    public bool RecibirAlertaStockBajo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
 }

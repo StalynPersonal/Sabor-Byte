@@ -7,6 +7,7 @@ public class UsuarioDto
     public string Nombre { get; set; } = string.Empty;
     public string? Email { get; set; }
     public bool Activo { get; set; }
+    public bool RecibirAlertaStockBajo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
     public bool EsAdminPrincipal { get; set; }
@@ -18,6 +19,7 @@ public class CrearUsuarioRequestDto
     public string Password { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
     public string? Email { get; set; }
+    public bool RecibirAlertaStockBajo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
 }
@@ -29,6 +31,7 @@ public class ActualizarUsuarioRequestDto
     public string Nombre { get; set; } = string.Empty;
     public string? Email { get; set; }
     public bool Activo { get; set; } = true;
+    public bool RecibirAlertaStockBajo { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<Guid> SucursalesAsignadas { get; set; } = [];
 }

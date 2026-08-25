@@ -66,6 +66,7 @@ else
                        InputType="InputType.Password" @bind-Value="_form.Password" Required="_usuarioId is null" Class="mb-2" />
         <MudTextField T="string" Label="Nombre completo" @bind-Value="_form.Nombre" Required="true" Class="mb-2" />
         <MudTextField T="string" Label="Email (opcional)" @bind-Value="_form.Email" Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="_form.RecibirAlertaStockBajo" Label="Recibir correo de alerta de stock bajo" Class="mb-2" />
 
         @if (_usuarioId is not null)
         {
@@ -152,6 +153,7 @@ else
             Nombre = usuario.Nombre,
             Email = usuario.Email,
             Activo = usuario.Activo,
+            RecibirAlertaStockBajo = usuario.RecibirAlertaStockBajo,
             Roles = [.. usuario.Roles],
             SucursalesAsignadas = [.. usuario.SucursalesAsignadas]
         };
@@ -212,6 +214,7 @@ else
                     Password = _form.Password ?? string.Empty,
                     Nombre = _form.Nombre,
                     Email = _form.Email,
+                    RecibirAlertaStockBajo = _form.RecibirAlertaStockBajo,
                     Roles = _form.Roles,
                     SucursalesAsignadas = _form.SucursalesAsignadas
                 })

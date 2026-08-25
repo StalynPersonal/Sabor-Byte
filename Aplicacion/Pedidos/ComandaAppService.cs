@@ -97,6 +97,7 @@ public class ComandaAppService(
         }
 
         await db.SaveChangesAsync(ct);
+        await inventario.EnviarAlertasPendientesAsync(ct);
 
         var dto = MapearComanda(comanda);
         await notificador.ComandaCreadaAsync(sucursalId, dto);

@@ -68,6 +68,7 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
             NombreUsuario = request.NombreUsuario,
             Nombre = request.Nombre,
             Email = request.Email,
+            RecibirAlertaStockBajo = request.RecibirAlertaStockBajo,
             HashPassword = passwordHasher.Hash(request.Password),
             CreadoPorUsuarioId = usuarioActorId
         };
@@ -112,6 +113,7 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
         usuario.Nombre = request.Nombre;
         usuario.Email = request.Email;
         usuario.Activo = request.Activo;
+        usuario.RecibirAlertaStockBajo = request.RecibirAlertaStockBajo;
 
         if (!string.IsNullOrWhiteSpace(request.Password))
             usuario.HashPassword = passwordHasher.Hash(request.Password);
@@ -172,6 +174,7 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
         Nombre = u.Nombre,
         Email = u.Email,
         Activo = u.Activo,
+        RecibirAlertaStockBajo = u.RecibirAlertaStockBajo,
         Roles = u.Roles.Select(r => r.Rol!.Nombre).ToList(),
         SucursalesAsignadas = u.SucursalesAsignadas.Select(s => s.SucursalId).ToList(),
         EsAdminPrincipal = u.Id == idAdminPrincipal
