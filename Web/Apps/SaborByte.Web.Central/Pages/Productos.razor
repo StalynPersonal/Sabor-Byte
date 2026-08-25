@@ -167,7 +167,7 @@ else
             </MudTooltip>
         </div>
 
-        <MudNumericField T="decimal" Label="Precio" @bind-Value="_form.Precio" Min="0" Class="mb-2" />
+        <MudNumericField T="decimal" Label="Precio de venta (con ITBIS incluido)" @bind-Value="_precioConItbis" Min="0" Class="mb-2" />
         <MudNumericField T="decimal?" Label="Costo unitario (opcional)" @bind-Value="_form.CostoUnitario" Min="0" Class="mb-2" />
 
         <div class="d-flex gap-2 align-center mb-2">
@@ -474,6 +474,11 @@ else
     private bool _editando;
     private Guid? _productoId;
     private GuardarProductoRequestDto _form = new();
+    // El formulario le pide al usuario el precio CON ITBIS incluido (lo que el cliente
+    // paga) — _form.Precio (neto, lo que se guarda) se calcula a partir de esto recién al
+    // guardar, dividiendo por (1 + TasaItbis). El resto del sistema (venta, comanda,
+    // carrito, promociones) sigue usando Producto.Precio como neto, sin cambios.
+    private decimal _precioConItbis;
     private string _nuevoCodigoBarra = string.Empty;
     private bool _editandoEsCombo;
 
@@ -660,6 +665,7 @@ else
             CategoriaId = _categorias.FirstOrDefault()?.Id ?? Guid.Empty,
             UnidadMedidaId = _unidadesMedida.FirstOrDefault()?.Id ?? Guid.Empty
         };
+        _precioConItbis = 0;
         _editandoEsCombo = false;
         _nuevoCodigoBarra = string.Empty;
         _editando = true;
@@ -815,6 +821,7 @@ else
 
         _productoId = id;
         _form = ConstruirForm(producto);
+        _precioConItbis = Math.Round(producto.Precio * (1 + producto.TasaItbis), 2);
         _editandoEsCombo = false;
         _nuevoCodigoBarra = string.Empty;
         _editando = true;
@@ -826,6 +833,8 @@ else
         _procesando = true;
         try
         {
+            _form.Precio = Math.Round(_precioConItbis / (1 + _form.TasaItbis), 2);
+
             var esNuevo = _productoId is null;
             var (exito, error) = _productoId is null
                 ? await ApiClient.CrearProductoAsync(_form)

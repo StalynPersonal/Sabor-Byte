@@ -123,6 +123,19 @@ else if (_cerrando)
                 Esta acción no se puede deshacer. Verifica el conteo de efectivo antes de continuar.
             </MudAlert>
             <MudText Typo="Typo.body2">Total efectivo contado: <strong>RD$ @TotalEfectivoContado.ToString("0.00")</strong></MudText>
+            <MudText Typo="Typo.body2" Class="mt-1">Total esperado (todas las formas de pago): <strong>RD$ @TotalEsperadoCierre.ToString("0.00")</strong></MudText>
+            @if (Math.Abs(DiferenciaCierre) < 0.01m)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Success" Class="mt-1">Cuadra exacto — sin faltante ni sobrante.</MudText>
+            }
+            else if (DiferenciaCierre < 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-1"><strong>Faltante: RD$ @Math.Abs(DiferenciaCierre).ToString("0.00")</strong></MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Color="Color.Warning" Class="mt-1"><strong>Sobrante: RD$ @DiferenciaCierre.ToString("0.00")</strong></MudText>
+            }
         </DialogContent>
         <DialogActions>
             <MudButton OnClick="() => _confirmandoCierre = false" Disabled="_procesandoCierre">Cancelar</MudButton>
@@ -153,6 +166,13 @@ else
 
     <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4" @bind-ActivePanelIndex="_tabIndex">
     <MudTabPanel Text="Venta">
+    <div style="position:relative">
+    <MudOverlay Visible="_procesandoAccion" DarkBackground="true" Absolute="true" ZIndex="10">
+        <div class="d-flex flex-column align-center">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.subtitle1" Class="mt-2" Color="Color.Surface">Procesando, espera un momento...</MudText>
+        </div>
+    </MudOverlay>
     <MudGrid>
         <MudItem xs="8">
             <MudGrid Class="mb-4">
@@ -350,6 +370,7 @@ else
             </MudPaper>
         </MudItem>
     </MudGrid>
+    </div>
     </MudTabPanel>
 
     <MudTabPanel Text="Comandas abiertas">
@@ -1129,6 +1150,14 @@ else
 
     private decimal TotalEfectivoContado => _denominacionesEfectivo.Sum(d => d * (_cantidadesPorDenominacion.GetValueOrDefault(d)));
 
+    // Esperado según las ventas del turno (server) vs. lo que se está contando en pantalla
+    // ahora mismo (efectivo por denominación + lo tecleado para las demás formas de pago)
+    // — _resumenCierre.Totales[].Contado/Diferencia todavía no sirven acá porque esos los
+    // calcula el backend recién DESPUÉS de confirmar el cierre, con lo realmente enviado.
+    private decimal TotalEsperadoCierre => _resumenCierre?.Totales.Sum(t => t.Esperado) ?? 0m;
+    private decimal TotalContadoCierre => TotalEfectivoContado + _montoContadoPorMetodo.Values.Sum();
+    private decimal DiferenciaCierre => TotalContadoCierre - TotalEsperadoCierre;
+
     // Encabezado real de los recibos impresos (factura, nota de crédito, reimpresión):
     // nunca el nombre del sistema ("SaborByte"), siempre el de la empresa/sucursal del cliente.
     private EmpresaDto? _empresa;
@@ -1367,6 +1396,10 @@ else
 
     private async Task AgregarAlCarritoAsync(ProductoResumenDto producto)
     {
+        // Defensa además del overlay visual (ver MudTabPanel "Venta"): mientras se está
+        // facturando/cerrando turno/emitiendo nota no se puede seguir agregando productos.
+        if (_procesandoAccion) return;
+
         var receta = await ObtenerRecetaAsync(producto.Id);
         var opcionales = receta.Where(r => r.Opcional).ToList();
 
