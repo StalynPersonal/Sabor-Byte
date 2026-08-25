@@ -325,10 +325,12 @@
 
     private async Task CargarReporteAsync()
     {
+        // Ver HorarioRd: convierte la fecha de calendario elegida al instante UTC que
+        // corresponde a esa medianoche en RD, porque FechaEmision se guarda en UTC.
         var rango = new RangoFechasRequestDto
         {
-            Desde = _desdeReporte ?? DateTime.Today.AddDays(-30),
-            Hasta = (_hastaReporte ?? DateTime.Today).AddDays(1).AddSeconds(-1)
+            Desde = HorarioRd.ADateTimeUtc(_desdeReporte ?? DateTime.Today.AddDays(-30)),
+            Hasta = HorarioRd.ADateTimeUtc((_hastaReporte ?? DateTime.Today).AddDays(1)).AddSeconds(-1)
         };
 
         try

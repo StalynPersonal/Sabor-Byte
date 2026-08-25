@@ -357,10 +357,13 @@ else
 
     private void OnReporteCambiado(TipoReporte reporte) => _reporte = reporte;
 
+    // Los DatePicker dan fechas "de calendario" (sin hora) — se convierten al instante UTC
+    // que corresponde a esa medianoche en RD, porque FechaEmision se guarda en UTC (ver
+    // HorarioRd). Sin esto, el rango quedaba corrido ~4 horas respecto al día real en RD.
     private RangoFechasRequestDto RangoActual() => new()
     {
-        Desde = _desde ?? DateTime.Today.AddDays(-30),
-        Hasta = (_hasta ?? DateTime.Today).AddDays(1).AddSeconds(-1)
+        Desde = HorarioRd.ADateTimeUtc(_desde ?? DateTime.Today.AddDays(-30)),
+        Hasta = HorarioRd.ADateTimeUtc((_hasta ?? DateTime.Today).AddDays(1)).AddSeconds(-1)
     };
 
     private async Task CargarTodoAsync()

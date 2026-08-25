@@ -154,8 +154,9 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             MontoAperturaEfectivo = turno.MontoAperturaEfectivo,
             UsuarioAperturaNombre = nombreUsuario,
             // Un turno no puede cruzar de un día calendario a otro sin cerrarse — se
-            // compara en UTC, igual que se guarda FechaHoraApertura.
-            EsDeOtroDia = turno.FechaHoraApertura.Date != DateTime.UtcNow.Date
+            // compara en día calendario de RD (ver HorarioRd), no UTC del servidor, para
+            // que el corte ocurra a medianoche real de RD y no 4 horas antes/después.
+            EsDeOtroDia = Dominio.Comun.HorarioRd.AHoraLocal(turno.FechaHoraApertura).Date != Dominio.Comun.HorarioRd.AHoraLocal(DateTime.UtcNow).Date
         };
     }
 

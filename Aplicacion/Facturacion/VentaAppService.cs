@@ -81,9 +81,9 @@ public class VentaAppService(
         if (turno.Estado != EstadoTurnoCaja.Abierto)
             throw new InvalidOperationException("No se puede facturar sobre un turno de caja cerrado.");
 
-        // Un turno no puede cruzar de un día calendario a otro sin cerrarse (mismo
-        // criterio en UTC que CajaAppService.ObtenerTurnoAbiertoAsync).
-        if (turno.FechaHoraApertura.Date != DateTime.UtcNow.Date)
+        // Un turno no puede cruzar de un día calendario a otro sin cerrarse — comparado en
+        // día calendario de RD (mismo criterio que CajaAppService.ObtenerTurnoAbiertoAsync).
+        if (Dominio.Comun.HorarioRd.AHoraLocal(turno.FechaHoraApertura).Date != Dominio.Comun.HorarioRd.AHoraLocal(DateTime.UtcNow).Date)
             throw new InvalidOperationException(
                 $"Este turno se abrió el {turno.FechaHoraApertura:dd/MM/yyyy} y no puede seguir operando en otro día. Debe cerrarlo antes de continuar.");
 

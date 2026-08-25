@@ -3,6 +3,7 @@ using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Aplicacion.Reportes.Dtos;
 using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Catalogo;
+using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.CxcCxp;
 
 namespace SaborByte.Aplicacion.Reportes;
@@ -101,8 +102,10 @@ public class ReporteAppService(IAppDbContext db)
             .Select(f => new { f.FechaEmision, f.Total })
             .ToListAsync(ct);
 
+        // Hora de RD, no UTC (ver HorarioRd) — sin esto, el gráfico de "hora pico" mostraba
+        // la hora del servidor, 4 horas adelantada respecto a la hora real del negocio.
         return facturas
-            .GroupBy(f => f.FechaEmision.Hour)
+            .GroupBy(f => HorarioRd.AHoraLocal(f.FechaEmision).Hour)
             .Select(g => new VentaPorHoraDto
             {
                 Hora = g.Key,
@@ -122,8 +125,11 @@ public class ReporteAppService(IAppDbContext db)
             .Select(f => new { f.FechaEmision, f.Total, f.Itbis })
             .ToListAsync(ct);
 
+        // Agrupa por día calendario de RD, no por día UTC (ver HorarioRd) — una venta de
+        // las 9pm hora RD es UTC 1am del día siguiente, y sin esta conversión aparecía
+        // agrupada bajo la fecha equivocada.
         return facturas
-            .GroupBy(f => f.FechaEmision.Date)
+            .GroupBy(f => HorarioRd.AHoraLocal(f.FechaEmision).Date)
             .Select(g =>
             {
                 var cantidad = g.Count();
@@ -419,7 +425,10 @@ public class ReporteAppService(IAppDbContext db)
     // pendientes y alertas de stock bajo, todo scopeado a una sola sucursal.
     public async Task<DashboardResumenDto> ObtenerDashboardAsync(Guid sucursalId, CancellationToken ct = default)
     {
-        var desde = DateTime.Today;
+        // "Hoy" según el calendario de República Dominicana (UTC-4, sin horario de
+        // verano), no el día UTC del servidor — sin esto, ventas de la tarde/noche (hora
+        // RD) quedaban fuera de "hoy" porque en UTC ya era el día siguiente.
+        var desde = HorarioRd.HoyUtc();
         var hasta = desde.AddDays(1).AddSeconds(-1);
         var rangoHoy = new RangoFechasRequestDto { Desde = desde, Hasta = hasta };
 
