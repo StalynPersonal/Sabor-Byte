@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Catalogo.CategoriaAppService>();
         services.AddScoped<Aplicacion.Catalogo.MetodoPagoAppService>();
         services.AddScoped<Aplicacion.Catalogo.UnidadMedidaAppService>();
+        services.AddScoped<Aplicacion.Catalogo.PromocionAppService>();
         services.AddScoped<Aplicacion.Inventario.InventarioAppService>();
         services.AddScoped<Aplicacion.Facturacion.VentaAppService>();
         services.AddScoped<Aplicacion.Facturacion.FacturaAppService>();

@@ -44,6 +44,16 @@ public class CrearVentaRequestDto
     public Guid? CodigoAutorizacionDescuento { get; set; }
 }
 
+// Precio regular vs. precio con oferta de una línea, para que la factura muestre el
+// detalle cuando aplicó una Promocion — ver VentaAppService.CrearVentaAsync.
+public class LineaVentaResultadoDto
+{
+    public Guid ProductoId { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal DescuentoPromocionUnitario { get; set; }
+    public string? NombrePromocion { get; set; }
+}
+
 public class VentaResultadoDto
 {
     public Guid FacturaId { get; set; }
@@ -56,6 +66,7 @@ public class VentaResultadoDto
     public decimal Total { get; set; }
     public DateTime FechaEmision { get; set; }
     public List<PagoVentaRequestDto> Pagos { get; set; } = [];
+    public List<LineaVentaResultadoDto> Lineas { get; set; } = [];
 
     // Solo aplica cuando se pagó completo con una única forma de pago en efectivo y se
     // recibió de más — ver VentaAppService.ValidarPagosYCalcularCambio.

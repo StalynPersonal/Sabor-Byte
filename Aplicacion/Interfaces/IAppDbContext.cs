@@ -33,6 +33,7 @@ public interface IAppDbContext
     DbSet<ProductoIngrediente> ProductoIngredientes { get; }
     DbSet<ComboItem> ComboItems { get; }
     DbSet<StockSucursal> StockPorSucursal { get; }
+    DbSet<Promocion> Promociones { get; }
 
     DbSet<Dominio.Caja.Caja> Cajas { get; }
     DbSet<TurnoCaja> TurnosCaja { get; }

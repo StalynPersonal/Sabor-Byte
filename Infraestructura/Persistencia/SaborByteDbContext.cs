@@ -33,6 +33,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<ProductoIngrediente> ProductoIngredientes => Set<ProductoIngrediente>();
     public DbSet<ComboItem> ComboItems => Set<ComboItem>();
     public DbSet<StockSucursal> StockPorSucursal => Set<StockSucursal>();
+    public DbSet<Promocion> Promociones => Set<Promocion>();
 
     public DbSet<Dominio.Caja.Caja> Cajas => Set<Dominio.Caja.Caja>();
     public DbSet<Dominio.Caja.TurnoCaja> TurnosCaja => Set<Dominio.Caja.TurnoCaja>();
@@ -162,6 +163,14 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.ToTable("UnidadesMedida", "catalogo");
             b.Property(x => x.Nombre).HasMaxLength(50).IsRequired();
             b.HasIndex(x => x.Nombre).IsUnique();
+        });
+
+        modelBuilder.Entity<Promocion>(b =>
+        {
+            b.ToTable("Promociones", "catalogo");
+            b.Property(x => x.Nombre).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Valor).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Activo).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<Producto>(b =>

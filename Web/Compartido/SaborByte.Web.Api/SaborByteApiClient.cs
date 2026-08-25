@@ -267,6 +267,32 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<List<PromocionDto>> ListarPromocionesAsync()
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<PromocionDto>>("api/promociones") ?? [];
+    }
+
+    public async Task<List<PromocionDto>> ListarPromocionesVigentesAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<PromocionDto>>($"api/promociones/vigentes?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearPromocionAsync(GuardarPromocionRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/promociones", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarPromocionAsync(Guid promocionId, GuardarPromocionRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/promociones/{promocionId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task<(bool Exito, Guid? Codigo, string? Error)> SolicitarAutorizacionAsync(
         string nombreUsuario, string password, string accion)
     {

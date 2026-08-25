@@ -1,0 +1,247 @@
+@page "/promociones"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte — Central</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Promociones</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaPromocion">
+            Nueva promoción
+        </MudButton>
+    </div>
+
+    <MudTable Items="_promociones" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Aplica a</MudTh>
+            <MudTh>Sucursal</MudTh>
+            <MudTh>Descuento</MudTh>
+            <MudTh>Vigencia</MudTh>
+            <MudTh>Activa</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Aplica a">@(context.ProductoNombre ?? $"Categoría: {context.CategoriaNombre}")</MudTd>
+            <MudTd DataLabel="Sucursal">@context.SucursalNombre</MudTd>
+            <MudTd DataLabel="Descuento">
+                @(context.TipoDescuento == TipoDescuentoPromocion.Porcentaje ? $"{context.Valor:0.##}%" : $"RD$ {context.Valor:0.00}")
+            </MudTd>
+            <MudTd DataLabel="Vigencia">@context.FechaInicio.ToLocalTime().ToString("dd/MM/yyyy") — @context.FechaFin.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+            <MudTd DataLabel="Activa">@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarPromocion(context)" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_promocionId is null ? "Nueva promoción" : "Editar promoción")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Required="true" Class="mb-2" />
+
+        <MudSelect T="Guid" Label="Sucursal" Value="_sucursalSeleccionadaId" ValueChanged="OnSucursalCambiada" Class="mb-2">
+            <MudSelectItem Value="@Guid.Empty">Todas las sucursales</MudSelectItem>
+            @foreach (var sucursal in _sucursales)
+            {
+                <MudSelectItem Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudRadioGroup T="string" Value="_aplicaA" ValueChanged="OnAplicaACambiado" Class="mb-2">
+            <MudRadio T="string" Value="@("producto")" Dense="true">Un producto específico</MudRadio>
+            <MudRadio T="string" Value="@("categoria")" Dense="true">Toda una categoría</MudRadio>
+        </MudRadioGroup>
+
+        @if (_aplicaA == "producto")
+        {
+            <MudSelect T="Guid?" Label="Producto" Value="_form.ProductoId" ValueChanged="v => _form.ProductoId = v" Class="mb-2">
+                @foreach (var producto in _productos)
+                {
+                    <MudSelectItem Value="@((Guid?)producto.Id)">@producto.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        else
+        {
+            <MudSelect T="Guid?" Label="Categoría" Value="_form.CategoriaId" ValueChanged="v => _form.CategoriaId = v" Class="mb-2">
+                @foreach (var categoria in _categorias)
+                {
+                    <MudSelectItem Value="@((Guid?)categoria.Id)">@categoria.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        }
+
+        <MudSelect T="TipoDescuentoPromocion" Label="Tipo de descuento" @bind-Value="_form.TipoDescuento" Class="mb-2">
+            <MudSelectItem Value="TipoDescuentoPromocion.Porcentaje">Porcentaje (%)</MudSelectItem>
+            <MudSelectItem Value="TipoDescuentoPromocion.MontoFijo">Monto fijo (RD$ por unidad)</MudSelectItem>
+        </MudSelect>
+        <MudNumericField T="decimal" Label="Valor" @bind-Value="_form.Valor" Class="mb-2" />
+
+        <MudDatePicker Label="Fecha de inicio" @bind-Date="_fechaInicio" Class="mb-2" />
+        <MudDatePicker Label="Fecha de fin" @bind-Date="_fechaFin" Class="mb-2" />
+
+        @if (_promocionId is not null)
+        {
+            <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activa" Class="mb-2" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<PromocionDto> _promociones = [];
+    private List<SucursalResumenDto> _sucursales = [];
+    private List<ProductoResumenDto> _productos = [];
+    private List<CategoriaDto> _categorias = [];
+
+    private bool _editando;
+    private bool _procesando;
+    private Guid? _promocionId;
+    private Guid _sucursalSeleccionadaId;
+    private string _aplicaA = "producto";
+    private DateTime? _fechaInicio = DateTime.Today;
+    private DateTime? _fechaFin = DateTime.Today.AddDays(7);
+    private GuardarPromocionRequestDto _form = new() { Nombre = string.Empty };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        _sucursales = await ApiClient.ListarSucursalesGestionAsync();
+        _productos = await ApiClient.BuscarProductosAsync(null);
+        _categorias = await ApiClient.ListarCategoriasAsync();
+
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync() => _promociones = await ApiClient.ListarPromocionesAsync();
+
+    private void OnSucursalCambiada(Guid sucursalId) => _sucursalSeleccionadaId = sucursalId;
+
+    private void OnAplicaACambiado(string valor)
+    {
+        _aplicaA = valor;
+        if (valor == "producto")
+            _form.CategoriaId = null;
+        else
+            _form.ProductoId = null;
+    }
+
+    private void NuevaPromocion()
+    {
+        _promocionId = null;
+        _sucursalSeleccionadaId = Guid.Empty;
+        _aplicaA = "producto";
+        _fechaInicio = DateTime.Today;
+        _fechaFin = DateTime.Today.AddDays(7);
+        _form = new GuardarPromocionRequestDto { Nombre = string.Empty, TipoDescuento = TipoDescuentoPromocion.Porcentaje };
+        _editando = true;
+    }
+
+    private void EditarPromocion(PromocionDto promocion)
+    {
+        _promocionId = promocion.Id;
+        _sucursalSeleccionadaId = promocion.SucursalId ?? Guid.Empty;
+        _aplicaA = promocion.ProductoId is not null ? "producto" : "categoria";
+        _fechaInicio = promocion.FechaInicio.ToLocalTime();
+        _fechaFin = promocion.FechaFin.ToLocalTime();
+        _form = new GuardarPromocionRequestDto
+        {
+            Nombre = promocion.Nombre,
+            ProductoId = promocion.ProductoId,
+            CategoriaId = promocion.CategoriaId,
+            TipoDescuento = promocion.TipoDescuento,
+            Valor = promocion.Valor,
+            Activo = promocion.Activo
+        };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (_procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_form.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Error);
+            return;
+        }
+
+        if (_form.ProductoId is null && _form.CategoriaId is null)
+        {
+            Snackbar.Add("Selecciona un producto o una categoría.", Severity.Error);
+            return;
+        }
+
+        if (_form.Valor <= 0)
+        {
+            Snackbar.Add("El valor del descuento debe ser mayor a cero.", Severity.Error);
+            return;
+        }
+
+        if (_fechaInicio is null || _fechaFin is null || _fechaFin < _fechaInicio)
+        {
+            Snackbar.Add("Revisa las fechas de vigencia.", Severity.Error);
+            return;
+        }
+
+        _form.SucursalId = _sucursalSeleccionadaId == Guid.Empty ? null : _sucursalSeleccionadaId;
+        _form.FechaInicio = DateTime.SpecifyKind(_fechaInicio.Value, DateTimeKind.Local).ToUniversalTime();
+        _form.FechaFin = DateTime.SpecifyKind(_fechaFin.Value.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Local).ToUniversalTime();
+
+        _procesando = true;
+        try
+        {
+            var (exito, error) = _promocionId is null
+                ? await ApiClient.CrearPromocionAsync(_form)
+                : await ApiClient.ActualizarPromocionAsync(_promocionId.Value, _form);
+
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_promocionId is null ? "Promoción creada." : "Promoción actualizada.", Severity.Success);
+            _editando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+}

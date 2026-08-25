@@ -43,6 +43,14 @@ public class CrearVentaRequestDto
     public Guid? CodigoAutorizacionDescuento { get; set; }
 }
 
+public class LineaVentaResultadoDto
+{
+    public Guid ProductoId { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal DescuentoPromocionUnitario { get; set; }
+    public string? NombrePromocion { get; set; }
+}
+
 public class VentaResultadoDto
 {
     public Guid FacturaId { get; set; }
@@ -55,6 +63,7 @@ public class VentaResultadoDto
     public decimal Total { get; set; }
     public DateTime FechaEmision { get; set; }
     public List<PagoVentaRequestDto> Pagos { get; set; } = [];
+    public List<LineaVentaResultadoDto> Lineas { get; set; } = [];
 
     public decimal Cambio { get; set; }
 

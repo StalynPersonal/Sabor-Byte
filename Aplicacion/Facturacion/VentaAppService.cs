@@ -12,6 +12,7 @@ public class VentaAppService(
     IAppDbContext db,
     Inventario.InventarioAppService inventario,
     Identidad.AutorizacionAppService autorizacion,
+    Catalogo.PromocionAppService promociones,
     IAuditoriaService auditoria,
     INotificadorComandas notificadorComandas,
     IFacturacionElectronicaGateway facturacionElectronica)
@@ -92,6 +93,10 @@ public class VentaAppService(
             .Where(p => productoIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, ct);
 
+        // Promociones vigentes de la sucursal: descuento automático, no requiere
+        // autorización de supervisor (a diferencia de request.Items[].Descuento, que sí).
+        var promocionesVigentes = await promociones.ListarVigentesAsync(sucursalId, ct);
+
         // El cliente ahora es obligatorio para facturar (antes se caía en "Cliente Contado"
         // en silencio si no se elegía ninguno) — el cajero debe elegir uno explícitamente,
         // aunque sea el genérico "Cliente Contado" para un walk-in sin datos.
@@ -124,19 +129,33 @@ public class VentaAppService(
         };
 
         decimal subtotal = 0, itbis = 0, descuentoTotal = 0;
+        var lineasResultado = new List<LineaVentaResultadoDto>();
 
         foreach (var item in request.Items)
         {
             if (!productos.TryGetValue(item.ProductoId, out var producto))
                 throw new InvalidOperationException($"El producto {item.ProductoId} no existe.");
 
-            var totalLinea = (producto.Precio * item.Cantidad) - item.Descuento;
+            // Promoción aplicable: primero busca una específica del producto, si no hay,
+            // una de su categoría — no se acumulan varias promociones en la misma línea.
+            var promocion = promocionesVigentes.FirstOrDefault(p => p.ProductoId == producto.Id)
+                ?? promocionesVigentes.FirstOrDefault(p => p.CategoriaId == producto.CategoriaId);
+
+            var totalLineaSinDescuento = producto.Precio * item.Cantidad;
+            var descuentoPromocion = promocion is null ? 0m : Math.Min(totalLineaSinDescuento, promocion.TipoDescuento switch
+            {
+                Dominio.Catalogo.TipoDescuentoPromocion.Porcentaje => Math.Round(totalLineaSinDescuento * (promocion.Valor / 100m), 2),
+                _ => Math.Round(promocion.Valor * item.Cantidad, 2)
+            });
+
+            var descuentoLinea = item.Descuento + descuentoPromocion;
+            var totalLinea = totalLineaSinDescuento - descuentoLinea;
             // Tasa por producto, no fija (sección 9 del plan): todo producto lleva
             // ITBIS a la tasa que tenga configurada (18%/16%/0% — no existe "exento").
             var itbisLinea = Math.Round(totalLinea * producto.TasaItbis, 2);
 
-            subtotal += producto.Precio * item.Cantidad;
-            descuentoTotal += item.Descuento;
+            subtotal += totalLineaSinDescuento;
+            descuentoTotal += descuentoLinea;
             itbis += itbisLinea;
 
             factura.Detalle.Add(new FacturaDetalle
@@ -148,10 +167,18 @@ public class VentaAppService(
                 UnidadMedida = producto.UnidadMedida?.Nombre ?? "Unidad",
                 Cantidad = item.Cantidad,
                 PrecioUnitario = producto.Precio,
-                Descuento = item.Descuento,
+                Descuento = descuentoLinea,
                 TasaItbis = producto.TasaItbis,
                 Itbis = itbisLinea,
                 Total = totalLinea + itbisLinea
+            });
+
+            lineasResultado.Add(new LineaVentaResultadoDto
+            {
+                ProductoId = producto.Id,
+                PrecioUnitario = producto.Precio,
+                DescuentoPromocionUnitario = item.Cantidad > 0 ? Math.Round(descuentoPromocion / item.Cantidad, 2) : 0m,
+                NombrePromocion = promocion?.Nombre
             });
         }
 
@@ -278,6 +305,7 @@ public class VentaAppService(
             Total = factura.Total,
             FechaEmision = factura.FechaEmision,
             Pagos = pagosParaResultado,
+            Lineas = lineasResultado,
             Cambio = cambio,
             ClienteNombre = factura.ClienteNombre,
             ClienteRncOCedula = factura.ClienteRncOCedula,

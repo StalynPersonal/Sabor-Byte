@@ -258,6 +258,10 @@ else
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.body2">Subtotal: RD$ @TotalCarrito.ToString("0.00")</MudText>
                 <MudText Typo="Typo.body2">ITBIS (18%): RD$ @ItbisCarrito.ToString("0.00")</MudText>
+                @if (DescuentoPromocionesCarrito > 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Success">Descuento por oferta: -RD$ @DescuentoPromocionesCarrito.ToString("0.00")</MudText>
+                }
 
                 <MudSelect T="decimal" Label="Propina" @bind-Value="_porcentajePropina" Class="my-2">
                     @foreach (var porcentaje in _porcentajesPropina)
@@ -715,6 +719,12 @@ else
                 {
                     <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">Sin: @string.Join(", ", linea.NombresExcluidos)</MudText>
                 }
+                @if (PromocionDeLinea(linea.ProductoId) is { } promoLinea)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">
+                        Precio venta: RD$ @promoLinea.PrecioUnitario.ToString("0.00") — Oferta "@promoLinea.NombrePromocion": -RD$ @promoLinea.DescuentoPromocionUnitario.ToString("0.00")/u
+                    </MudText>
+                }
             }
             <MudDivider Class="my-2" />
             <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Subtotal</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Subtotal.ToString("0.00")</MudText></div>
@@ -764,6 +774,10 @@ else
             @if (linea.NombresExcluidos.Count > 0)
             {
                 <div style="margin-left:12px; font-size:0.85em">Sin: @string.Join(", ", linea.NombresExcluidos)</div>
+            }
+            @if (PromocionDeLinea(linea.ProductoId) is { } promoLineaImp)
+            {
+                <div style="margin-left:12px; font-size:0.85em">Precio venta: @promoLineaImp.PrecioUnitario.ToString("0.00") — Oferta "@promoLineaImp.NombrePromocion": -@promoLineaImp.DescuentoPromocionUnitario.ToString("0.00")/u</div>
             }
         }
         <hr />
@@ -915,6 +929,7 @@ else
     private List<CategoriaDto> _categorias = [];
     private Guid? _categoriaId;
     private readonly List<LineaCarrito> _carrito = [];
+    private List<PromocionDto> _promocionesVigentes = [];
     private List<MetodoPagoDto> _metodosPago = [];
     private List<PagoVentaRequestDto> _pagos = [];
     private decimal _porcentajePropina;
@@ -1042,14 +1057,36 @@ else
 
     private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
     private decimal ItbisCarrito => TotalCarrito * 0.18m;
+
+    // Preview en pantalla, no autoritativo — el backend recalcula esto mismo con datos
+    // frescos de la base al facturar (ver VentaAppService.CrearVentaAsync), así que una
+    // promoción que cambió/venció entre que se cargó la pantalla y el momento de cobrar
+    // se corrige sola ahí, sin bloquear al cajero.
+    private decimal DescuentoPromocionesCarrito => _carrito.Sum(linea =>
+    {
+        var promo = _promocionesVigentes.FirstOrDefault(p => p.ProductoId == linea.ProductoId)
+            ?? _promocionesVigentes.FirstOrDefault(p => p.CategoriaId == linea.CategoriaId);
+        if (promo is null)
+            return 0m;
+
+        var totalLinea = linea.Precio * linea.Cantidad;
+        var descuento = promo.TipoDescuento == TipoDescuentoPromocion.Porcentaje
+            ? totalLinea * (promo.Valor / 100m)
+            : promo.Valor * linea.Cantidad;
+        return Math.Min(totalLinea, descuento);
+    });
+
     // Aproximación en pantalla (con ITBIS incluido de forma simplificada); el total real, con ITBIS
     // exacto por línea y la propina aplicada sobre el total con impuestos, lo calcula el backend.
     private decimal TotalConPropina =>
-        ((TotalCarrito * 1.18m) - (_descuentoAutorizado ? _montoDescuento : 0)) * (1 + _porcentajePropina / 100m);
+        ((TotalCarrito * 1.18m) - (_descuentoAutorizado ? _montoDescuento : 0) - DescuentoPromocionesCarrito) * (1 + _porcentajePropina / 100m);
 
     private decimal FaltaPorCubrir => Math.Max(0, Math.Round(TotalConPropina - _pagos.Sum(p => p.Monto), 2));
     private decimal CambioCarrito => Math.Max(0, Math.Round(_pagos.Sum(p => p.Monto) - TotalConPropina, 2));
     private decimal CambioUltimaVenta => _ultimaVenta?.Cambio ?? 0;
+
+    private LineaVentaResultadoDto? PromocionDeLinea(Guid productoId) =>
+        _ultimaVenta?.Lineas.FirstOrDefault(l => l.ProductoId == productoId && l.DescuentoPromocionUnitario > 0);
 
     private decimal TotalEfectivoContado => _denominacionesEfectivo.Sum(d => d * (_cantidadesPorDenominacion.GetValueOrDefault(d)));
 
@@ -1091,6 +1128,7 @@ else
 
         _metodosPago = await ApiClient.ListarMetodosPagoAsync();
         _pagos = [new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId }];
+        _promocionesVigentes = await ApiClient.ListarPromocionesVigentesAsync(sucursalId);
 
         if (_cajaSeleccionadaId != Guid.Empty)
             await VerificarTurnoAbiertoAsync();
@@ -1340,6 +1378,7 @@ else
         _carrito.Add(new LineaCarrito
         {
             ProductoId = producto.Id,
+            CategoriaId = producto.CategoriaId,
             Nombre = producto.Nombre,
             Precio = producto.Precio,
             Cantidad = 1,
@@ -1693,6 +1732,7 @@ else
     private class LineaCarrito
     {
         public Guid ProductoId { get; set; }
+        public Guid CategoriaId { get; set; }
         public string Nombre { get; set; } = string.Empty;
         public decimal Precio { get; set; }
         public int Cantidad { get; set; }
