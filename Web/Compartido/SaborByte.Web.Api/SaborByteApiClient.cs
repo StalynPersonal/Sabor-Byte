@@ -797,6 +797,22 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await respuesta.Content.ReadFromJsonAsync<List<VentaDetalleDto>>() ?? [];
     }
 
+    public async Task<List<VentaPorCajeroDto>> VentasPorCajeroAsync(Guid sucursalId, RangoFechasRequestDto rango)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/reportes/ventas-por-cajero?sucursalId={sucursalId}", rango);
+        respuesta.EnsureSuccessStatusCode();
+        return await respuesta.Content.ReadFromJsonAsync<List<VentaPorCajeroDto>>() ?? [];
+    }
+
+    public async Task<List<VentaPorMeseroDto>> VentasPorMeseroAsync(Guid sucursalId, RangoFechasRequestDto rango)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/reportes/ventas-por-mesero?sucursalId={sucursalId}", rango);
+        respuesta.EnsureSuccessStatusCode();
+        return await respuesta.Content.ReadFromJsonAsync<List<VentaPorMeseroDto>>() ?? [];
+    }
+
     public async Task<List<VentaPorCategoriaDto>> VentasPorCategoriaAsync(Guid sucursalId, RangoFechasRequestDto rango)
     {
         AdjuntarToken();

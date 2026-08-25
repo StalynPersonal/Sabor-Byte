@@ -151,6 +151,16 @@ public class ReporteAppService(IAppDbContext db)
             .OrderByDescending(f => f.FechaEmision)
             .ToListAsync(ct);
 
+        var cajeroIds = facturas.Select(f => f.CreadoPorUsuarioId).Distinct().ToList();
+        var nombresCajero = await db.Usuarios
+            .Where(u => cajeroIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Nombre, ct);
+
+        var comandaIds = facturas.Where(f => f.ComandaId is not null).Select(f => f.ComandaId!.Value).ToList();
+        var meserosPorComanda = await db.Comandas
+            .Where(c => comandaIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.NombreMesero, ct);
+
         return facturas.Select(f => new VentaDetalleDto
         {
             FacturaId = f.Id,
@@ -162,8 +172,60 @@ public class ReporteAppService(IAppDbContext db)
             Itbis = f.Itbis,
             Descuento = f.Descuento,
             Total = f.Total,
-            FormasPago = string.Join(", ", f.Pagos.Select(p => $"{p.MetodoPago?.Nombre ?? "?"}: RD$ {p.Monto:0.00}"))
+            FormasPago = string.Join(", ", f.Pagos.Select(p => $"{p.MetodoPago?.Nombre ?? "?"}: RD$ {p.Monto:0.00}")),
+            CajeroNombre = nombresCajero.GetValueOrDefault(f.CreadoPorUsuarioId, "(desconocido)"),
+            MeseroNombre = f.ComandaId is Guid comandaId ? meserosPorComanda.GetValueOrDefault(comandaId) : null
         }).ToList();
+    }
+
+    // Resumen agrupado por cajero — para la pestaña "Ventas por Cajero".
+    public async Task<List<VentaPorCajeroDto>> VentasPorCajeroAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var agregados = await db.Facturas
+            .Where(f => f.SucursalId == sucursalId && f.FechaEmision >= rango.Desde && f.FechaEmision <= rango.Hasta)
+            .GroupBy(f => f.CreadoPorUsuarioId)
+            .Select(g => new { CajeroId = g.Key, Cantidad = g.Count(), Total = g.Sum(f => f.Total) })
+            .ToListAsync(ct);
+
+        var cajeroIds = agregados.Select(a => a.CajeroId).ToList();
+        var nombres = await db.Usuarios.Where(u => cajeroIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Nombre, ct);
+
+        return agregados.Select(a => new VentaPorCajeroDto
+        {
+            CajeroId = a.CajeroId,
+            NombreCajero = nombres.GetValueOrDefault(a.CajeroId, "(desconocido)"),
+            CantidadFacturas = a.Cantidad,
+            TotalVendido = a.Total,
+            TicketPromedio = a.Cantidad > 0 ? a.Total / a.Cantidad : 0m
+        }).OrderByDescending(v => v.TotalVendido).ToList();
+    }
+
+    // Resumen agrupado por mesero — para la pestaña "Ventas por Mesero". Solo incluye
+    // ventas que vinieron de una comanda con mesero asignado (ver VentaDetalleDto).
+    public async Task<List<VentaPorMeseroDto>> VentasPorMeseroAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var agregados = await (
+                from f in db.Facturas
+                join c in db.Comandas on f.ComandaId equals c.Id
+                where f.SucursalId == sucursalId && f.FechaEmision >= rango.Desde && f.FechaEmision <= rango.Hasta
+                      && c.MeseroId != null
+                group f by new { MeseroId = c.MeseroId!.Value, c.NombreMesero } into g
+                select new VentaPorMeseroDto
+                {
+                    MeseroId = g.Key.MeseroId,
+                    NombreMesero = g.Key.NombreMesero ?? "(desconocido)",
+                    CantidadFacturas = g.Count(),
+                    TotalVendido = g.Sum(f => f.Total)
+                }
+            )
+            .ToListAsync(ct);
+
+        foreach (var item in agregados)
+            item.TicketPromedio = item.CantidadFacturas > 0 ? item.TotalVendido / item.CantidadFacturas : 0m;
+
+        return agregados.OrderByDescending(v => v.TotalVendido).ToList();
     }
 
     // Totales cobrados por cada método de pago — para la pestaña "Ventas por método de pago".

@@ -66,6 +66,24 @@ public class ReportesController(ReporteAppService reportes) : ControllerBase
         return Ok(await reportes.VentasDetalleAsync(sucursalId, request, ct));
     }
 
+    [HttpPost("ventas-por-cajero")]
+    public async Task<IActionResult> VentasPorCajero([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.VentasPorCajeroAsync(sucursalId, request, ct));
+    }
+
+    [HttpPost("ventas-por-mesero")]
+    public async Task<IActionResult> VentasPorMesero([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.VentasPorMeseroAsync(sucursalId, request, ct));
+    }
+
     [HttpPost("ventas-por-categoria")]
     public async Task<IActionResult> VentasPorCategoria([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
     {

@@ -66,6 +66,26 @@ public class VentaDetalleDto
     public decimal Descuento { get; set; }
     public decimal Total { get; set; }
     public string FormasPago { get; set; } = string.Empty;
+    public string CajeroNombre { get; set; } = string.Empty;
+    public string? MeseroNombre { get; set; }
+}
+
+public class VentaPorCajeroDto
+{
+    public Guid CajeroId { get; set; }
+    public string NombreCajero { get; set; } = string.Empty;
+    public int CantidadFacturas { get; set; }
+    public decimal TotalVendido { get; set; }
+    public decimal TicketPromedio { get; set; }
+}
+
+public class VentaPorMeseroDto
+{
+    public Guid MeseroId { get; set; }
+    public string NombreMesero { get; set; } = string.Empty;
+    public int CantidadFacturas { get; set; }
+    public decimal TotalVendido { get; set; }
+    public decimal TicketPromedio { get; set; }
 }
 
 public class VentaPorMetodoPagoDto

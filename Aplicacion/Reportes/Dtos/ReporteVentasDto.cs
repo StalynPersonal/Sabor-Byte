@@ -67,6 +67,31 @@ public class VentaDetalleDto
     public decimal Descuento { get; set; }
     public decimal Total { get; set; }
     public string FormasPago { get; set; } = string.Empty;
+    public string CajeroNombre { get; set; } = string.Empty;
+    // null si la venta se facturó directo en Caja, sin pasar por Mesero.
+    public string? MeseroNombre { get; set; }
+}
+
+// Resumen por cajero — para la pestaña "Ventas por Cajero".
+public class VentaPorCajeroDto
+{
+    public Guid CajeroId { get; set; }
+    public string NombreCajero { get; set; } = string.Empty;
+    public int CantidadFacturas { get; set; }
+    public decimal TotalVendido { get; set; }
+    public decimal TicketPromedio { get; set; }
+}
+
+// Resumen por mesero — para la pestaña "Ventas por Mesero". Solo cuenta ventas que
+// pasaron por una comanda tomada por un mesero (las facturadas directo en Caja no
+// tienen mesero y quedan fuera de este resumen).
+public class VentaPorMeseroDto
+{
+    public Guid MeseroId { get; set; }
+    public string NombreMesero { get; set; } = string.Empty;
+    public int CantidadFacturas { get; set; }
+    public decimal TotalVendido { get; set; }
+    public decimal TicketPromedio { get; set; }
 }
 
 public class VentaPorMetodoPagoDto

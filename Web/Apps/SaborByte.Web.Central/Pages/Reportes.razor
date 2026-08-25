@@ -48,6 +48,8 @@ else
     <MudSelect T="TipoReporte" Label="Reporte" Value="_reporte" ValueChanged="OnReporteCambiado" Class="mb-4" Style="max-width:400px">
         <MudSelectItem Value="TipoReporte.VentasResumen">Ventas resumidas por fecha</MudSelectItem>
         <MudSelectItem Value="TipoReporte.VentasDetalle">Ventas detalle por fecha</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.VentasPorCajero">Ventas por Cajero (resumen)</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.VentasPorMesero">Ventas por Mesero (resumen)</MudSelectItem>
         <MudSelectItem Value="TipoReporte.TopProductos">Top productos vendidos</MudSelectItem>
         <MudSelectItem Value="TipoReporte.PorMetodoPago">Ventas por método de pago</MudSelectItem>
         <MudSelectItem Value="TipoReporte.MovimientosInventario">Movimientos de inventario</MudSelectItem>
@@ -89,6 +91,8 @@ else
                 <MudTh>Descuento</MudTh>
                 <MudTh>Total</MudTh>
                 <MudTh>Formas de pago</MudTh>
+                <MudTh>Cajero</MudTh>
+                <MudTh>Mesero</MudTh>
             </HeaderContent>
             <RowTemplate Context="v">
                 <MudTd>@(v.NumeroFactura ?? "—")</MudTd>
@@ -100,6 +104,42 @@ else
                 <MudTd>RD$ @v.Descuento.ToString("0.00")</MudTd>
                 <MudTd>RD$ @v.Total.ToString("0.00")</MudTd>
                 <MudTd>@v.FormasPago</MudTd>
+                <MudTd>@v.CajeroNombre</MudTd>
+                <MudTd>@(v.MeseroNombre ?? "—")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.VentasPorCajero)
+    {
+        <MudTable Items="_ventasPorCajero" Hover="true" Dense="true" T="VentaPorCajeroDto">
+            <HeaderContent>
+                <MudTh>Cajero</MudTh>
+                <MudTh>Facturas</MudTh>
+                <MudTh>Total vendido</MudTh>
+                <MudTh>Ticket promedio</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="v">
+                <MudTd>@v.NombreCajero</MudTd>
+                <MudTd>@v.CantidadFacturas</MudTd>
+                <MudTd>RD$ @v.TotalVendido.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TicketPromedio.ToString("0.00")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else if (_reporte == TipoReporte.VentasPorMesero)
+    {
+        <MudTable Items="_ventasPorMesero" Hover="true" Dense="true" T="VentaPorMeseroDto">
+            <HeaderContent>
+                <MudTh>Mesero</MudTh>
+                <MudTh>Facturas</MudTh>
+                <MudTh>Total vendido</MudTh>
+                <MudTh>Ticket promedio</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="v">
+                <MudTd>@v.NombreMesero</MudTd>
+                <MudTd>@v.CantidadFacturas</MudTd>
+                <MudTd>RD$ @v.TotalVendido.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TicketPromedio.ToString("0.00")</MudTd>
             </RowTemplate>
         </MudTable>
     }
@@ -256,6 +296,8 @@ else
     {
         VentasResumen,
         VentasDetalle,
+        VentasPorCajero,
+        VentasPorMesero,
         TopProductos,
         PorMetodoPago,
         MovimientosInventario,
@@ -273,6 +315,8 @@ else
 
     private List<VentaResumenDiaDto> _ventasResumen = [];
     private List<VentaDetalleDto> _ventasDetalle = [];
+    private List<VentaPorCajeroDto> _ventasPorCajero = [];
+    private List<VentaPorMeseroDto> _ventasPorMesero = [];
     private List<VentaPorProductoDto> _ventasPorProducto = [];
     private List<VentaPorMetodoPagoDto> _ventasPorMetodoPago = [];
     private List<MovimientoInventarioReporteDto> _movimientosInventario = [];
@@ -330,6 +374,8 @@ else
             // de esperar una por una, para no multiplicar la latencia de red innecesariamente.
             var tareaVentasResumen = ApiClient.VentasResumenPorDiaAsync(SucursalId, rango);
             var tareaVentasDetalle = ApiClient.VentasDetalleAsync(SucursalId, rango);
+            var tareaVentasPorCajero = ApiClient.VentasPorCajeroAsync(SucursalId, rango);
+            var tareaVentasPorMesero = ApiClient.VentasPorMeseroAsync(SucursalId, rango);
             var tareaVentasPorProducto = ApiClient.VentasPorProductoAsync(SucursalId, rango);
             var tareaVentasPorMetodoPago = ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
             var tareaMovimientosInventario = ApiClient.MovimientosInventarioReporteAsync(SucursalId, rango);
@@ -339,11 +385,13 @@ else
             var tareaCxpPagos = ApiClient.CxPPagosAsync(SucursalId, rango);
 
             await Task.WhenAll(
-                tareaVentasResumen, tareaVentasDetalle, tareaVentasPorProducto, tareaVentasPorMetodoPago,
+                tareaVentasResumen, tareaVentasDetalle, tareaVentasPorCajero, tareaVentasPorMesero, tareaVentasPorProducto, tareaVentasPorMetodoPago,
                 tareaMovimientosInventario, tareaCxcPendientes, tareaCxpPendientes, tareaCxcPagos, tareaCxpPagos);
 
             _ventasResumen = tareaVentasResumen.Result;
             _ventasDetalle = tareaVentasDetalle.Result;
+            _ventasPorCajero = tareaVentasPorCajero.Result;
+            _ventasPorMesero = tareaVentasPorMesero.Result;
             _ventasPorProducto = tareaVentasPorProducto.Result;
             _ventasPorMetodoPago = tareaVentasPorMetodoPago.Result;
             _movimientosInventario = tareaMovimientosInventario.Result;
@@ -396,12 +444,20 @@ else
         _ventasResumen.Select(v => new object?[] { v.Fecha.ToString("dd/MM/yyyy"), v.CantidadFacturas, v.TotalVendido, v.TotalItbis, v.TicketPromedio }));
 
     private string UriVentasDetalle() => ConstruirCsvUri(
-        ["Factura", "NCF", "Fecha", "Cliente", "Subtotal", "ITBIS", "Descuento", "Total", "Formas de pago"],
+        ["Factura", "NCF", "Fecha", "Cliente", "Subtotal", "ITBIS", "Descuento", "Total", "Formas de pago", "Cajero", "Mesero"],
         _ventasDetalle.Select(v => new object?[]
         {
             v.NumeroFactura, v.NumeroNcf, v.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
-            v.ClienteNombre, v.Subtotal, v.Itbis, v.Descuento, v.Total, v.FormasPago
+            v.ClienteNombre, v.Subtotal, v.Itbis, v.Descuento, v.Total, v.FormasPago, v.CajeroNombre, v.MeseroNombre
         }));
+
+    private string UriVentasPorCajero() => ConstruirCsvUri(
+        ["Cajero", "Facturas", "Total vendido", "Ticket promedio"],
+        _ventasPorCajero.Select(v => new object?[] { v.NombreCajero, v.CantidadFacturas, v.TotalVendido, v.TicketPromedio }));
+
+    private string UriVentasPorMesero() => ConstruirCsvUri(
+        ["Mesero", "Facturas", "Total vendido", "Ticket promedio"],
+        _ventasPorMesero.Select(v => new object?[] { v.NombreMesero, v.CantidadFacturas, v.TotalVendido, v.TicketPromedio }));
 
     private string UriTopProductos() => ConstruirCsvUri(
         ["Producto", "Cantidad vendida", "Total vendido", "Utilidad estimada"],
@@ -446,6 +502,8 @@ else
     {
         TipoReporte.VentasResumen => UriVentasResumen(),
         TipoReporte.VentasDetalle => UriVentasDetalle(),
+        TipoReporte.VentasPorCajero => UriVentasPorCajero(),
+        TipoReporte.VentasPorMesero => UriVentasPorMesero(),
         TipoReporte.TopProductos => UriTopProductos(),
         TipoReporte.PorMetodoPago => UriPorMetodoPago(),
         TipoReporte.MovimientosInventario => UriMovimientosInventario(),
@@ -460,6 +518,8 @@ else
     {
         TipoReporte.VentasResumen => "ventas_resumidas.csv",
         TipoReporte.VentasDetalle => "ventas_detalle.csv",
+        TipoReporte.VentasPorCajero => "ventas_por_cajero.csv",
+        TipoReporte.VentasPorMesero => "ventas_por_mesero.csv",
         TipoReporte.TopProductos => "top_productos.csv",
         TipoReporte.PorMetodoPago => "ventas_por_metodo_pago.csv",
         TipoReporte.MovimientosInventario => "movimientos_inventario.csv",
