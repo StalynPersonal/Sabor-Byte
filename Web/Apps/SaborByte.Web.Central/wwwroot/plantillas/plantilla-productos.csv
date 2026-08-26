@@ -1,0 +1,4 @@
+﻿Codigo,Nombre,Descripcion,Tipo,Categoria,UnidadMedida,PrecioConItbis,TasaItbis,CostoUnitario,Inventariable,StockInicial,StockMinimo,StockMaximo,CodigosBarra
+INS-100,Arroz blanco,Arroz para acompañar platos,Insumo,Insumos,Libra,0,0,45,No,100,20,200,
+PLT-100,Agua embotellada 500ml,Agua para reventa directa,Vendible,Bebidas,Unidad,100,18,60,Si,50,10,100,7501234567890
+PLT-101,Pollo guisado,Plato preparado con receta,Vendible,Platos,Unidad,325,18,,No,,,,

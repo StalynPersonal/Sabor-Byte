@@ -1,5 +1,7 @@
 @page "/productos"
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Globalization
+@using System.Text
 @using SaborByte.Web.Api
 @using SaborByte.Web.Api.Dtos
 @inject SaborByteApiClient ApiClient
@@ -18,6 +20,15 @@ else
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5">Productos</MudText>
         <div class="d-flex gap-2">
+            <MudTooltip Text="Plantilla CSV para carga inicial de productos">
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Download"
+                           Href="plantillas/plantilla-productos.csv" download="plantilla-productos.csv">
+                    Plantilla CSV
+                </MudButton>
+            </MudTooltip>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="AbrirImportacionCsv">
+                Cargar CSV
+            </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="NuevoCombo">
                 Nuevo combo
             </MudButton>
@@ -362,6 +373,99 @@ else
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="_importandoCsv" Options="_opcionesDialogoGrande">
+    <TitleContent>Cargar productos desde CSV</TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+            Pensado para carga inicial de catálogo: crea productos <strong>Vendibles</strong> e <strong>Insumos</strong>
+            simples. Los combos y las recetas no se pueden cargar por CSV — se crean manualmente después.
+            La Categoría y la Unidad de medida deben existir previamente con el mismo nombre exacto
+            (usa "Nueva categoría"/"Nueva unidad de medida" en el formulario de producto si te falta alguna).
+            Descarga la plantilla con el botón "Plantilla CSV" para ver el formato esperado.
+        </MudAlert>
+
+        <MudFileUpload T="IBrowserFile" FilesChanged="OnArchivoCsvSeleccionadoAsync" Accept=".csv">
+            <CustomContent Context="subidor">
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => subidor.OpenFilePickerAsync())">
+                    Seleccionar archivo CSV
+                </MudButton>
+            </CustomContent>
+        </MudFileUpload>
+
+        @if (_nombreArchivoCsv is not null)
+        {
+            <MudText Typo="Typo.body2" Class="mt-2 mb-2">@_nombreArchivoCsv — @_filasImportacion.Count fila(s) leída(s)</MudText>
+        }
+
+        @if (_filasImportacion.Count > 0)
+        {
+            <MudSimpleTable Dense="true" Elevation="0" Class="mt-2" Style="max-height:400px; overflow-y:auto">
+                <thead>
+                    <tr>
+                        <th>Fila</th>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th>Categoría</th>
+                        <th>Unidad</th>
+                        <th>Precio</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fila in _filasImportacion)
+                    {
+                        <tr>
+                            <td>@fila.NumeroFila</td>
+                            <td>@fila.Codigo</td>
+                            <td>@fila.Nombre</td>
+                            <td>@fila.TipoProducto</td>
+                            <td>@fila.CategoriaNombre</td>
+                            <td>@fila.UnidadMedidaNombre</td>
+                            <td>RD$ @fila.PrecioConItbis.ToString("0.00")</td>
+                            <td>
+                                @if (fila.Error is not null)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Error">@fila.Error</MudText>
+                                }
+                                else if (fila.Procesada)
+                                {
+                                    <MudText Typo="Typo.caption" Color="@(fila.Exito ? Color.Success : Color.Error)">
+                                        @(fila.Exito ? "Creado" : "Falló")
+                                    </MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption">Listo para importar</MudText>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+        @if (_resumenImportacion is not null)
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mt-3">@_resumenImportacion</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _importandoCsv = false">Cerrar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ImportarCsvAsync"
+                   Disabled="_procesando || !_filasImportacion.Any(f => f.Error is null && !f.Procesada)">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Importar</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 <MudDialog @bind-Visible="_viendoDetalle" Options="_opcionesDialogo">
     <TitleContent>Detalle del producto</TitleContent>
     <DialogContent>
@@ -496,6 +600,33 @@ else
     private CrearComboRequestDto _formCombo = new();
     // Mismo criterio que _precioConItbis para productos normales — ver comentario ahí.
     private decimal _precioComboConItbis;
+
+    private bool _importandoCsv;
+    private string? _nombreArchivoCsv;
+    private List<FilaImportacionCsv> _filasImportacion = [];
+    private string? _resumenImportacion;
+
+    private class FilaImportacionCsv
+    {
+        public int NumeroFila { get; set; }
+        public string Codigo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string? Descripcion { get; set; }
+        public TipoProducto TipoProducto { get; set; }
+        public string CategoriaNombre { get; set; } = string.Empty;
+        public string UnidadMedidaNombre { get; set; } = string.Empty;
+        public decimal PrecioConItbis { get; set; }
+        public decimal TasaItbis { get; set; } = 0.18m;
+        public decimal? CostoUnitario { get; set; }
+        public bool Inventariable { get; set; }
+        public decimal? StockInicial { get; set; }
+        public decimal? StockMinimo { get; set; }
+        public decimal? StockMaximo { get; set; }
+        public List<string> CodigosBarra { get; set; } = [];
+        public string? Error { get; set; }
+        public bool Procesada { get; set; }
+        public bool Exito { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -933,5 +1064,271 @@ else
         await ApiClient.ActivarProductoAsync(id);
         Snackbar.Add("Producto activado.", Severity.Success);
         await RecargarTablaAsync();
+    }
+
+    private void AbrirImportacionCsv()
+    {
+        _nombreArchivoCsv = null;
+        _filasImportacion = [];
+        _resumenImportacion = null;
+        _importandoCsv = true;
+    }
+
+    private async Task OnArchivoCsvSeleccionadoAsync(IBrowserFile? archivo)
+    {
+        if (archivo is null)
+            return;
+
+        const long maxBytes = 5 * 1024 * 1024;
+        using var stream = archivo.OpenReadStream(maxBytes);
+        using var lector = new StreamReader(stream, Encoding.UTF8);
+        var contenido = await lector.ReadToEndAsync();
+
+        _nombreArchivoCsv = archivo.Name;
+        _resumenImportacion = null;
+        _filasImportacion = ParsearCsv(contenido);
+
+        if (_filasImportacion.Count == 0)
+            Snackbar.Add("El archivo no tiene filas de datos.", Severity.Warning);
+    }
+
+    private static List<string> ParsearLineaCsv(string linea)
+    {
+        var campos = new List<string>();
+        var actual = new StringBuilder();
+        var dentroComillas = false;
+
+        for (var i = 0; i < linea.Length; i++)
+        {
+            var c = linea[i];
+            if (dentroComillas)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < linea.Length && linea[i + 1] == '"')
+                    {
+                        actual.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        dentroComillas = false;
+                    }
+                }
+                else
+                {
+                    actual.Append(c);
+                }
+            }
+            else if (c == '"')
+            {
+                dentroComillas = true;
+            }
+            else if (c == ',')
+            {
+                campos.Add(actual.ToString());
+                actual.Clear();
+            }
+            else
+            {
+                actual.Append(c);
+            }
+        }
+
+        campos.Add(actual.ToString());
+        return campos;
+    }
+
+    private static List<FilaImportacionCsv> ParsearCsv(string contenido)
+    {
+        var filas = new List<FilaImportacionCsv>();
+        var lineas = contenido.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')
+            .Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+
+        if (lineas.Count <= 1)
+            return filas;
+
+        var encabezados = ParsearLineaCsv(lineas[0]);
+        var mapa = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < encabezados.Count; i++)
+            mapa[encabezados[i].Trim()] = i;
+
+        string? Obtener(List<string> campos, string encabezado) =>
+            mapa.TryGetValue(encabezado, out var idx) && idx < campos.Count && !string.IsNullOrWhiteSpace(campos[idx])
+                ? campos[idx].Trim() : null;
+
+        for (var i = 1; i < lineas.Count; i++)
+        {
+            var campos = ParsearLineaCsv(lineas[i]);
+            var fila = new FilaImportacionCsv { NumeroFila = i + 1 };
+
+            var codigo = Obtener(campos, "Codigo");
+            var nombre = Obtener(campos, "Nombre");
+            var tipoTexto = Obtener(campos, "Tipo");
+            var categoria = Obtener(campos, "Categoria");
+            var unidad = Obtener(campos, "UnidadMedida");
+            var precioTexto = Obtener(campos, "PrecioConItbis");
+
+            if (codigo is null || nombre is null || tipoTexto is null || categoria is null || unidad is null || precioTexto is null)
+            {
+                fila.Error = "Faltan columnas obligatorias (Codigo, Nombre, Tipo, Categoria, UnidadMedida, PrecioConItbis).";
+                filas.Add(fila);
+                continue;
+            }
+
+            fila.Codigo = codigo;
+            fila.Nombre = nombre;
+            fila.Descripcion = Obtener(campos, "Descripcion");
+            fila.CategoriaNombre = categoria;
+            fila.UnidadMedidaNombre = unidad;
+
+            if (!Enum.TryParse<TipoProducto>(tipoTexto, ignoreCase: true, out var tipo))
+            {
+                fila.Error = $"Tipo \"{tipoTexto}\" inválido (debe ser Vendible o Insumo).";
+                filas.Add(fila);
+                continue;
+            }
+            fila.TipoProducto = tipo;
+
+            if (!decimal.TryParse(precioTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var precio))
+            {
+                fila.Error = $"Precio \"{precioTexto}\" inválido.";
+                filas.Add(fila);
+                continue;
+            }
+            fila.PrecioConItbis = precio;
+
+            var tasaTexto = Obtener(campos, "TasaItbis");
+            fila.TasaItbis = tasaTexto is not null && decimal.TryParse(tasaTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var tasaBruta)
+                ? (tasaBruta > 1 ? tasaBruta / 100 : tasaBruta)
+                : 0.18m;
+
+            var costoTexto = Obtener(campos, "CostoUnitario");
+            fila.CostoUnitario = costoTexto is not null && decimal.TryParse(costoTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var costo)
+                ? costo : null;
+
+            var inventariableTexto = Obtener(campos, "Inventariable");
+            fila.Inventariable = fila.TipoProducto == TipoProducto.Vendible && inventariableTexto is not null &&
+                (inventariableTexto.Equals("si", StringComparison.OrdinalIgnoreCase)
+                    || inventariableTexto.Equals("sí", StringComparison.OrdinalIgnoreCase)
+                    || inventariableTexto == "1");
+
+            var stockInicialTexto = Obtener(campos, "StockInicial");
+            fila.StockInicial = stockInicialTexto is not null && decimal.TryParse(stockInicialTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var stockInicial)
+                ? stockInicial : null;
+
+            var stockMinimoTexto = Obtener(campos, "StockMinimo");
+            fila.StockMinimo = stockMinimoTexto is not null && decimal.TryParse(stockMinimoTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var stockMinimo)
+                ? stockMinimo : null;
+
+            var stockMaximoTexto = Obtener(campos, "StockMaximo");
+            fila.StockMaximo = stockMaximoTexto is not null && decimal.TryParse(stockMaximoTexto, NumberStyles.Number, CultureInfo.InvariantCulture, out var stockMaximo)
+                ? stockMaximo : null;
+
+            var codigosBarraTexto = Obtener(campos, "CodigosBarra");
+            fila.CodigosBarra = codigosBarraTexto is null
+                ? []
+                : [.. codigosBarraTexto.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+
+            filas.Add(fila);
+        }
+
+        return filas;
+    }
+
+    private async Task ImportarCsvAsync()
+    {
+        if (_procesando) return;
+        _procesando = true;
+        try
+        {
+            var sucursalId = SucursalId;
+            int exitosas = 0, fallidas = 0;
+
+            foreach (var fila in _filasImportacion.Where(f => f.Error is null && !f.Procesada))
+            {
+                var categoria = _categorias.FirstOrDefault(c => string.Equals(c.Nombre, fila.CategoriaNombre, StringComparison.OrdinalIgnoreCase));
+                var unidad = _unidadesMedida.FirstOrDefault(u => string.Equals(u.Nombre, fila.UnidadMedidaNombre, StringComparison.OrdinalIgnoreCase));
+                if (categoria is null || unidad is null)
+                {
+                    fila.Error = categoria is null
+                        ? $"La categoría \"{fila.CategoriaNombre}\" no existe."
+                        : $"La unidad de medida \"{fila.UnidadMedidaNombre}\" no existe.";
+                    fila.Procesada = true;
+                    fila.Exito = false;
+                    fallidas++;
+                    continue;
+                }
+
+                var request = new GuardarProductoRequestDto
+                {
+                    Nombre = fila.Nombre,
+                    Descripcion = fila.Descripcion,
+                    Codigo = fila.Codigo,
+                    CodigosBarra = fila.CodigosBarra,
+                    Precio = Math.Round(fila.PrecioConItbis / (1 + fila.TasaItbis), 2),
+                    CostoUnitario = fila.CostoUnitario,
+                    TasaItbis = fila.TasaItbis,
+                    TipoProducto = fila.TipoProducto,
+                    Inventariable = fila.Inventariable,
+                    UnidadMedidaId = unidad.Id,
+                    CategoriaId = categoria.Id
+                };
+
+                var (exito, error) = await ApiClient.CrearProductoAsync(request);
+                fila.Procesada = true;
+                if (!exito)
+                {
+                    fila.Error = error ?? "Error al crear el producto.";
+                    fila.Exito = false;
+                    fallidas++;
+                    continue;
+                }
+
+                // El producto se crea sin stock; si es Insumo o Vendible Inventariable (lleva
+                // stock propio) y la fila trae stock inicial/umbrales, se cargan aparte en la
+                // sucursal activa — el resto de sucursales quedan en cero hasta su propia entrada.
+                var llevaStockPropio = fila.TipoProducto == TipoProducto.Insumo || request.Inventariable;
+                if (llevaStockPropio && (fila.StockInicial is > 0 || fila.StockMinimo is not null || fila.StockMaximo is not null))
+                {
+                    var buscados = await ApiClient.ListarProductosAsync(1, 5, fila.Codigo, null, true, sucursalId);
+                    var creado = buscados.Items.FirstOrDefault(p => string.Equals(p.Codigo, fila.Codigo, StringComparison.OrdinalIgnoreCase));
+                    if (creado is not null)
+                    {
+                        if (fila.StockInicial is decimal stockInicial && stockInicial > 0)
+                        {
+                            await ApiClient.RegistrarEntradaInventarioAsync(sucursalId, new RegistrarEntradaRequestDto
+                            {
+                                ProductoId = creado.Id,
+                                Cantidad = stockInicial,
+                                CostoUnitario = fila.CostoUnitario,
+                                Nota = "Carga inicial (CSV)"
+                            });
+                        }
+
+                        if (fila.StockMinimo is not null || fila.StockMaximo is not null)
+                        {
+                            await ApiClient.ConfigurarUmbralesInventarioAsync(sucursalId, new ConfigurarUmbralesRequestDto
+                            {
+                                ProductoId = creado.Id,
+                                StockMinimo = fila.StockMinimo,
+                                StockMaximo = fila.StockMaximo
+                            });
+                        }
+                    }
+                }
+
+                fila.Exito = true;
+                exitosas++;
+            }
+
+            _resumenImportacion = $"{exitosas} producto(s) creado(s), {fallidas} con error.";
+            await CargarListasParaFormulariosAsync();
+            await RecargarTablaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
     }
 }
