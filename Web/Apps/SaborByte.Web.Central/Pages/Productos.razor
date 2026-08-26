@@ -54,6 +54,7 @@ else
             <MudTh>Tipo</MudTh>
             <MudTh>Combo</MudTh>
             <MudTh>Precio (con ITBIS)</MudTh>
+            <MudTh>Unidad</MudTh>
             <MudTh>Stock</MudTh>
             <MudTh>Activo</MudTh>
             <MudTh></MudTh>
@@ -64,6 +65,7 @@ else
             <MudTd DataLabel="Tipo">@TextoTipo(context)</MudTd>
             <MudTd DataLabel="Combo">@(context.EsCombo ? "Sí" : "No")</MudTd>
             <MudTd DataLabel="Precio (con ITBIS)">RD$ @((context.Precio * (1 + context.TasaItbis)).ToString("0.00"))</MudTd>
+            <MudTd DataLabel="Unidad">@(_unidadesMedida.FirstOrDefault(u => u.Id == context.UnidadMedidaId)?.Nombre ?? "—")</MudTd>
             <MudTd DataLabel="Stock">@(context.Inventariable ? context.StockActual.ToString("0.###") : "-")</MudTd>
             <MudTd DataLabel="Activo">@(context.Activo ? "Sí" : "No")</MudTd>
             <MudTd DataLabel="Acciones">
