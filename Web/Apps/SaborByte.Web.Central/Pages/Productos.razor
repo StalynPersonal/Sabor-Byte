@@ -60,6 +60,7 @@ else
 
     <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="ProductoDetalleDto">
         <HeaderContent>
+            <MudTh>Imagen</MudTh>
             <MudTh>Código</MudTh>
             <MudTh>Nombre</MudTh>
             <MudTh>Tipo</MudTh>
@@ -71,6 +72,19 @@ else
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
+            <MudTd DataLabel="Imagen">
+                @if (!string.IsNullOrEmpty(context.ImagenUrl))
+                {
+                    <MudImage Src="@context.ImagenUrl" Width="40" Height="40" ObjectFit="ObjectFit.Cover" Class="rounded" />
+                }
+                else
+                {
+                    <div class="d-flex align-center justify-center rounded mud-theme-primary"
+                         style="width:40px;height:40px;background-color:var(--mud-palette-primary-lighten)">
+                        <MudIcon Icon="@Icons.Material.Filled.Fastfood" Size="Size.Small" />
+                    </div>
+                }
+            </MudTd>
             <MudTd DataLabel="Código">@context.Codigo</MudTd>
             <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
             <MudTd DataLabel="Tipo">@TextoTipo(context)</MudTd>
