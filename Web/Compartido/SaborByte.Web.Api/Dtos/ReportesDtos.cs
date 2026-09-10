@@ -96,6 +96,24 @@ public class VentaPorMetodoPagoDto
     public decimal TotalCobrado { get; set; }
 }
 
+public class ReporteGananciaDto
+{
+    public decimal VentasSinItbis { get; set; }
+    public decimal CostoMercanciaVendida { get; set; }
+    public decimal GananciaBruta { get; set; }
+    public decimal GastosAplicables { get; set; }
+    public decimal GananciaNeta { get; set; }
+
+    public int VentasRealizadas { get; set; }
+    public decimal UnidadesVendidas { get; set; }
+    public decimal TotalCobradoCliente { get; set; }
+    public decimal ItbisCobrado { get; set; }
+    public decimal MargenBruto { get; set; }
+    public decimal MargenNeto { get; set; }
+
+    public List<VentaPorMetodoPagoDto> PorFormaPago { get; set; } = [];
+}
+
 public class MovimientoInventarioReporteDto
 {
     public DateTime FechaHora { get; set; }

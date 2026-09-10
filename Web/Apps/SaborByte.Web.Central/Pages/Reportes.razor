@@ -28,6 +28,12 @@ else
             }
             <MudDatePicker Label="Desde" @bind-Date="_desde" Style="min-width:180px" />
             <MudDatePicker Label="Hasta" @bind-Date="_hasta" Style="min-width:180px" />
+            <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
+                <MudButton OnClick='() => AplicarRangoRapidoAsync(0)'>Hoy</MudButton>
+                <MudButton OnClick='() => AplicarRangoRapidoAsync(7)'>Últimos 7 días</MudButton>
+                <MudButton OnClick="AplicarMesActualAsync">Mes actual</MudButton>
+                <MudButton OnClick='() => AplicarRangoRapidoAsync(30)'>Últimos 30 días</MudButton>
+            </MudButtonGroup>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarTodoAsync" Disabled="_cargando">
                 @if (_cargando)
                 {
@@ -52,6 +58,7 @@ else
         <MudSelectItem Value="TipoReporte.VentasPorMesero">Ventas por Mesero (resumen)</MudSelectItem>
         <MudSelectItem Value="TipoReporte.TopProductos">Top productos vendidos</MudSelectItem>
         <MudSelectItem Value="TipoReporte.PorMetodoPago">Ventas por método de pago</MudSelectItem>
+        <MudSelectItem Value="TipoReporte.Ganancia">Ganancia del periodo</MudSelectItem>
         <MudSelectItem Value="TipoReporte.MovimientosInventario">Movimientos de inventario</MudSelectItem>
         <MudSelectItem Value="TipoReporte.CxCPendientes">Cuentas por cobrar pendientes</MudSelectItem>
         <MudSelectItem Value="TipoReporte.CxPPendientes">Cuentas por pagar pendientes</MudSelectItem>
@@ -194,6 +201,56 @@ else
             </RowTemplate>
         </MudTable>
     }
+    else if (_reporte == TipoReporte.Ganancia)
+    {
+        @if (_ganancia is null)
+        {
+            <MudText Typo="Typo.body2">Sin datos en el rango seleccionado.</MudText>
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Cómo se llega a la ganancia neta</MudText>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">Ventas del periodo (sin ITBIS)</MudText><MudText Typo="Typo.body2">RD$ @_ganancia.VentasSinItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">Costo de la mercancía vendida</MudText><MudText Typo="Typo.body2">- RD$ @_ganancia.CostoMercanciaVendida.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+                        <MudDivider Class="my-2" />
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body1" Style="font-weight:600">Ganancia bruta</MudText><MudText Typo="Typo.body1" Style="font-weight:600">RD$ @_ganancia.GananciaBruta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">Gastos aplicables</MudText><MudText Typo="Typo.body2">- RD$ @_ganancia.GastosAplicables.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+                        <MudDivider Class="my-2" />
+                        <div class="d-flex justify-space-between"><MudText Typo="Typo.h6" Color="Color.Primary">Ganancia neta</MudText><MudText Typo="Typo.h6" Color="Color.Primary">RD$ @_ganancia.GananciaNeta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Resumen</MudText>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">Ventas realizadas</MudText><MudText Typo="Typo.body2">@_ganancia.VentasRealizadas</MudText></div>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">Unidades vendidas</MudText><MudText Typo="Typo.body2">@_ganancia.UnidadesVendidas.ToString("0.##")</MudText></div>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">Total cobrado al cliente</MudText><MudText Typo="Typo.body2">RD$ @_ganancia.TotalCobradoCliente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">ITBIS cobrado</MudText><MudText Typo="Typo.body2">RD$ @_ganancia.ItbisCobrado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+                        <div class="d-flex justify-space-between mb-1"><MudText Typo="Typo.body2">Margen bruto</MudText><MudText Typo="Typo.body2">@_ganancia.MargenBruto.ToString("0.##")%</MudText></div>
+                        <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Margen neto</MudText><MudText Typo="Typo.body2">@_ganancia.MargenNeto.ToString("0.##")%</MudText></div>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle1" Class="mt-2 mb-2">Ventas por forma de pago</MudText>
+                    <MudTable Items="_ganancia.PorFormaPago" Hover="true" Dense="true" T="VentaPorMetodoPagoDto">
+                        <HeaderContent>
+                            <MudTh>Método de pago</MudTh>
+                            <MudTh>Cantidad de pagos</MudTh>
+                            <MudTh>Total cobrado</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="v">
+                            <MudTd>@v.NombreMetodo</MudTd>
+                            <MudTd>@v.CantidadPagos</MudTd>
+                            <MudTd>RD$ @v.TotalCobrado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudItem>
+            </MudGrid>
+        }
+    }
     else if (_reporte == TipoReporte.MovimientosInventario)
     {
         <MudTable Items="_movimientosInventario" Hover="true" Dense="true" T="MovimientoInventarioReporteDto">
@@ -310,6 +367,7 @@ else
         VentasPorMesero,
         TopProductos,
         PorMetodoPago,
+        Ganancia,
         MovimientosInventario,
         CxCPendientes,
         CxPPendientes,
@@ -329,6 +387,7 @@ else
     private List<VentaPorMeseroDto> _ventasPorMesero = [];
     private List<VentaPorProductoDto> _ventasPorProducto = [];
     private List<VentaPorMetodoPagoDto> _ventasPorMetodoPago = [];
+    private ReporteGananciaDto? _ganancia;
     private List<MovimientoInventarioReporteDto> _movimientosInventario = [];
     private List<CuentaPendienteDto> _cxcPendientes = [];
     private List<CuentaPendienteDto> _cxpPendientes = [];
@@ -373,6 +432,21 @@ else
 
     private void OnReporteCambiado(TipoReporte reporte) => _reporte = reporte;
 
+    private Task AplicarRangoRapidoAsync(int dias)
+    {
+        _desde = dias == 0 ? DateTime.Today : DateTime.Today.AddDays(-dias);
+        _hasta = DateTime.Today;
+        return CargarTodoAsync();
+    }
+
+    private Task AplicarMesActualAsync()
+    {
+        var hoy = DateTime.Today;
+        _desde = new DateTime(hoy.Year, hoy.Month, 1);
+        _hasta = hoy;
+        return CargarTodoAsync();
+    }
+
     // Los DatePicker dan fechas "de calendario" (sin hora) — se convierten al instante UTC
     // que corresponde a esa medianoche en RD, porque FechaEmision se guarda en UTC (ver
     // HorarioRd). Sin esto, el rango quedaba corrido ~4 horas respecto al día real en RD.
@@ -397,6 +471,7 @@ else
             var tareaVentasPorMesero = ApiClient.VentasPorMeseroAsync(SucursalId, rango);
             var tareaVentasPorProducto = ApiClient.VentasPorProductoAsync(SucursalId, rango);
             var tareaVentasPorMetodoPago = ApiClient.VentasPorMetodoPagoAsync(SucursalId, rango);
+            var tareaGanancia = ApiClient.ObtenerGananciaAsync(SucursalId, rango);
             var tareaMovimientosInventario = ApiClient.MovimientosInventarioReporteAsync(SucursalId, rango);
             var tareaCxcPendientes = ApiClient.CxCPendientesAsync(SucursalId);
             var tareaCxpPendientes = ApiClient.CxPPendientesAsync(SucursalId);
@@ -405,7 +480,7 @@ else
 
             await Task.WhenAll(
                 tareaVentasResumen, tareaVentasDetalle, tareaVentasPorCajero, tareaVentasPorMesero, tareaVentasPorProducto, tareaVentasPorMetodoPago,
-                tareaMovimientosInventario, tareaCxcPendientes, tareaCxpPendientes, tareaCxcPagos, tareaCxpPagos);
+                tareaGanancia, tareaMovimientosInventario, tareaCxcPendientes, tareaCxpPendientes, tareaCxcPagos, tareaCxpPagos);
 
             _ventasResumen = tareaVentasResumen.Result;
             _ventasDetalle = tareaVentasDetalle.Result;
@@ -413,6 +488,7 @@ else
             _ventasPorMesero = tareaVentasPorMesero.Result;
             _ventasPorProducto = tareaVentasPorProducto.Result;
             _ventasPorMetodoPago = tareaVentasPorMetodoPago.Result;
+            _ganancia = tareaGanancia.Result;
             _movimientosInventario = tareaMovimientosInventario.Result;
             _cxcPendientes = tareaCxcPendientes.Result;
             _cxpPendientes = tareaCxpPendientes.Result;
@@ -482,6 +558,15 @@ else
         ["Método de pago", "Cantidad de pagos", "Total cobrado"],
         _ventasPorMetodoPago.Select(v => new object?[] { v.NombreMetodo, v.CantidadPagos, v.TotalCobrado }));
 
+    private string UriGanancia() => ConstruirCsvUri(
+        ["Ventas sin ITBIS", "Costo mercancía vendida", "Ganancia bruta", "Gastos aplicables", "Ganancia neta",
+         "Ventas realizadas", "Unidades vendidas", "Total cobrado", "ITBIS cobrado", "Margen bruto %", "Margen neto %"],
+        _ganancia is null ? [] : new[] { new object?[]
+        {
+            _ganancia.VentasSinItbis, _ganancia.CostoMercanciaVendida, _ganancia.GananciaBruta, _ganancia.GastosAplicables, _ganancia.GananciaNeta,
+            _ganancia.VentasRealizadas, _ganancia.UnidadesVendidas, _ganancia.TotalCobradoCliente, _ganancia.ItbisCobrado, _ganancia.MargenBruto, _ganancia.MargenNeto
+        }});
+
     private string UriMovimientosInventario() => ConstruirCsvUri(
         ["Fecha", "Insumo", "Tipo", "Cantidad", "Saldo", "Nota"],
         _movimientosInventario.Select(m => new object?[]
@@ -521,6 +606,7 @@ else
         TipoReporte.VentasPorMesero => UriVentasPorMesero(),
         TipoReporte.TopProductos => UriTopProductos(),
         TipoReporte.PorMetodoPago => UriPorMetodoPago(),
+        TipoReporte.Ganancia => UriGanancia(),
         TipoReporte.MovimientosInventario => UriMovimientosInventario(),
         TipoReporte.CxCPendientes => UriCxCPendientes(),
         TipoReporte.CxPPendientes => UriCxPPendientes(),
@@ -537,6 +623,7 @@ else
         TipoReporte.VentasPorMesero => "ventas_por_mesero.csv",
         TipoReporte.TopProductos => "top_productos.csv",
         TipoReporte.PorMetodoPago => "ventas_por_metodo_pago.csv",
+        TipoReporte.Ganancia => "ganancia_del_periodo.csv",
         TipoReporte.MovimientosInventario => "movimientos_inventario.csv",
         TipoReporte.CxCPendientes => "cxc_pendientes.csv",
         TipoReporte.CxPPendientes => "cxp_pendientes.csv",

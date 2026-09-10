@@ -5,6 +5,7 @@ using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.CxcCxp;
+using SaborByte.Dominio.Gastos;
 
 namespace SaborByte.Aplicacion.Reportes;
 
@@ -255,6 +256,59 @@ public class ReporteAppService(IAppDbContext db)
             })
             .OrderByDescending(v => v.TotalCobrado)
             .ToList();
+    }
+
+    // "Ganancia del periodo": ventas sin ITBIS, menos costo de mercancía vendida (con el
+    // costo ACTUAL del producto, mismo criterio que VentasPorProductoAsync — no snapshot
+    // histórico), menos gastos del negocio del periodo, para llegar a la ganancia neta.
+    public async Task<ReporteGananciaDto> ObtenerGananciaAsync(
+        Guid sucursalId, RangoFechasRequestDto rango, CancellationToken ct = default)
+    {
+        var facturas = await db.Facturas
+            .Where(f => f.SucursalId == sucursalId &&
+                        f.FechaEmision >= rango.Desde && f.FechaEmision <= rango.Hasta)
+            .Select(f => new { f.Id, f.Subtotal, f.Itbis, f.Total })
+            .ToListAsync(ct);
+
+        var facturaIds = facturas.Select(f => f.Id).ToList();
+        var detalles = await db.FacturaDetalles
+            .Where(d => facturaIds.Contains(d.FacturaId))
+            .Select(d => new { d.ProductoId, d.Cantidad })
+            .ToListAsync(ct);
+
+        var productoIds = detalles.Select(d => d.ProductoId).Distinct().ToList();
+        var costos = await db.Productos
+            .Where(p => productoIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.CostoUnitario, ct);
+
+        var costoMercanciaVendida = detalles.Sum(d => costos.GetValueOrDefault(d.ProductoId) * d.Cantidad);
+
+        var gastosAplicables = await db.Gastos
+            .Where(g => g.SucursalId == sucursalId && !g.Anulado && g.EsGastoDelNegocio &&
+                        g.FechaGasto >= rango.Desde && g.FechaGasto <= rango.Hasta)
+            .SumAsync(g => g.Monto, ct);
+
+        var ventasSinItbis = facturas.Sum(f => f.Subtotal);
+        var gananciaBruta = ventasSinItbis - costoMercanciaVendida;
+        var gananciaNeta = gananciaBruta - gastosAplicables;
+
+        var porFormaPago = await VentasPorMetodoPagoAsync(sucursalId, rango, ct);
+
+        return new ReporteGananciaDto
+        {
+            VentasSinItbis = ventasSinItbis,
+            CostoMercanciaVendida = costoMercanciaVendida,
+            GananciaBruta = gananciaBruta,
+            GastosAplicables = gastosAplicables,
+            GananciaNeta = gananciaNeta,
+            VentasRealizadas = facturas.Count,
+            UnidadesVendidas = detalles.Sum(d => d.Cantidad),
+            TotalCobradoCliente = facturas.Sum(f => f.Total),
+            ItbisCobrado = facturas.Sum(f => f.Itbis),
+            MargenBruto = ventasSinItbis == 0 ? 0 : Math.Round(gananciaBruta / ventasSinItbis * 100, 2),
+            MargenNeto = ventasSinItbis == 0 ? 0 : Math.Round(gananciaNeta / ventasSinItbis * 100, 2),
+            PorFormaPago = porFormaPago
+        };
     }
 
     // Totales vendidos agrupados por categoría — para el gráfico de dona del dashboard.

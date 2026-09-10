@@ -141,6 +141,27 @@ public class PagoCuentaReporteDto
     public bool Anulado { get; set; }
 }
 
+// "Ganancia del periodo" — combina ventas (sin ITBIS), costo de mercancía vendida
+// (usando el costo ACTUAL de cada producto, mismo criterio que VentaPorProductoDto.UtilidadEstimada,
+// no un snapshot histórico) y gastos del periodo, para llegar a la ganancia neta real.
+public class ReporteGananciaDto
+{
+    public decimal VentasSinItbis { get; set; }
+    public decimal CostoMercanciaVendida { get; set; }
+    public decimal GananciaBruta { get; set; }
+    public decimal GastosAplicables { get; set; }
+    public decimal GananciaNeta { get; set; }
+
+    public int VentasRealizadas { get; set; }
+    public decimal UnidadesVendidas { get; set; }
+    public decimal TotalCobradoCliente { get; set; }
+    public decimal ItbisCobrado { get; set; }
+    public decimal MargenBruto { get; set; }
+    public decimal MargenNeto { get; set; }
+
+    public List<VentaPorMetodoPagoDto> PorFormaPago { get; set; } = [];
+}
+
 public class DashboardResumenDto
 {
     public decimal VentasHoyTotal { get; set; }

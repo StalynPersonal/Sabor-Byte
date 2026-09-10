@@ -102,6 +102,15 @@ public class ReportesController(ReporteAppService reportes) : ControllerBase
         return Ok(await reportes.VentasPorMetodoPagoAsync(sucursalId, request, ct));
     }
 
+    [HttpPost("ganancia")]
+    public async Task<IActionResult> Ganancia([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await reportes.ObtenerGananciaAsync(sucursalId, request, ct));
+    }
+
     [HttpPost("movimientos-inventario")]
     public async Task<IActionResult> MovimientosInventario([FromQuery] Guid sucursalId, RangoFechasRequestDto request, CancellationToken ct)
     {
