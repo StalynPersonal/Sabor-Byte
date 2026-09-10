@@ -17,14 +17,14 @@ public class FacturasController(FacturaAppService facturas) : ControllerBase
         [FromQuery] Guid sucursalId, [FromQuery] string? texto,
         [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta,
         [FromQuery] decimal? montoMinimo, [FromQuery] decimal? montoMaximo, [FromQuery] Guid? cajaId,
-        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
+        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct, [FromQuery] Guid? clienteId = null)
     {
         if (!User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
         return Ok(await facturas.BuscarAsync(
             sucursalId, texto, desde, hasta, montoMinimo, montoMaximo, cajaId,
-            pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
+            pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct, clienteId));
     }
 
     [HttpGet("{facturaId:guid}")]

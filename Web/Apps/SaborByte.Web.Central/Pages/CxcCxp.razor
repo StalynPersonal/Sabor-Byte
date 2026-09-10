@@ -168,11 +168,12 @@ else
 <MudDialog @bind-Visible="_creandoCxC" Options="_opcionesDialogo">
     <TitleContent>Nueva cuenta por cobrar</TitleContent>
     <DialogContent>
-        <MudAutocomplete T="ClienteDto" Label="Cliente" Value="_clienteCxC" ValueChanged="c => _clienteCxC = c"
+        <MudAutocomplete T="ClienteDto" Label="Cliente" Value="_clienteCxC" ValueChanged="OnClienteCxCCambiadoAsync"
                           SearchFunc="BuscarClientesAsync" ToStringFunc="@(c => c?.NombreORazonSocial ?? string.Empty)" Class="mb-2" />
 
         <MudAutocomplete T="FacturaResumenDto" Label="Factura" Value="_facturaCxC" ValueChanged="f => _facturaCxC = f"
-                          SearchFunc="BuscarFacturasAsync" ToStringFunc="@(f => f is null ? string.Empty : $"{f.NumeroNcf} - RD$ {f.Total:0.00}")" Class="mb-2" />
+                          SearchFunc="BuscarFacturasAsync" ToStringFunc="@(f => f is null ? string.Empty : $"{f.NumeroFactura} - RD$ {f.Total:0.00}")"
+                          Disabled="_clienteCxC is null" Placeholder="@(_clienteCxC is null ? "Selecciona primero un cliente" : null)" Class="mb-2" />
 
         <MudNumericField T="decimal" Label="Monto" @bind-Value="_formCxC.MontoOriginal" Class="mb-2" />
         <MudDatePicker Label="Fecha de vencimiento" @bind-Date="_fechaVencimientoCxC" Class="mb-2" />
@@ -332,6 +333,7 @@ else
     <TitleContent>Nueva cuenta por pagar</TitleContent>
     <DialogContent>
         <MudSelect T="Guid" Label="Proveedor" @bind-Value="_formCxP.ProveedorId" Class="mb-2">
+            <MudSelectItem Value="@Guid.Empty">(Selecciona un proveedor)</MudSelectItem>
             @foreach (var proveedor in _proveedoresActivos)
             {
                 <MudSelectItem Value="@proveedor.Id">@proveedor.NombreORazonSocial</MudSelectItem>
@@ -576,8 +578,21 @@ else
 
     private async Task<IEnumerable<FacturaResumenDto>> BuscarFacturasAsync(string texto, CancellationToken ct)
     {
-        var resultado = await ApiClient.BuscarFacturasAsync(SucursalId, 1, 20, texto);
+        // Sin cliente seleccionado no tiene sentido mostrar facturas de todo el sistema —
+        // solo se listan las del cliente elegido arriba.
+        if (_clienteCxC is null)
+            return [];
+
+        var resultado = await ApiClient.BuscarFacturasAsync(SucursalId, 1, 20, texto, clienteId: _clienteCxC.Id);
         return resultado.Items;
+    }
+
+    private void OnClienteCxCCambiadoAsync(ClienteDto? cliente)
+    {
+        _clienteCxC = cliente;
+        // La factura elegida antes pertenecía (o no) a otro cliente — se limpia para no
+        // dejar seleccionada una factura que ya no aplica a este cliente.
+        _facturaCxC = null;
     }
 
     private void AbrirNuevaCxC()

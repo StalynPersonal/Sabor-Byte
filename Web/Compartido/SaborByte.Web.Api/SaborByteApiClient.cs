@@ -484,7 +484,7 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
     public async Task<ResultadoPaginadoDto<FacturaResumenDto>> BuscarFacturasAsync(
         Guid sucursalId, int pagina, int tamanoPagina, string? texto = null,
         DateTime? desde = null, DateTime? hasta = null,
-        decimal? montoMinimo = null, decimal? montoMaximo = null, Guid? cajaId = null)
+        decimal? montoMinimo = null, decimal? montoMaximo = null, Guid? cajaId = null, Guid? clienteId = null)
     {
         AdjuntarToken();
         var url = $"api/facturas?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}&texto={Uri.EscapeDataString(texto ?? string.Empty)}";
@@ -493,6 +493,7 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         if (montoMinimo is not null) url += $"&montoMinimo={montoMinimo}";
         if (montoMaximo is not null) url += $"&montoMaximo={montoMaximo}";
         if (cajaId is not null) url += $"&cajaId={cajaId}";
+        if (clienteId is not null) url += $"&clienteId={clienteId}";
         return await http.GetFromJsonAsync<ResultadoPaginadoDto<FacturaResumenDto>>(url) ?? new();
     }
 
@@ -987,5 +988,90 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         {
             return $"Error {(int)respuesta.StatusCode}";
         }
+    }
+
+    // --- Deliveries ---
+
+    public async Task<List<DeliveryDto>> ListarDeliveriesAsync(Guid sucursalId, bool incluirInactivos = false, string? texto = null)
+    {
+        AdjuntarToken();
+        var url = $"api/deliveries?sucursalId={sucursalId}&incluirInactivos={incluirInactivos}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<List<DeliveryDto>>(url) ?? [];
+    }
+
+    public async Task<(bool Exito, Guid? Id, string? Error)> CrearDeliveryAsync(Guid sucursalId, GuardarDeliveryRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/deliveries?sucursalId={sucursalId}", request);
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        var resultado = await respuesta.Content.ReadFromJsonAsync<IdRespuestaDto>();
+        return (true, resultado?.Id, null);
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarDeliveryAsync(Guid sucursalId, Guid deliveryId, GuardarDeliveryRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/deliveries/{deliveryId}?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> DesactivarDeliveryAsync(Guid sucursalId, Guid deliveryId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.DeleteAsync($"api/deliveries/{deliveryId}?sucursalId={sucursalId}");
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<FacturaAsignableDto>> BuscarFacturasAsignablesDeliveryAsync(Guid sucursalId, string? texto)
+    {
+        AdjuntarToken();
+        var url = $"api/deliveries/facturas/buscar?sucursalId={sucursalId}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<List<FacturaAsignableDto>>(url) ?? [];
+    }
+
+    public async Task<List<FacturaDeliveryDto>> ListarFacturasDeliveryAsync(Guid sucursalId, Guid deliveryId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<FacturaDeliveryDto>>($"api/deliveries/{deliveryId}/facturas?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> AsignarFacturaADeliveryAsync(Guid sucursalId, Guid deliveryId, AsignarFacturaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/deliveries/{deliveryId}/facturas?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> QuitarAsignacionFacturaDeliveryAsync(Guid sucursalId, Guid deliveryId, Guid facturaDeliveryId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.DeleteAsync($"api/deliveries/{deliveryId}/facturas/{facturaDeliveryId}?sucursalId={sucursalId}");
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<AbonoDeliveryDto>> ListarAbonosDeliveryAsync(Guid sucursalId, Guid deliveryId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<AbonoDeliveryDto>>($"api/deliveries/{deliveryId}/abonos?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> RegistrarAbonoDeliveryAsync(Guid sucursalId, Guid deliveryId, RegistrarAbonoDeliveryRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/deliveries/{deliveryId}/abonos?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> AnularAbonoDeliveryAsync(Guid sucursalId, Guid deliveryId, Guid abonoId, AnularAbonoDeliveryRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/deliveries/{deliveryId}/abonos/{abonoId}/anular?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 }

@@ -2,6 +2,26 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .solo-imprimir, .solo-imprimir * {
+        visibility: visible;
+    }
+
+    .solo-imprimir {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 80mm;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+    }
+}
+
 h1:focus {
     outline: none;
 }

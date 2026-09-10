@@ -15,12 +15,15 @@ public class FacturaAppService(IAppDbContext db)
     public async Task<ResultadoPaginado<FacturaResumenDto>> BuscarAsync(
         Guid sucursalId, string? texto, DateTime? desde, DateTime? hasta,
         decimal? montoMinimo, decimal? montoMaximo, Guid? cajaId,
-        int pagina, int tamanoPagina, CancellationToken ct = default)
+        int pagina, int tamanoPagina, CancellationToken ct = default, Guid? clienteId = null)
     {
         pagina = pagina < 1 ? 1 : pagina;
         tamanoPagina = tamanoPagina is < 1 or > 200 ? 20 : tamanoPagina;
 
         var query = db.Facturas.Where(f => f.SucursalId == sucursalId);
+
+        if (clienteId is not null)
+            query = query.Where(f => f.ClienteId == clienteId.Value);
 
         if (!string.IsNullOrWhiteSpace(texto))
             query = query.Where(f =>

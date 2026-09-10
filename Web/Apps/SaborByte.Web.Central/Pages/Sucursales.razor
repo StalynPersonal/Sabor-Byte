@@ -32,12 +32,14 @@ else
             <MudTh>Nombre</MudTh>
             <MudTh>Código</MudTh>
             <MudTh>Activa</MudTh>
+            <MudTh>Facturación electrónica</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.Nombre</MudTd>
             <MudTd>@context.Codigo</MudTd>
             <MudTd>@(context.Activa ? "Sí" : "No")</MudTd>
+            <MudTd>@(context.EcfActivo ? "Sí" : "No")</MudTd>
             <MudTd>
                 <MudTooltip Text="Editar">
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirEditarAsync(context)" />

@@ -1,0 +1,611 @@
+@page "/deliveries"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>SaborByte</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Deliveries</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoDelivery">
+            Nuevo delivery
+        </MudButton>
+    </div>
+
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+        Asigna facturas ya emitidas a un delivery para llevar cuenta de cuánto dinero debe
+        devolver al negocio (el total de productos), y registra sus abonos parciales.
+    </MudText>
+
+    <MudTextField T="string" Label="Buscar por nombre" @bind-Value="_textoBusqueda"
+                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Class="mb-4" />
+
+    <MudTable Items="_deliveries" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Teléfono</MudTh>
+            <MudTh>Saldo pendiente</MudTh>
+            <MudTh>Activo</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Nombre</MudTd>
+            <MudTd>@(context.Telefono ?? "—")</MudTd>
+            <MudTd Style="@(context.SaldoPendiente > 0 ? "color:var(--mud-palette-error); font-weight:bold" : "")">
+                RD$ @context.SaldoPendiente.ToString("0.00")
+            </MudTd>
+            <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
+            <MudTd>
+                <MudTooltip Text="Ver cuenta">
+                    <MudIconButton Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Small" OnClick="() => AbrirCuentaAsync(context)" />
+                </MudTooltip>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarDelivery(context)" />
+                </MudTooltip>
+                @if (context.Activo)
+                {
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
+    <TitleContent>@(_deliveryId is null ? "Nuevo delivery" : "Editar delivery")</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Required="true" Class="mb-2" />
+        <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
+        @if (_deliveryId is not null)
+        {
+            <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_viendoCuenta" Options="_opcionesDialogoGrande">
+    <TitleContent>Cuenta — @_deliverySeleccionado?.Nombre</TitleContent>
+    <DialogContent>
+        @if (_deliverySeleccionado is not null)
+        {
+            <MudGrid Class="mb-3">
+                <MudItem xs="4">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Total facturado</MudText>
+                    <MudText Typo="Typo.body1">RD$ @_facturas.Sum(f => f.MontoFactura).ToString("0.00")</MudText>
+                </MudItem>
+                <MudItem xs="4">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Total abonado</MudText>
+                    <MudText Typo="Typo.body1">RD$ @_abonos.Where(a => !a.Anulado).Sum(a => a.Monto).ToString("0.00")</MudText>
+                </MudItem>
+                <MudItem xs="4">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Saldo pendiente</MudText>
+                    <MudText Typo="Typo.body1"><strong>RD$ @_deliverySeleccionado.SaldoPendiente.ToString("0.00")</strong></MudText>
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-space-between align-center mb-1">
+                <MudText Typo="Typo.subtitle2">Facturas asignadas</MudText>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AbrirAsignarFactura">Asignar factura</MudButton>
+            </div>
+            <MudTable Items="_facturas" Hover="true" Dense="true" Class="mb-4">
+                <HeaderContent>
+                    <MudTh>N° Factura</MudTh>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>Productos</MudTh>
+                    <MudTh>Delivery</MudTh>
+                    <MudTh>Asignada por</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.NumeroFactura</MudTd>
+                    <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd>RD$ @context.MontoFactura.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.MontoDelivery.ToString("0.00")</MudTd>
+                    <MudTd>@context.AsignadoPorNombre</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="Reimprimir recibo informativo">
+                            <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small" OnClick="() => ImprimirReciboAsync(context)" />
+                        </MudTooltip>
+                        @if (PuedeGestionarAbonos)
+                        {
+                            <MudTooltip Text="Quitar asignación">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => QuitarAsignacionAsync(context)" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Todavía no hay facturas asignadas.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+
+            <div class="d-flex justify-space-between align-center mb-1">
+                <MudText Typo="Typo.subtitle2">Abonos</MudText>
+                @if (PuedeGestionarAbonos)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_deliverySeleccionado.SaldoPendiente <= 0" OnClick="AbrirRegistrarAbono">Registrar abono</MudButton>
+                }
+            </div>
+            <MudTable Items="_abonos" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>Monto</MudTh>
+                    <MudTh>Forma de pago</MudTh>
+                    <MudTh>N° comprobante</MudTh>
+                    <MudTh>Registrado por</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.Monto.ToString("0.00")</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.MetodoPagoNombre</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@(context.NumeroComprobante ?? "—")</MudTd>
+                    <MudTd>@context.RegistradoPorNombre</MudTd>
+                    <MudTd>
+                        @if (context.Anulado)
+                        {
+                            <MudTooltip Text="@($"Anulado por {context.AnuladoPorNombre} — {context.MotivoAnulacion}")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error">Anulado</MudChip>
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Vigente</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (!context.Anulado && PuedeGestionarAbonos)
+                        {
+                            <MudTooltip Text="Anular abono">
+                                <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Error" OnClick="() => AbrirAnularAbono(context)" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Todavía no se ha registrado ningún abono.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _viendoCuenta = false">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_asignandoFactura" Options="_opcionesDialogo">
+    <TitleContent>Asignar factura</TitleContent>
+    <DialogContent>
+        <MudAutocomplete T="FacturaAsignableDto" Label="Factura" Value="_facturaAAsignar" ValueChanged="f => _facturaAAsignar = f"
+                          SearchFunc="BuscarFacturasAsignablesAsync"
+                          ToStringFunc="@(f => f is null ? string.Empty : $"{f.NumeroFactura} - RD$ {f.Total:0.00}")" Class="mb-2" />
+        @if (_facturaAAsignar is { YaAsignada: true })
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2">
+                Esta factura ya está asignada a @_facturaAAsignar.DeliveryNombreActual.
+            </MudAlert>
+        }
+        <MudNumericField T="decimal" Label="Monto del delivery/viaje (opcional)" @bind-Value="_montoDeliveryAsignar" Min="0" Class="mb-2" />
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+            Ese monto es informativo (lo que el delivery cobra por el viaje) — no se suma al
+            saldo que debe devolver por los productos.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _asignandoFactura = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConfirmarAsignarFacturaAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Asignar</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_registrandoAbono" Options="_opcionesDialogo">
+    <TitleContent>Registrar abono — saldo RD$ @(_deliverySeleccionado?.SaldoPendiente.ToString("0.00"))</TitleContent>
+    <DialogContent>
+        <MudNumericField T="decimal" Label="Monto del abono" @bind-Value="_formAbono.Monto" Class="mb-2" />
+        <MudSelect T="Guid" Label="Forma de pago" @bind-Value="_formAbono.MetodoPagoId" Class="mb-2">
+            @foreach (var metodo in _metodosPago)
+            {
+                <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
+            }
+        </MudSelect>
+        @if (RequiereComprobante(_formAbono.MetodoPagoId))
+        {
+            <MudTextField T="string" Label="N° de comprobante" @bind-Value="_formAbono.NumeroComprobante"
+                           Required="true" RequiredError="Este método de pago requiere número de comprobante." Class="mb-2" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _registrandoAbono = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="ConfirmarAbonoAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Confirmar abono</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_anulandoAbono" Options="_opcionesDialogo">
+    <TitleContent>Anular abono — RD$ @(_abonoAAnular?.Monto.ToString("0.00"))</TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+            El abono no se borra: queda marcado como anulado (con este motivo, quién y cuándo)
+            y su monto vuelve al saldo pendiente del delivery.
+        </MudAlert>
+        <MudTextField T="string" Label="Motivo de la anulación" @bind-Value="_motivoAnulacion" Lines="2"
+                       Required="true" RequiredError="El motivo es obligatorio." Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _anulandoAbono = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarAnulacionAbonoAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Anular abono</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@if (_reciboAImprimir is not null)
+{
+    <div class="solo-imprimir">
+        <p style="text-align:center; margin:0; font-weight:bold">RECIBO INFORMATIVO</p>
+        <p style="text-align:center; margin:0; font-weight:bold">NO ES UN COMPROBANTE FISCAL</p>
+        <hr />
+        <p style="margin:0">Factura: @_reciboAImprimir.NumeroFactura</p>
+        <p style="margin:0">Fecha: @_reciboAImprimir.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+        <p style="margin:0">Delivery: @_deliverySeleccionado?.Nombre</p>
+        <hr />
+        <div style="display:flex; justify-content:space-between"><span>Productos</span><span>@_reciboAImprimir.MontoFactura.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between"><span>Delivery/Flete</span><span>@_reciboAImprimir.MontoDelivery.ToString("0.00")</span></div>
+        <hr />
+        <div style="display:flex; justify-content:space-between; font-weight:bold">
+            <span>TOTAL PAGADO</span><span>RD$ @((_reciboAImprimir.MontoFactura + _reciboAImprimir.MontoDelivery).ToString("0.00"))</span>
+        </div>
+        <hr />
+        <p style="text-align:center; margin-top:8px; font-size:0.85em">Este recibo es solo informativo, no reemplaza la factura.</p>
+    </div>
+}
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private List<DeliveryDto> _deliveries = [];
+    private string _textoBusqueda = string.Empty;
+    private bool _procesando;
+    private List<MetodoPagoDto> _metodosPago = [];
+
+    private bool _editando;
+    private Guid? _deliveryId;
+    private GuardarDeliveryRequestDto _form = new();
+
+    private bool _viendoCuenta;
+    private DeliveryDto? _deliverySeleccionado;
+    private List<FacturaDeliveryDto> _facturas = [];
+    private List<AbonoDeliveryDto> _abonos = [];
+
+    private bool _asignandoFactura;
+    private FacturaAsignableDto? _facturaAAsignar;
+    private decimal _montoDeliveryAsignar;
+
+    private bool _registrandoAbono;
+    private RegistrarAbonoDeliveryRequestDto _formAbono = new();
+
+    private bool _anulandoAbono;
+    private AbonoDeliveryDto? _abonoAAnular;
+    private string _motivoAnulacion = string.Empty;
+
+    private FacturaDeliveryDto? _reciboAImprimir;
+
+    private bool PuedeGestionarAbonos => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
+
+    private Guid SucursalId => Sesion.SucursalActivaId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
+        _metodosPago = await ApiClient.ListarMetodosPagoAsync();
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _deliveries = await ApiClient.ListarDeliveriesAsync(SucursalId, incluirInactivos: true, texto: _textoBusqueda);
+    }
+
+    private void NuevoDelivery()
+    {
+        _deliveryId = null;
+        _form = new GuardarDeliveryRequestDto();
+        _editando = true;
+    }
+
+    private void EditarDelivery(DeliveryDto delivery)
+    {
+        _deliveryId = delivery.Id;
+        _form = new GuardarDeliveryRequestDto { Nombre = delivery.Nombre, Telefono = delivery.Telefono, Activo = delivery.Activo };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (_procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_form.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Error);
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            bool exito;
+            string? error;
+            if (_deliveryId is null)
+                (exito, _, error) = await ApiClient.CrearDeliveryAsync(SucursalId, _form);
+            else
+                (exito, error) = await ApiClient.ActualizarDeliveryAsync(SucursalId, _deliveryId.Value, _form);
+
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_deliveryId is null ? "Delivery creado." : "Delivery actualizado.", Severity.Success);
+            _editando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private async Task DesactivarAsync(DeliveryDto delivery)
+    {
+        var (exito, error) = await ApiClient.DesactivarDeliveryAsync(SucursalId, delivery.Id);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Delivery desactivado.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task AbrirCuentaAsync(DeliveryDto delivery)
+    {
+        _deliverySeleccionado = delivery;
+        _facturas = await ApiClient.ListarFacturasDeliveryAsync(SucursalId, delivery.Id);
+        _abonos = await ApiClient.ListarAbonosDeliveryAsync(SucursalId, delivery.Id);
+        _viendoCuenta = true;
+    }
+
+    private async Task RecargarCuentaAsync()
+    {
+        if (_deliverySeleccionado is null) return;
+
+        // Refresca también el saldo cacheado en la fila del listado.
+        _deliveries = await ApiClient.ListarDeliveriesAsync(SucursalId, incluirInactivos: true, texto: _textoBusqueda);
+        _deliverySeleccionado = _deliveries.FirstOrDefault(d => d.Id == _deliverySeleccionado.Id) ?? _deliverySeleccionado;
+
+        _facturas = await ApiClient.ListarFacturasDeliveryAsync(SucursalId, _deliverySeleccionado.Id);
+        _abonos = await ApiClient.ListarAbonosDeliveryAsync(SucursalId, _deliverySeleccionado.Id);
+    }
+
+    private void AbrirAsignarFactura()
+    {
+        _facturaAAsignar = null;
+        _montoDeliveryAsignar = 0;
+        _asignandoFactura = true;
+    }
+
+    private async Task<IEnumerable<FacturaAsignableDto>> BuscarFacturasAsignablesAsync(string texto, CancellationToken ct) =>
+        await ApiClient.BuscarFacturasAsignablesDeliveryAsync(SucursalId, texto);
+
+    private async Task ConfirmarAsignarFacturaAsync()
+    {
+        if (_deliverySeleccionado is null || _procesando) return;
+
+        if (_facturaAAsignar is null)
+        {
+            Snackbar.Add("Selecciona una factura.", Severity.Error);
+            return;
+        }
+
+        if (_facturaAAsignar.YaAsignada)
+        {
+            Snackbar.Add("Esta factura ya está asignada a otro delivery.", Severity.Error);
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            var request = new AsignarFacturaRequestDto { FacturaId = _facturaAAsignar.FacturaId, MontoDelivery = _montoDeliveryAsignar };
+            var (exito, error) = await ApiClient.AsignarFacturaADeliveryAsync(SucursalId, _deliverySeleccionado.Id, request);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Factura asignada.", Severity.Success);
+            _asignandoFactura = false;
+            await RecargarCuentaAsync();
+
+            // Recibo informativo automático solo si se indicó un monto de delivery — si es
+            // 0, no hay nada que informar aparte de la factura misma.
+            if (_montoDeliveryAsignar > 0)
+            {
+                var asignada = _facturas.FirstOrDefault(f => f.FacturaId == _facturaAAsignar.FacturaId);
+                if (asignada is not null)
+                    await ImprimirReciboAsync(asignada);
+            }
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private async Task QuitarAsignacionAsync(FacturaDeliveryDto factura)
+    {
+        if (_deliverySeleccionado is null) return;
+
+        var (exito, error) = await ApiClient.QuitarAsignacionFacturaDeliveryAsync(SucursalId, _deliverySeleccionado.Id, factura.Id);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Asignación eliminada.", Severity.Success);
+        await RecargarCuentaAsync();
+    }
+
+    private async Task ImprimirReciboAsync(FacturaDeliveryDto factura)
+    {
+        _reciboAImprimir = factura;
+        StateHasChanged();
+        // Sin esta espera, "print" a veces se dispara antes de que el navegador termine de
+        // pintar el recibo (mismo problema que en Caja al reimprimir tickets).
+        await Task.Delay(50);
+        await JS.InvokeVoidAsync("print");
+        _reciboAImprimir = null;
+    }
+
+    private bool RequiereComprobante(Guid metodoPagoId) =>
+        _metodosPago.FirstOrDefault(m => m.Id == metodoPagoId)?.RequiereComprobante ?? false;
+
+    private void AbrirRegistrarAbono()
+    {
+        _formAbono = new RegistrarAbonoDeliveryRequestDto { MetodoPagoId = _metodosPago.FirstOrDefault()?.Id ?? Guid.Empty };
+        _registrandoAbono = true;
+    }
+
+    private async Task ConfirmarAbonoAsync()
+    {
+        if (_deliverySeleccionado is null || _procesando) return;
+
+        if (RequiereComprobante(_formAbono.MetodoPagoId) && string.IsNullOrWhiteSpace(_formAbono.NumeroComprobante))
+        {
+            Snackbar.Add("Este método de pago requiere número de comprobante.", Severity.Error);
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            var (exito, error) = await ApiClient.RegistrarAbonoDeliveryAsync(SucursalId, _deliverySeleccionado.Id, _formAbono);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Abono registrado.", Severity.Success);
+            _registrandoAbono = false;
+            await RecargarCuentaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private void AbrirAnularAbono(AbonoDeliveryDto abono)
+    {
+        _abonoAAnular = abono;
+        _motivoAnulacion = string.Empty;
+        _anulandoAbono = true;
+    }
+
+    private async Task ConfirmarAnulacionAbonoAsync()
+    {
+        if (_deliverySeleccionado is null || _abonoAAnular is null || _procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_motivoAnulacion))
+        {
+            Snackbar.Add("El motivo de la anulación es obligatorio.", Severity.Error);
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            var request = new AnularAbonoDeliveryRequestDto { Motivo = _motivoAnulacion };
+            var (exito, error) = await ApiClient.AnularAbonoDeliveryAsync(SucursalId, _deliverySeleccionado.Id, _abonoAAnular.Id, request);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Abono anulado.", Severity.Success);
+            _anulandoAbono = false;
+            await RecargarCuentaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+}

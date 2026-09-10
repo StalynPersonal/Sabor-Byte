@@ -4,6 +4,7 @@ using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Clientes;
 using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.CxcCxp;
+using SaborByte.Dominio.Deliveries;
 using SaborByte.Dominio.Facturacion;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
@@ -65,6 +66,10 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<PagoCxC> PagosCxC => Set<PagoCxC>();
     public DbSet<CuentaPorPagar> CuentasPorPagar => Set<CuentaPorPagar>();
     public DbSet<PagoCxP> PagosCxP => Set<PagoCxP>();
+
+    public DbSet<Delivery> Deliveries => Set<Delivery>();
+    public DbSet<FacturaDelivery> FacturasDelivery => Set<FacturaDelivery>();
+    public DbSet<AbonoDelivery> AbonosDelivery => Set<AbonoDelivery>();
 
     public DbSet<AutorizacionSupervisor> AutorizacionesSupervisor => Set<AutorizacionSupervisor>();
     public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
@@ -464,6 +469,33 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
         modelBuilder.Entity<PagoCxP>(b =>
         {
             b.ToTable("PagosCxP", "cxccxp");
+            b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
+            b.Property(x => x.NumeroComprobante).HasMaxLength(50);
+            b.Property(x => x.MotivoAnulacion).HasMaxLength(300);
+            b.HasOne(x => x.MetodoPago).WithMany().HasForeignKey(x => x.MetodoPagoId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Delivery>(b =>
+        {
+            b.ToTable("Deliveries", "deliveries");
+            b.Property(x => x.Nombre).HasMaxLength(150).IsRequired();
+            b.Property(x => x.Telefono).HasMaxLength(30);
+            b.Property(x => x.SaldoPendiente).HasColumnType("decimal(18,2)");
+            b.HasMany(x => x.Facturas).WithOne(f => f.Delivery).HasForeignKey(f => f.DeliveryId);
+            b.HasMany(x => x.Abonos).WithOne(a => a.Delivery).HasForeignKey(a => a.DeliveryId);
+        });
+
+        modelBuilder.Entity<FacturaDelivery>(b =>
+        {
+            b.ToTable("FacturasDelivery", "deliveries");
+            b.Property(x => x.MontoFactura).HasColumnType("decimal(18,2)");
+            b.Property(x => x.MontoDelivery).HasColumnType("decimal(18,2)");
+            b.HasIndex(x => x.FacturaId).IsUnique();
+        });
+
+        modelBuilder.Entity<AbonoDelivery>(b =>
+        {
+            b.ToTable("AbonosDelivery", "deliveries");
             b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
             b.Property(x => x.NumeroComprobante).HasMaxLength(50);
             b.Property(x => x.MotivoAnulacion).HasMaxLength(300);

@@ -17,7 +17,8 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria, I
                 Id = s.Id,
                 Nombre = s.Nombre,
                 Codigo = s.Codigo,
-                Activa = s.Activa
+                Activa = s.Activa,
+                EcfActivo = s.EcfActivo
             })
             .ToListAsync(ct);
 

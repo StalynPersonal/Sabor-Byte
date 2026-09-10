@@ -21,6 +21,7 @@ public class SucursalResumenDto
     public required string Nombre { get; set; }
     public string? Codigo { get; set; }
     public bool Activa { get; set; }
+    public bool EcfActivo { get; set; }
 }
 
 public class CrearSucursalRequestDto
