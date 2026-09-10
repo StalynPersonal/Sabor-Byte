@@ -146,10 +146,7 @@ else
 
             <div class="d-flex justify-space-between align-center mb-1">
                 <MudText Typo="Typo.subtitle2">Abonos</MudText>
-                @if (PuedeGestionarAbonos)
-                {
-                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_deliverySeleccionado.SaldoPendiente <= 0" OnClick="AbrirRegistrarAbono">Registrar abono</MudButton>
-                }
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_deliverySeleccionado.SaldoPendiente <= 0" OnClick="AbrirRegistrarAbono">Registrar abono</MudButton>
             </div>
             <MudTable Items="_abonos" Hover="true" Dense="true">
                 <HeaderContent>

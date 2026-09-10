@@ -139,8 +139,11 @@ public class DeliveriesController(DeliveryAppService deliveries) : ControllerBas
         }
     }
 
+    // Registrar el abono lo puede hacer cualquier Cajero (recibe el efectivo del delivery
+    // en el día a día) — anular ya registrado o quitar una asignación siguen restringidas
+    // a Admin/Supervisor, por ser correcciones.
     [HttpPost("{deliveryId:guid}/abonos")]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Authorize(Roles = "Admin,Supervisor,Cajero")]
     public async Task<IActionResult> RegistrarAbono([FromQuery] Guid sucursalId, Guid deliveryId, RegistrarAbonoDeliveryRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
