@@ -148,8 +148,15 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         var asignacion = await db.FacturasDelivery.FirstOrDefaultAsync(fd => fd.Id == facturaDeliveryId && fd.DeliveryId == deliveryId, ct)
             ?? throw new InvalidOperationException("La asignación no existe.");
 
+        // Sin clamp a 0: si ya se habían abonado más de lo que queda tras quitar esta
+        // factura, el saldo debe poder quedar temporalmente negativo (crédito a favor del
+        // delivery) — forzarlo a 0 aquí le hacía perder el rastro a ese crédito, y si luego
+        // se anulaba el abono correspondiente, el saldo volvía a subir sin ninguna factura
+        // detrás que lo respaldara (bug real: factura 480 + abono 200 -> saldo 280; quitar
+        // factura clampeaba a 0 en vez de -200; anular el abono sumaba 200 -> saldo fantasma
+        // de 200 sin facturas asignadas).
         db.FacturasDelivery.Remove(asignacion);
-        delivery.SaldoPendiente = Math.Max(0, delivery.SaldoPendiente - asignacion.MontoFactura);
+        delivery.SaldoPendiente -= asignacion.MontoFactura;
 
         await db.SaveChangesAsync(ct);
     }
