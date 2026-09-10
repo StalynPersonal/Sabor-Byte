@@ -29,6 +29,12 @@ else if (_turnoBloqueadoOtroDia is not null)
         </MudPaper>
     </MudContainer>
 }
+else if (_cargandoInicial)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8 d-flex justify-center">
+        <MudProgressCircular Indeterminate="true" />
+    </MudContainer>
+}
 else if (_turnoCajaId is null)
 {
     <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
@@ -935,6 +941,11 @@ else
 @code {
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
     private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    // Mientras OnInitializedAsync hace su cadena de llamadas iniciales (empresa, sucursal,
+    // categorías, cajas, turno...), _cajas.Count sigue en 0 — sin esta bandera, la pantalla
+    // mostraba de entrada "No hay ninguna caja configurada" (falso) hasta que todo terminaba
+    // de cargar, confundiendo al cajero aunque la caja sí exista y tenga un turno abierto.
+    private bool _cargandoInicial = true;
     private Guid? _turnoCajaId;
     private List<CajaResumenDto> _cajas = [];
     private Guid _cajaSeleccionadaId;
@@ -981,6 +992,11 @@ else
     private decimal _porcentajePropina;
     private List<PorcentajePropinaDto> _porcentajesPropina = [];
     private ClienteDto? _clienteSeleccionado;
+
+    // Cliente genérico "Cliente Contado" de la sucursal (uno por sucursal, siempre existe) —
+    // se usa como valor por defecto al facturar, sin obligar al cajero a buscarlo cada vez.
+    // Sigue pudiendo cambiarse libremente desde el autocomplete.
+    private ClienteDto? _clienteContado;
     private bool _mostrarDialogoNuevoCliente;
     private GuardarClienteRequestDto _formNuevoCliente = new();
 
@@ -1210,8 +1226,13 @@ else
         _pagos = [new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId }];
         _promocionesVigentes = await ApiClient.ListarPromocionesVigentesAsync(sucursalId);
 
+        _clienteContado = await ApiClient.ObtenerClienteGenericoAsync(sucursalId);
+        _clienteSeleccionado = _clienteContado;
+
         if (_cajaSeleccionadaId != Guid.Empty)
             await VerificarTurnoAbiertoAsync();
+
+        _cargandoInicial = false;
     }
 
     private async Task OnCajaSeleccionadaAsync(Guid cajaId)
@@ -1316,7 +1337,7 @@ else
             });
         }
 
-        _clienteSeleccionado = null;
+        _clienteSeleccionado = _clienteContado;
         _porcentajePropina = 0;
         _descuentoAutorizado = false;
         _codigoAutorizacionDescuento = null;
@@ -1723,7 +1744,7 @@ else
         _descuentoAutorizado = false;
         _codigoAutorizacionDescuento = null;
         _montoDescuento = 0;
-        _clienteSeleccionado = null;
+        _clienteSeleccionado = _clienteContado;
         _pagos = [new() { MetodoPagoId = MetodoPagoEfectivoId }];
         _cajas = await ApiClient.ListarCajasAsync(sucursalId);
         await CargarComandasAbiertasAsync();

@@ -20,6 +20,15 @@ public class ClientesController(ClienteAppService clientes) : ControllerBase
         return Ok(await clientes.BuscarAsync(sucursalId, texto, ct));
     }
 
+    [HttpGet("generico")]
+    public async Task<IActionResult> ObtenerGenerico([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await clientes.ObtenerGenericoAsync(sucursalId, ct));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Crear([FromQuery] Guid sucursalId, GuardarClienteRequestDto request, CancellationToken ct)
     {

@@ -456,6 +456,12 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await http.GetFromJsonAsync<List<ClienteDto>>(url) ?? [];
     }
 
+    public async Task<ClienteDto?> ObtenerClienteGenericoAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<ClienteDto?>($"api/clientes/generico?sucursalId={sucursalId}");
+    }
+
     public async Task<(bool Exito, Guid? ClienteId, string? Error)> CrearClienteAsync(Guid sucursalId, GuardarClienteRequestDto request)
     {
         AdjuntarToken();

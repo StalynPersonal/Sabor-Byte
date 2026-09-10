@@ -89,6 +89,7 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria, I
             ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
             ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
             EcfActivo = sucursal.EcfActivo,
+            FormatoImpresionDelivery = sucursal.FormatoImpresionDelivery,
             SmtpActivo = sucursal.SmtpActivo,
             SmtpHost = sucursal.SmtpHost,
             SmtpPuerto = sucursal.SmtpPuerto,
@@ -118,6 +119,7 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria, I
         sucursal.ModuloMeseroActivo = request.ModuloMeseroActivo;
         sucursal.ModuloCocinaActivo = request.ModuloCocinaActivo;
         sucursal.EcfActivo = request.EcfActivo;
+        sucursal.FormatoImpresionDelivery = request.FormatoImpresionDelivery;
         sucursal.ActualizadoEn = DateTime.UtcNow;
         sucursal.ActualizadoPorUsuarioId = usuarioId;
 

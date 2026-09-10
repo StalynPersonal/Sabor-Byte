@@ -35,6 +35,25 @@ public class ClienteAppService(IAppDbContext db)
             .ToListAsync(ct);
     }
 
+    // El cliente genérico "Cliente Contado" existe siempre (uno por sucursal, sembrado por
+    // migración) — se usa como selección por defecto al facturar en Caja, sin obligar al
+    // cajero a buscarlo cada vez.
+    public async Task<ClienteDto?> ObtenerGenericoAsync(Guid sucursalId, CancellationToken ct = default) =>
+        await db.Clientes
+            .Where(c => c.SucursalId == sucursalId && c.EsGenerico)
+            .Select(c => new ClienteDto
+            {
+                Id = c.Id,
+                NombreORazonSocial = c.NombreORazonSocial,
+                RncOCedula = c.RncOCedula,
+                Telefono = c.Telefono,
+                Email = c.Email,
+                Direccion = c.Direccion,
+                TipoCliente = c.TipoCliente,
+                Activo = c.Activo
+            })
+            .FirstOrDefaultAsync(ct);
+
     public async Task<Guid> CrearAsync(Guid sucursalId, Guid usuarioId, GuardarClienteRequestDto request, CancellationToken ct = default)
     {
         await ValidarAsync(sucursalId, request, clienteId: null, ct);

@@ -15,27 +15,16 @@
 }
 else
 {
-    <div class="d-flex justify-space-between align-center mb-4">
-        <MudText Typo="Typo.h5">Deliveries</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoDelivery">
-            Nuevo delivery
-        </MudButton>
-    </div>
+    <MudText Typo="Typo.h5" Class="mb-4">Deliveries</MudText>
 
     <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
         Asigna facturas ya emitidas a un delivery para llevar cuenta de cuánto dinero debe
-        devolver al negocio (el total de productos), y registra sus abonos parciales.
+        devolver al negocio (el total de productos), y registra sus abonos parciales. Los
+        deliveries se crean y editan desde Central.
     </MudText>
 
-    <div class="d-flex flex-wrap gap-4 mb-4">
-        <MudTextField T="string" Label="Buscar por nombre" @bind-Value="_textoBusqueda"
-                       Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Style="min-width:280px" />
-        <MudSelect T="FormatoImpresion" Label="Formato del recibo informativo" @bind-Value="_formatoImpresion" Style="min-width:280px">
-            <MudSelectItem Value="FormatoImpresion.Ticket80mm">Ticket térmico 80mm</MudSelectItem>
-            <MudSelectItem Value="FormatoImpresion.Ticket58mm">Ticket térmico 58mm (impresora portátil)</MudSelectItem>
-            <MudSelectItem Value="FormatoImpresion.Carta">Hoja carta (8.5x11)</MudSelectItem>
-        </MudSelect>
-    </div>
+    <MudTextField T="string" Label="Buscar por nombre" @bind-Value="_textoBusqueda"
+                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Class="mb-4" Style="max-width:400px" />
 
     <MudTable Items="_deliveries" Hover="true" Dense="true">
         <HeaderContent>
@@ -56,44 +45,10 @@ else
                 <MudTooltip Text="Ver cuenta">
                     <MudIconButton Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Small" OnClick="() => AbrirCuentaAsync(context)" />
                 </MudTooltip>
-                <MudTooltip Text="Editar">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarDelivery(context)" />
-                </MudTooltip>
-                @if (context.Activo)
-                {
-                    <MudTooltip Text="Desactivar">
-                        <MudIconButton Icon="@Icons.Material.Filled.Block" Size="Size.Small" Color="Color.Error" OnClick="() => DesactivarAsync(context)" />
-                    </MudTooltip>
-                }
             </MudTd>
         </RowTemplate>
     </MudTable>
 }
-
-<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
-    <TitleContent>@(_deliveryId is null ? "Nuevo delivery" : "Editar delivery")</TitleContent>
-    <DialogContent>
-        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Required="true" Class="mb-2" />
-        <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
-        @if (_deliveryId is not null)
-        {
-            <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
-        }
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
-            @if (_procesando)
-            {
-                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-            }
-            else
-            {
-                <MudText>Guardar</MudText>
-            }
-        </MudButton>
-    </DialogActions>
-</MudDialog>
 
 <MudDialog @bind-Visible="_viendoCuenta" Options="_opcionesDialogoGrande">
     <TitleContent>Cuenta — @_deliverySeleccionado?.Nombre</TitleContent>
@@ -325,10 +280,6 @@ else
     private bool _procesando;
     private List<MetodoPagoDto> _metodosPago = [];
 
-    private bool _editando;
-    private Guid? _deliveryId;
-    private GuardarDeliveryRequestDto _form = new();
-
     private bool _viendoCuenta;
     private DeliveryDto? _deliverySeleccionado;
     private List<FacturaDeliveryDto> _facturas = [];
@@ -346,6 +297,9 @@ else
     private string _motivoAnulacion = string.Empty;
 
     private FacturaDeliveryDto? _reciboAImprimir;
+
+    // Formato del recibo informativo, configurado por sucursal en Central → Sucursales
+    // (no hay un selector aquí — no está atado a una caja específica).
     private FormatoImpresion _formatoImpresion = FormatoImpresion.Ticket80mm;
 
     private string ClaseFormatoImpresion => _formatoImpresion switch
@@ -374,75 +328,16 @@ else
         }
 
         _metodosPago = await ApiClient.ListarMetodosPagoAsync();
+        var sucursal = await ApiClient.ObtenerSucursalAsync(SucursalId);
+        if (sucursal is not null)
+            _formatoImpresion = sucursal.FormatoImpresionDelivery;
+
         await CargarAsync();
     }
 
     private async Task CargarAsync()
     {
         _deliveries = await ApiClient.ListarDeliveriesAsync(SucursalId, incluirInactivos: true, texto: _textoBusqueda);
-    }
-
-    private void NuevoDelivery()
-    {
-        _deliveryId = null;
-        _form = new GuardarDeliveryRequestDto();
-        _editando = true;
-    }
-
-    private void EditarDelivery(DeliveryDto delivery)
-    {
-        _deliveryId = delivery.Id;
-        _form = new GuardarDeliveryRequestDto { Nombre = delivery.Nombre, Telefono = delivery.Telefono, Activo = delivery.Activo };
-        _editando = true;
-    }
-
-    private async Task GuardarAsync()
-    {
-        if (_procesando) return;
-
-        if (string.IsNullOrWhiteSpace(_form.Nombre))
-        {
-            Snackbar.Add("El nombre es obligatorio.", Severity.Error);
-            return;
-        }
-
-        _procesando = true;
-        try
-        {
-            bool exito;
-            string? error;
-            if (_deliveryId is null)
-                (exito, _, error) = await ApiClient.CrearDeliveryAsync(SucursalId, _form);
-            else
-                (exito, error) = await ApiClient.ActualizarDeliveryAsync(SucursalId, _deliveryId.Value, _form);
-
-            if (!exito)
-            {
-                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-                return;
-            }
-
-            Snackbar.Add(_deliveryId is null ? "Delivery creado." : "Delivery actualizado.", Severity.Success);
-            _editando = false;
-            await CargarAsync();
-        }
-        finally
-        {
-            _procesando = false;
-        }
-    }
-
-    private async Task DesactivarAsync(DeliveryDto delivery)
-    {
-        var (exito, error) = await ApiClient.DesactivarDeliveryAsync(SucursalId, delivery.Id);
-        if (!exito)
-        {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
-
-        Snackbar.Add("Delivery desactivado.", Severity.Success);
-        await CargarAsync();
     }
 
     private async Task AbrirCuentaAsync(DeliveryDto delivery)

@@ -1,13 +1,6 @@
-namespace SaborByte.Dominio.Caja;
+using SaborByte.Dominio.Comun;
 
-// Determina qué plantilla de impresión (ancho/tipografía) usa esta caja al facturar —
-// ver comentario en Home.razor sobre cómo se elige la clase CSS del recibo según esto.
-public enum FormatoImpresion
-{
-    Ticket80mm,
-    Ticket58mm,
-    Carta
-}
+namespace SaborByte.Dominio.Caja;
 
 public class Caja
 {

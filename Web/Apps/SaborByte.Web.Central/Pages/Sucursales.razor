@@ -105,7 +105,17 @@ else
             <MudText Typo="Typo.subtitle2" Class="mb-2">Módulos opcionales</MudText>
             <MudCheckBox T="bool" @bind-Value="_formEditar.ModuloMeseroActivo" Label="Módulo de Mesero" />
             <MudCheckBox T="bool" @bind-Value="_formEditar.ModuloCocinaActivo" Label="Módulo de Cocina (KDS)" />
-            <MudCheckBox T="bool" @bind-Value="_formEditar.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" />
+            <MudCheckBox T="bool" @bind-Value="_formEditar.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" Class="mb-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Deliveries</MudText>
+            <MudSelect T="FormatoImpresion" Label="Formato del recibo informativo" @bind-Value="_formEditar.FormatoImpresionDelivery">
+                <MudSelectItem Value="FormatoImpresion.Ticket80mm">Ticket térmico 80mm</MudSelectItem>
+                <MudSelectItem Value="FormatoImpresion.Ticket58mm">Ticket térmico 58mm (impresora portátil)</MudSelectItem>
+                <MudSelectItem Value="FormatoImpresion.Carta">Hoja carta (8.5x11)</MudSelectItem>
+            </MudSelect>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                Formato usado al imprimir el recibo informativo al asignar una factura a un delivery en esta sucursal.
+            </MudText>
         }
     </DialogContent>
     <DialogActions>
@@ -196,7 +206,8 @@ else
             Activa = sucursal.Activa,
             ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
             ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
-            EcfActivo = sucursal.EcfActivo
+            EcfActivo = sucursal.EcfActivo,
+            FormatoImpresionDelivery = sucursal.FormatoImpresionDelivery
         };
 
         _editando = true;
@@ -217,7 +228,8 @@ else
             Activa = !sucursal.Activa,
             ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
             ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
-            EcfActivo = sucursal.EcfActivo
+            EcfActivo = sucursal.EcfActivo,
+            FormatoImpresionDelivery = sucursal.FormatoImpresionDelivery
         };
 
         var (exito, error) = await ApiClient.ActualizarSucursalAsync(resumen.Id, request);

@@ -1,4 +1,5 @@
 using SaborByte.Dominio.Caja;
+using SaborByte.Dominio.Comun;
 
 namespace SaborByte.Aplicacion.Caja.Dtos;
 
