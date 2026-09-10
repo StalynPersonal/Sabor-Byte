@@ -434,6 +434,7 @@ public class ProductoAppService(IAppDbContext db)
         {
             Nombre = request.Nombre,
             Codigo = request.Codigo,
+            ImagenUrl = request.ImagenUrl,
             Precio = request.Precio,
             TasaItbis = request.TasaItbis,
             CategoriaId = request.CategoriaId,
@@ -496,6 +497,7 @@ public class ProductoAppService(IAppDbContext db)
 
         combo.Nombre = request.Nombre;
         combo.Codigo = request.Codigo;
+        combo.ImagenUrl = request.ImagenUrl;
         combo.Precio = request.Precio;
         combo.TasaItbis = request.TasaItbis;
         combo.CategoriaId = request.CategoriaId;

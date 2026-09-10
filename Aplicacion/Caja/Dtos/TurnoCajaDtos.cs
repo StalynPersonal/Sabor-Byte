@@ -56,6 +56,15 @@ public class CerrarTurnoRequestDto
     public List<DenominacionCierreDto> Denominaciones { get; set; } = [];
 }
 
+// Fila del listado de "turnos abiertos ahora" en cualquier caja de la sucursal — ver
+// CajaAppService.ListarTurnosAbiertosAsync.
+public class TurnoAbiertoResumenDto
+{
+    public Guid TurnoCajaId { get; set; }
+    public required string CajaNumero { get; set; }
+    public int NumeroTurno { get; set; }
+}
+
 public class TotalPorFormaPagoDto
 {
     public Guid MetodoPagoId { get; set; }

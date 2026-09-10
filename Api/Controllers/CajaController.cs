@@ -63,6 +63,18 @@ public class CajaController(CajaAppService cajaAppService) : ControllerBase
         }
     }
 
+    // Turnos abiertos AHORA MISMO en cualquier caja de la sucursal — usado por Gastos para
+    // ofrecer contra cuál turno descontar un gasto pagado en efectivo (Central no está
+    // atado a una caja/turno específico como sí lo está la app de Caja).
+    [HttpGet("turnos/abiertos")]
+    public async Task<IActionResult> ListarTurnosAbiertos([FromQuery] Guid sucursalId, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await cajaAppService.ListarTurnosAbiertosAsync(sucursalId, ct));
+    }
+
     [HttpGet("turnos/abierto")]
     public async Task<IActionResult> ObtenerTurnoAbierto([FromQuery] Guid cajaId, CancellationToken ct)
     {

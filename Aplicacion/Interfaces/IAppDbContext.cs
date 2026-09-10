@@ -6,6 +6,7 @@ using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Deliveries;
 using SaborByte.Dominio.Facturacion;
+using SaborByte.Dominio.Gastos;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
 using SaborByte.Dominio.Pedidos;
@@ -71,6 +72,9 @@ public interface IAppDbContext
     DbSet<Delivery> Deliveries { get; }
     DbSet<FacturaDelivery> FacturasDelivery { get; }
     DbSet<AbonoDelivery> AbonosDelivery { get; }
+
+    DbSet<CategoriaGasto> CategoriasGasto { get; }
+    DbSet<Gasto> Gastos { get; }
 
     DbSet<AutorizacionSupervisor> AutorizacionesSupervisor { get; }
     DbSet<LogAuditoria> LogsAuditoria { get; }

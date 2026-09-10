@@ -89,6 +89,7 @@ public class CrearComboRequestDto
 {
     public string Nombre { get; set; } = string.Empty;
     public string Codigo { get; set; } = string.Empty;
+    public string? ImagenUrl { get; set; }
     public decimal Precio { get; set; }
     public decimal TasaItbis { get; set; } = 0.18m;
     public Guid CategoriaId { get; set; }

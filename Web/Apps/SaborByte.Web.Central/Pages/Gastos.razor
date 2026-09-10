@@ -1,0 +1,430 @@
+@page "/gastos"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Gastos</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirRegistrarGasto">
+            Registrar gasto
+        </MudButton>
+    </div>
+
+    <MudPaper Class="pa-3 mb-3">
+        <MudGrid>
+            <MudItem xs="6" sm="3">
+                <MudDatePicker Label="Desde" @bind-Date="_desde" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudDatePicker Label="Hasta" @bind-Date="_hasta" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="Guid?" Label="Categoría" Value="_categoriaId" ValueChanged="OnCategoriaFiltroCambiadaAsync">
+                    <MudSelectItem Value="@((Guid?)null)">Todas</MudSelectItem>
+                    @foreach (var categoria in _categorias)
+                    {
+                        <MudSelectItem Value="@((Guid?)categoria.Id)">@categoria.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="3" Class="d-flex flex-column align-end">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Total del periodo</MudText>
+                <MudText Typo="Typo.h6">RD$ @_resumen.TotalPeriodo.ToString("0.00")</MudText>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTextField T="string" Label="Buscar por descripción o categoría" @bind-Value="_textoBusqueda"
+                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Class="mb-4" Style="max-width:400px" />
+
+    <MudTable Items="_gastos" Hover="true" Dense="true" Class="mb-4">
+        <HeaderContent>
+            <MudTh>Fecha</MudTh>
+            <MudTh>Categoría</MudTh>
+            <MudTh>Descripción</MudTh>
+            <MudTh>Monto</MudTh>
+            <MudTh>Pago</MudTh>
+            <MudTh>Ganancia</MudTh>
+            <MudTh>Registrado por</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaGasto.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+            <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.CategoriaGastoNombre</MudTd>
+            <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.Descripcion</MudTd>
+            <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")"><strong>RD$ @context.Monto.ToString("0.00")</strong></MudTd>
+            <MudTd>@context.MetodoPagoNombre @(context.AfectoCaja ? "(caja)" : "")</MudTd>
+            <MudTd>@(context.EsGastoDelNegocio ? "" : "No es del negocio")</MudTd>
+            <MudTd>@context.RegistradoPorNombre</MudTd>
+            <MudTd>
+                @if (context.Anulado)
+                {
+                    <MudTooltip Text="@($"Anulado por {context.AnuladoPorNombre} — {context.MotivoAnulacion}")">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Anulado</MudChip>
+                    </MudTooltip>
+                }
+                else if (PuedeGestionarGastos)
+                {
+                    <MudTooltip Text="Anular gasto">
+                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Error" OnClick="() => AbrirAnularGasto(context)" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2">Sin gastos registrados en este rango.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 10, 20, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
+    </MudTable>
+
+    <MudPaper Class="pa-4">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Gastos por categoría</MudText>
+        @if (_resumen.PorCategoria.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Sin gastos en este rango.</MudText>
+        }
+        else
+        {
+            @foreach (var fila in _resumen.PorCategoria)
+            {
+                <div class="d-flex justify-space-between mb-1">
+                    <MudText Typo="Typo.body2">@fila.CategoriaGastoNombre (@fila.Cantidad)</MudText>
+                    <MudText Typo="Typo.body2"><strong>RD$ @fila.Total.ToString("0.00")</strong></MudText>
+                </div>
+            }
+        }
+    </MudPaper>
+}
+
+<MudDialog @bind-Visible="_registrando" Options="_opcionesDialogo">
+    <TitleContent>Registrar gasto</TitleContent>
+    <DialogContent>
+        <MudDatePicker Label="Fecha del gasto" @bind-Date="_fechaGastoForm" Class="mb-2"
+                       HelperText="Define a qué periodo se aplica" />
+
+        <div class="d-flex gap-2 align-center mb-2">
+            <MudSelect T="Guid" Label="Categoría" @bind-Value="_form.CategoriaGastoId" Style="flex:1" Required="true">
+                @foreach (var categoria in _categorias)
+                {
+                    <MudSelectItem Value="@categoria.Id">@categoria.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTooltip Text="Nueva categoría">
+                <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="AbrirNuevaCategoria" />
+            </MudTooltip>
+        </div>
+
+        <MudTextField T="string" Label="Descripción" @bind-Value="_form.Descripcion" Required="true"
+                       RequiredError="Indique de qué se trata el gasto" Class="mb-2" />
+
+        <MudGrid Class="mb-2">
+            <MudItem xs="6">
+                <MudNumericField T="decimal" Label="Monto" @bind-Value="_form.Monto" Min="0" Adornment="Adornment.Start" AdornmentText="RD$" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudSelect T="Guid" Label="Forma de pago" @bind-Value="_form.MetodoPagoId" Required="true">
+                    @foreach (var metodo in _metodosPago)
+                    {
+                        <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+
+        @if (MetodoSeleccionadoEsEfectivo)
+        {
+            @if (_turnosAbiertos.Count > 0)
+            {
+                <MudSelect T="Guid?" Label="Caja (turno abierto)" @bind-Value="_form.TurnoCajaId" Class="mb-2"
+                           HelperText="Se descuenta del efectivo esperado de esa caja para que el cuadre no muestre una diferencia sin explicar.">
+                    <MudSelectItem Value="@((Guid?)null)">No descontar de ninguna caja</MudSelectItem>
+                    @foreach (var turno in _turnosAbiertos)
+                    {
+                        <MudSelectItem Value="@((Guid?)turno.TurnoCajaId)">Caja @turno.CajaNumero — Turno #@turno.NumeroTurno</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                    No hay ninguna caja con turno abierto ahora mismo — este gasto no descontará de ningún cuadre.
+                </MudAlert>
+            }
+        }
+
+        <MudSwitch T="bool" @bind-Value="_form.EsGastoDelNegocio" Color="Color.Primary" Label="Es un gasto del negocio" Class="mb-1" />
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+            Déjelo encendido casi siempre: es lo que resta de la ganancia. Apáguelo solo para un gasto personal que solo quiere anotar aquí, sin que afecte la ganancia del negocio.
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _registrando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConfirmarRegistrarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Registrar</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_creandoCategoria" Options="_opcionesDialogo">
+    <TitleContent>Nueva categoría de gasto</TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="Nombre" @bind-Value="_formCategoria.Nombre" Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _creandoCategoria = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarCategoriaAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Crear</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_anulando" Options="_opcionesDialogo">
+    <TitleContent>Anular gasto — RD$ @(_gastoAAnular?.Monto.ToString("0.00"))</TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+            El gasto no se borra: queda marcado como anulado (con este motivo, quién y cuándo).
+            Si había descontado de una caja, ese descuento se revierte.
+        </MudAlert>
+        <MudTextField T="string" Label="Motivo de la anulación" @bind-Value="_motivoAnulacion" Lines="2"
+                       Required="true" RequiredError="El motivo es obligatorio." Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _anulando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarAnulacionAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Anular gasto</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    private List<GastoDto> _gastos = [];
+    private List<CategoriaGastoDto> _categorias = [];
+    private List<MetodoPagoDto> _metodosPago = [];
+    private List<TurnoAbiertoResumenDto> _turnosAbiertos = [];
+    private ResumenGastosDto _resumen = new();
+
+    private DateTime? _desde = DateTime.Today.AddDays(-30);
+    private DateTime? _hasta = DateTime.Today;
+    private Guid? _categoriaId;
+    private string _textoBusqueda = string.Empty;
+
+    private bool _procesando;
+
+    private bool _registrando;
+    private RegistrarGastoRequestDto _form = new();
+    private DateTime? _fechaGastoForm = DateTime.Today;
+
+    private bool _creandoCategoria;
+    private GuardarCategoriaGastoRequestDto _formCategoria = new();
+
+    private bool _anulando;
+    private GastoDto? _gastoAAnular;
+    private string _motivoAnulacion = string.Empty;
+
+    private bool PuedeGestionarGastos => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
+    private Guid SucursalId => Sesion.SucursalActivaId;
+
+    private bool MetodoSeleccionadoEsEfectivo =>
+        _metodosPago.FirstOrDefault(m => m.Id == _form.MetodoPagoId)?.EsEfectivo ?? false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
+        _categorias = await ApiClient.ListarCategoriasGastoAsync();
+        _metodosPago = await ApiClient.ListarMetodosPagoAsync();
+        await CargarAsync();
+    }
+
+    private DateTime RangoDesde => (_desde ?? DateTime.Today.AddDays(-30)).Date;
+    private DateTime RangoHasta => (_hasta ?? DateTime.Today).Date.AddDays(1).AddSeconds(-1);
+
+    private async Task CargarAsync()
+    {
+        _gastos = await ApiClient.BuscarGastosAsync(SucursalId, RangoDesde, RangoHasta, _categoriaId, _textoBusqueda);
+        _resumen = await ApiClient.ObtenerResumenGastosAsync(SucursalId, RangoDesde, RangoHasta);
+    }
+
+    private async Task OnCategoriaFiltroCambiadaAsync(Guid? categoriaId)
+    {
+        _categoriaId = categoriaId;
+        await CargarAsync();
+    }
+
+    private async Task AbrirRegistrarGasto()
+    {
+        _form = new RegistrarGastoRequestDto
+        {
+            CategoriaGastoId = _categorias.FirstOrDefault()?.Id ?? Guid.Empty,
+            MetodoPagoId = _metodosPago.FirstOrDefault()?.Id ?? Guid.Empty
+        };
+        _fechaGastoForm = DateTime.Today;
+        _turnosAbiertos = await ApiClient.ListarTurnosAbiertosAsync(SucursalId);
+        _registrando = true;
+    }
+
+    private void AbrirNuevaCategoria()
+    {
+        _formCategoria = new GuardarCategoriaGastoRequestDto();
+        _creandoCategoria = true;
+    }
+
+    private async Task GuardarCategoriaAsync()
+    {
+        if (_procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_formCategoria.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Error);
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            var (exito, error) = await ApiClient.CrearCategoriaGastoAsync(_formCategoria);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Categoría creada.", Severity.Success);
+            _categorias = await ApiClient.ListarCategoriasGastoAsync();
+            var nueva = _categorias.FirstOrDefault(c => c.Nombre == _formCategoria.Nombre);
+            if (nueva is not null)
+                _form.CategoriaGastoId = nueva.Id;
+
+            _creandoCategoria = false;
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private async Task ConfirmarRegistrarAsync()
+    {
+        if (_procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_form.Descripcion))
+        {
+            Snackbar.Add("Indique de qué se trata el gasto.", Severity.Error);
+            return;
+        }
+
+        if (_form.Monto <= 0)
+        {
+            Snackbar.Add("El monto debe ser mayor a cero.", Severity.Error);
+            return;
+        }
+
+        if (!MetodoSeleccionadoEsEfectivo)
+            _form.TurnoCajaId = null;
+
+        _procesando = true;
+        try
+        {
+            _form.FechaGasto = _fechaGastoForm ?? DateTime.Today;
+
+            var (exito, error) = await ApiClient.RegistrarGastoAsync(SucursalId, _form);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Gasto registrado.", Severity.Success);
+            _registrando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private void AbrirAnularGasto(GastoDto gasto)
+    {
+        _gastoAAnular = gasto;
+        _motivoAnulacion = string.Empty;
+        _anulando = true;
+    }
+
+    private async Task ConfirmarAnulacionAsync()
+    {
+        if (_gastoAAnular is null || _procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_motivoAnulacion))
+        {
+            Snackbar.Add("El motivo de la anulación es obligatorio.", Severity.Error);
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            var request = new AnularGastoRequestDto { Motivo = _motivoAnulacion };
+            var (exito, error) = await ApiClient.AnularGastoAsync(SucursalId, _gastoAAnular.Id, request);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Gasto anulado.", Severity.Success);
+            _anulando = false;
+            await CargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+}

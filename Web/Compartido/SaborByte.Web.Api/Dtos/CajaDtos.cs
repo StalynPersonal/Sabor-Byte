@@ -73,6 +73,13 @@ public class CerrarTurnoRequestDto
     public List<DenominacionCierreDto> Denominaciones { get; set; } = [];
 }
 
+public class TurnoAbiertoResumenDto
+{
+    public Guid TurnoCajaId { get; set; }
+    public string CajaNumero { get; set; } = string.Empty;
+    public int NumeroTurno { get; set; }
+}
+
 public class TotalPorFormaPagoDto
 {
     public Guid MetodoPagoId { get; set; }

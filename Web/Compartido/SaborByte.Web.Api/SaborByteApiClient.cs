@@ -96,6 +96,12 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    public async Task<List<TurnoAbiertoResumenDto>> ListarTurnosAbiertosAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<TurnoAbiertoResumenDto>>($"api/caja/turnos/abiertos?sucursalId={sucursalId}") ?? [];
+    }
+
     public async Task<TurnoAbiertoDto?> ObtenerTurnoAbiertoAsync(Guid cajaId)
     {
         if (cajaId == Guid.Empty)
@@ -1078,6 +1084,58 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
     {
         AdjuntarToken();
         var respuesta = await http.PostAsJsonAsync($"api/deliveries/{deliveryId}/abonos/{abonoId}/anular?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    // --- Gastos ---
+
+    public async Task<List<CategoriaGastoDto>> ListarCategoriasGastoAsync(bool incluirInactivas = false)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<CategoriaGastoDto>>($"api/gastos/categorias?incluirInactivas={incluirInactivas}") ?? [];
+    }
+
+    public async Task<(bool Exito, string? Error)> CrearCategoriaGastoAsync(GuardarCategoriaGastoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/gastos/categorias", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarCategoriaGastoAsync(Guid categoriaGastoId, GuardarCategoriaGastoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/gastos/categorias/{categoriaGastoId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<GastoDto>> BuscarGastosAsync(Guid sucursalId, DateTime desde, DateTime hasta, Guid? categoriaGastoId = null, string? texto = null)
+    {
+        AdjuntarToken();
+        var url = $"api/gastos?sucursalId={sucursalId}&desde={desde:O}&hasta={hasta:O}";
+        if (categoriaGastoId is not null) url += $"&categoriaGastoId={categoriaGastoId}";
+        if (!string.IsNullOrWhiteSpace(texto)) url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<List<GastoDto>>(url) ?? [];
+    }
+
+    public async Task<ResumenGastosDto> ObtenerResumenGastosAsync(Guid sucursalId, DateTime desde, DateTime hasta)
+    {
+        AdjuntarToken();
+        var url = $"api/gastos/resumen?sucursalId={sucursalId}&desde={desde:O}&hasta={hasta:O}";
+        return await http.GetFromJsonAsync<ResumenGastosDto>(url) ?? new ResumenGastosDto();
+    }
+
+    public async Task<(bool Exito, string? Error)> RegistrarGastoAsync(Guid sucursalId, RegistrarGastoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/gastos?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> AnularGastoAsync(Guid sucursalId, Guid gastoId, AnularGastoRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/gastos/{gastoId}/anular?sucursalId={sucursalId}", request);
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 }

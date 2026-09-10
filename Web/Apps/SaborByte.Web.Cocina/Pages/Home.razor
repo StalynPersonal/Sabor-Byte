@@ -16,7 +16,12 @@
 }
 else
 {
-    <MudText Typo="Typo.h6" Class="mb-2">En preparación</MudText>
+    <div class="d-flex align-center gap-2 mb-2">
+        <MudText Typo="Typo.h6">En preparación</MudText>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="ActualizarAsync">
+            Actualizar
+        </MudButton>
+    </div>
     @if (_comandasEnPreparacion.Count == 0)
     {
         <MudText Typo="Typo.body2" Class="mb-4">No hay comandas pendientes.</MudText>
@@ -115,6 +120,15 @@ else
         Conexion.ItemActualizado += OnItemActualizado;
         Conexion.ComandaCancelada += OnComandaCancelada;
         await Conexion.ConectarAsync();
+    }
+
+    // Respaldo manual por si el hub de SignalR se desconectó sin que se notara (misma idea
+    // que el botón "Actualizar" de Caja en "Comandas abiertas") — no depende de la conexión
+    // en tiempo real, siempre vuelve a pedir el estado real a la Api.
+    private async Task ActualizarAsync()
+    {
+        var sucursalId = Sesion.SucursalActivaId;
+        _comandas = await ApiClient.ObtenerComandasAbiertasAsync(sucursalId);
     }
 
     private void OnComandaCreada(ComandaDto comanda)

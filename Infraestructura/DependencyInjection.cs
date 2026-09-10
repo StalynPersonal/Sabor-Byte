@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<Aplicacion.Clientes.ClienteAppService>();
         services.AddScoped<Aplicacion.CxcCxp.CxcCxpAppService>();
         services.AddScoped<Aplicacion.Deliveries.DeliveryAppService>();
+        services.AddScoped<Aplicacion.Gastos.GastoAppService>();
         services.AddScoped<Aplicacion.Reportes.ReporteAppService>();
         services.AddScoped<Aplicacion.Identidad.UsuarioAppService>();
         services.AddScoped<Aplicacion.Sucursales.SucursalAppService>();

@@ -18,6 +18,15 @@ public class ComandaAppService(
         if (request.Items.Count == 0)
             throw new InvalidOperationException("La comanda debe tener al menos un producto.");
 
+        // Sin ninguna caja abierta en la sucursal, la comanda no podría facturarse después
+        // — se bloquea la creación en vez de dejar pedidos acumulándose sin forma de cobrarlos.
+        var hayCajaAbierta = await db.TurnosCaja.AnyAsync(t =>
+            t.Estado == Dominio.Caja.EstadoTurnoCaja.Abierto &&
+            db.Cajas.Any(c => c.Id == t.CajaId && c.SucursalId == sucursalId), ct);
+
+        if (!hayCajaAbierta)
+            throw new InvalidOperationException("No hay ninguna caja abierta en esta sucursal — no se pueden crear pedidos hasta que alguien abra un turno.");
+
         if (request.MesaId is null)
             throw new InvalidOperationException("Debes seleccionar una mesa.");
 

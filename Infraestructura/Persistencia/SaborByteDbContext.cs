@@ -6,6 +6,7 @@ using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Deliveries;
 using SaborByte.Dominio.Facturacion;
+using SaborByte.Dominio.Gastos;
 using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
 using SaborByte.Dominio.Pedidos;
@@ -70,6 +71,9 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<FacturaDelivery> FacturasDelivery => Set<FacturaDelivery>();
     public DbSet<AbonoDelivery> AbonosDelivery => Set<AbonoDelivery>();
+
+    public DbSet<CategoriaGasto> CategoriasGasto => Set<CategoriaGasto>();
+    public DbSet<Gasto> Gastos => Set<Gasto>();
 
     public DbSet<AutorizacionSupervisor> AutorizacionesSupervisor => Set<AutorizacionSupervisor>();
     public DbSet<LogAuditoria> LogsAuditoria => Set<LogAuditoria>();
@@ -499,6 +503,22 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
             b.Property(x => x.NumeroComprobante).HasMaxLength(50);
             b.Property(x => x.MotivoAnulacion).HasMaxLength(300);
+            b.HasOne(x => x.MetodoPago).WithMany().HasForeignKey(x => x.MetodoPagoId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CategoriaGasto>(b =>
+        {
+            b.ToTable("CategoriasGasto", "gastos");
+            b.Property(x => x.Nombre).HasMaxLength(100).IsRequired();
+        });
+
+        modelBuilder.Entity<Gasto>(b =>
+        {
+            b.ToTable("Gastos", "gastos");
+            b.Property(x => x.Descripcion).HasMaxLength(300).IsRequired();
+            b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
+            b.Property(x => x.MotivoAnulacion).HasMaxLength(300);
+            b.HasOne(x => x.CategoriaGasto).WithMany().HasForeignKey(x => x.CategoriaGastoId).OnDelete(DeleteBehavior.Restrict);
             b.HasOne(x => x.MetodoPago).WithMany().HasForeignKey(x => x.MetodoPagoId).OnDelete(DeleteBehavior.Restrict);
         });
 

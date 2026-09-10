@@ -171,6 +171,15 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         };
     }
 
+    public async Task<List<TurnoAbiertoResumenDto>> ListarTurnosAbiertosAsync(Guid sucursalId, CancellationToken ct = default) =>
+        await (
+            from t in db.TurnosCaja
+            join c in db.Cajas on t.CajaId equals c.Id
+            where c.SucursalId == sucursalId && t.Estado == EstadoTurnoCaja.Abierto
+            orderby c.Numero
+            select new TurnoAbiertoResumenDto { TurnoCajaId = t.Id, CajaNumero = c.Numero, NumeroTurno = t.NumeroTurno }
+        ).ToListAsync(ct);
+
     public async Task<ResumenTurnoDto> ObtenerResumenAsync(
         Guid turnoCajaId, IReadOnlyCollection<Guid> sucursalesPermitidas, CancellationToken ct = default)
     {
@@ -183,8 +192,12 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             usuarioIds.Add(idCierre);
         var nombresUsuarios = await db.Usuarios.Where(u => usuarioIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Nombre, ct);
 
+        // Venta suma, Salida resta (Monto ya se guarda negativo en TipoMovimientoCaja.Salida
+        // — ver GastoAppService.RegistrarAsync) — así un gasto pagado en efectivo durante
+        // este turno baja el efectivo esperado, en vez de aparecer como una diferencia sin
+        // explicar al cerrar.
         var ventasPorMetodo = await db.MovimientosCaja
-            .Where(m => m.TurnoCajaId == turnoCajaId && m.Tipo == TipoMovimientoCaja.Venta)
+            .Where(m => m.TurnoCajaId == turnoCajaId && (m.Tipo == TipoMovimientoCaja.Venta || m.Tipo == TipoMovimientoCaja.Salida))
             .GroupBy(m => m.MetodoPagoId)
             .Select(g => new { MetodoPagoId = g.Key, Total = g.Sum(m => m.Monto) })
             .ToDictionaryAsync(x => x.MetodoPagoId, x => x.Total, ct);
@@ -291,8 +304,9 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             .Select(g => new { TurnoCajaId = g.Key, Total = g.Sum(m => m.Monto) })
             .ToDictionaryAsync(x => x.TurnoCajaId, x => x.Total, ct);
 
+        // Igual criterio que en ObtenerResumenAsync: Salida resta (Monto ya viene negativo).
         var esperadoPorTurnoYMetodo = await db.MovimientosCaja
-            .Where(m => turnoIds.Contains(m.TurnoCajaId) && m.Tipo == TipoMovimientoCaja.Venta)
+            .Where(m => turnoIds.Contains(m.TurnoCajaId) && (m.Tipo == TipoMovimientoCaja.Venta || m.Tipo == TipoMovimientoCaja.Salida))
             .GroupBy(m => new { m.TurnoCajaId, m.MetodoPagoId })
             .Select(g => new { g.Key.TurnoCajaId, g.Key.MetodoPagoId, Total = g.Sum(m => m.Monto) })
             .ToListAsync(ct);
@@ -344,6 +358,18 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
 
         if (turno.Estado != EstadoTurnoCaja.Abierto)
             throw new InvalidOperationException("El turno ya está cerrado.");
+
+        // No se puede cerrar turno con comandas todavía sin facturar en la sucursal — se
+        // perdería de vista ese consumo y nadie podría cobrarlo después con el turno ya
+        // cerrado (las comandas no están atadas a una caja específica, así que se revisa
+        // toda la sucursal, no solo esta caja).
+        var sucursalId = await db.Cajas.Where(c => c.Id == turno.CajaId).Select(c => c.SucursalId).FirstOrDefaultAsync(ct);
+        var hayComandasAbiertas = await db.Comandas.AnyAsync(c =>
+            c.SucursalId == sucursalId &&
+            (c.Estado == Dominio.Pedidos.EstadoComanda.Abierta || c.Estado == Dominio.Pedidos.EstadoComanda.EnviadaCocina), ct);
+
+        if (hayComandasAbiertas)
+            throw new InvalidOperationException("No se puede cerrar el turno: hay comandas sin facturar en esta sucursal. Factúrelas o cancélelas primero.");
 
         foreach (var d in request.Denominaciones)
         {

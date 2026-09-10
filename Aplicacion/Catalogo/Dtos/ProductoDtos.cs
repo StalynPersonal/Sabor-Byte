@@ -25,6 +25,7 @@ public class CrearComboRequestDto
 {
     public required string Nombre { get; set; }
     public required string Codigo { get; set; }
+    public string? ImagenUrl { get; set; }
     public decimal Precio { get; set; }
     public decimal TasaItbis { get; set; } = 0.18m;
     public Guid CategoriaId { get; set; }

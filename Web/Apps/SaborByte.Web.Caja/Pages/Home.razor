@@ -198,6 +198,7 @@ else
                 </MudItem>
             </MudGrid>
 
+            <div style="max-height: calc(100vh - 260px); overflow-y: auto; padding-right: 4px;">
             <MudGrid>
                 @foreach (var producto in _productos)
                 {
@@ -235,9 +236,10 @@ else
                     </MudItem>
                 }
             </MudGrid>
+            </div>
         </MudItem>
 
-        <MudItem xs="4">
+        <MudItem xs="4" Style="position: sticky; top: 16px; align-self: flex-start; max-height: calc(100vh - 32px); overflow-y: auto;">
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6" Class="mb-2">Carrito</MudText>
 
@@ -324,7 +326,13 @@ else
 
                 <MudText Typo="Typo.subtitle1">Total: RD$ @TotalConPropina.ToString("0.00")</MudText>
 
-                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Forma(s) de pago</MudText>
+                <div class="d-flex align-center gap-1 mt-3 mb-1">
+                    <MudText Typo="Typo.subtitle2">Forma(s) de pago</MudText>
+                    <MudTooltip Text="Agregar otra forma de pago">
+                        <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary"
+                                       OnClick="() => _pagos.Add(new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId })" />
+                    </MudTooltip>
+                </div>
                 @foreach (var pago in _pagos)
                 {
                     <div class="d-flex gap-2 align-center mb-2">
@@ -345,9 +353,6 @@ else
                         }
                     </div>
                 }
-                <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-2" OnClick="() => _pagos.Add(new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId })">
-                    + Agregar otra forma de pago
-                </MudButton>
                 <MudText Typo="Typo.body2" Class="mt-1 mb-2" Color="@(FaltaPorCubrir == 0 ? Color.Success : Color.Error)">
                     @(FaltaPorCubrir == 0 ? "Pagos completos" : $"Falta por cubrir: RD$ {FaltaPorCubrir:0.00}")
                 </MudText>
