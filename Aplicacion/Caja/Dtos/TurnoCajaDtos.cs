@@ -20,6 +20,8 @@ public class CajaDto
     // Editable por Admin (ej. para saltar un bloque de números), nunca se permite bajarlo
     // por debajo del valor actual porque colisionaría con números ya emitidos.
     public long ProximoNumeroFactura { get; set; }
+
+    public FormatoImpresion FormatoImpresion { get; set; }
 }
 
 public class GuardarCajaRequestDto
@@ -29,6 +31,7 @@ public class GuardarCajaRequestDto
     public string? IpPermitida { get; set; }
     public string? HostnamePermitido { get; set; }
     public long ProximoNumeroFactura { get; set; } = 1;
+    public FormatoImpresion FormatoImpresion { get; set; } = FormatoImpresion.Ticket80mm;
 }
 
 public class AbrirTurnoRequestDto

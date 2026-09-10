@@ -27,8 +27,15 @@ else
         devolver al negocio (el total de productos), y registra sus abonos parciales.
     </MudText>
 
-    <MudTextField T="string" Label="Buscar por nombre" @bind-Value="_textoBusqueda"
-                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Class="mb-4" />
+    <div class="d-flex flex-wrap gap-4 mb-4">
+        <MudTextField T="string" Label="Buscar por nombre" @bind-Value="_textoBusqueda"
+                       Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Style="min-width:280px" />
+        <MudSelect T="FormatoImpresion" Label="Formato del recibo informativo" @bind-Value="_formatoImpresion" Style="min-width:280px">
+            <MudSelectItem Value="FormatoImpresion.Ticket80mm">Ticket térmico 80mm</MudSelectItem>
+            <MudSelectItem Value="FormatoImpresion.Ticket58mm">Ticket térmico 58mm (impresora portátil)</MudSelectItem>
+            <MudSelectItem Value="FormatoImpresion.Carta">Hoja carta (8.5x11)</MudSelectItem>
+        </MudSelect>
+    </div>
 
     <MudTable Items="_deliveries" Hover="true" Dense="true">
         <HeaderContent>
@@ -290,7 +297,7 @@ else
 
 @if (_reciboAImprimir is not null)
 {
-    <div class="solo-imprimir">
+    <div class="solo-imprimir @ClaseFormatoImpresion">
         <p style="text-align:center; margin:0; font-weight:bold">RECIBO INFORMATIVO</p>
         <p style="text-align:center; margin:0; font-weight:bold">NO ES UN COMPROBANTE FISCAL</p>
         <hr />
@@ -339,6 +346,14 @@ else
     private string _motivoAnulacion = string.Empty;
 
     private FacturaDeliveryDto? _reciboAImprimir;
+    private FormatoImpresion _formatoImpresion = FormatoImpresion.Ticket80mm;
+
+    private string ClaseFormatoImpresion => _formatoImpresion switch
+    {
+        FormatoImpresion.Ticket58mm => "formato-ticket-58mm",
+        FormatoImpresion.Carta => "formato-carta",
+        _ => "formato-ticket-80mm"
+    };
 
     private bool PuedeGestionarAbonos => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
 

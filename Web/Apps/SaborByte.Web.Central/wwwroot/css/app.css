@@ -2,6 +2,10 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+.solo-imprimir {
+    display: none;
+}
+
 @media print {
     body * {
         visibility: hidden;
@@ -16,9 +20,26 @@ html, body {
         position: absolute;
         top: 0;
         left: 0;
+    }
+
+    /* Formato configurable (ver FormatoImpresion) — mismo contenido, solo cambia
+       ancho/tipografía según la impresora física conectada a esa estación. */
+    .solo-imprimir.formato-ticket-80mm {
         width: 80mm;
         font-family: 'Courier New', monospace;
         font-size: 12px;
+    }
+
+    .solo-imprimir.formato-ticket-58mm {
+        width: 58mm;
+        font-family: 'Courier New', monospace;
+        font-size: 10px;
+    }
+
+    .solo-imprimir.formato-carta {
+        width: 190mm;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 13px;
     }
 }
 

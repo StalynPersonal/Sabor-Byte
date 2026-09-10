@@ -1,3 +1,5 @@
+using SaborByte.Dominio.Caja;
+
 namespace SaborByte.Aplicacion.Caja.Dtos;
 
 public class CajaResumenDto
@@ -7,4 +9,5 @@ public class CajaResumenDto
     public bool Activa { get; set; }
     public long ProximoNumeroFactura { get; set; }
     public string? CodigoSucursal { get; set; }
+    public FormatoImpresion FormatoImpresion { get; set; }
 }

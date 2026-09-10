@@ -34,6 +34,7 @@ else
             <MudTh>Activa</MudTh>
             <MudTh>IP autorizada</MudTh>
             <MudTh>Próximo N° de factura</MudTh>
+            <MudTh>Formato de impresión</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
@@ -41,6 +42,7 @@ else
             <MudTd>@(context.Activa ? "Sí" : "No")</MudTd>
             <MudTd>@(context.IpPermitida ?? "(cualquiera)")</MudTd>
             <MudTd>@context.ProximoNumeroFactura</MudTd>
+            <MudTd>@TextoFormato(context.FormatoImpresion)</MudTd>
             <MudTd>
                 <MudTooltip Text="Editar">
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarCaja(context)" />
@@ -63,6 +65,15 @@ else
         <MudText Typo="Typo.caption" Class="mb-2">
             El próximo número de factura completo será: <strong>@VistaPreviaNumeroFactura()</strong>
             (código de sucursal + número de caja + secuencia de 5 dígitos). No se puede retroceder, solo mantener o avanzar.
+        </MudText>
+
+        <MudSelect T="FormatoImpresion" Label="Formato de impresión" @bind-Value="_form.FormatoImpresion" Class="mb-2">
+            <MudSelectItem Value="FormatoImpresion.Ticket80mm">Ticket térmico 80mm</MudSelectItem>
+            <MudSelectItem Value="FormatoImpresion.Ticket58mm">Ticket térmico 58mm (impresora portátil)</MudSelectItem>
+            <MudSelectItem Value="FormatoImpresion.Carta">Hoja carta (8.5x11)</MudSelectItem>
+        </MudSelect>
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+            Define qué plantilla usa esta caja al imprimir facturas y notas de crédito — según la impresora física conectada a esa estación.
         </MudText>
     </DialogContent>
     <DialogActions>
@@ -145,10 +156,18 @@ else
             Activa = caja.Activa,
             IpPermitida = caja.IpPermitida,
             HostnamePermitido = caja.HostnamePermitido,
-            ProximoNumeroFactura = caja.ProximoNumeroFactura
+            ProximoNumeroFactura = caja.ProximoNumeroFactura,
+            FormatoImpresion = caja.FormatoImpresion
         };
         _editando = true;
     }
+
+    private static string TextoFormato(FormatoImpresion formato) => formato switch
+    {
+        FormatoImpresion.Ticket58mm => "Ticket 58mm",
+        FormatoImpresion.Carta => "Carta (8.5x11)",
+        _ => "Ticket 80mm"
+    };
 
     private async Task GuardarAsync()
     {

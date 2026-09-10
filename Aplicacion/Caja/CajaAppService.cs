@@ -11,7 +11,15 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
     public async Task<List<CajaResumenDto>> ListarCajasAsync(Guid sucursalId, CancellationToken ct = default) =>
         await db.Cajas
             .Where(c => c.SucursalId == sucursalId && c.Activa)
-            .Select(c => new CajaResumenDto { Id = c.Id, Numero = c.Numero, Activa = c.Activa, ProximoNumeroFactura = c.ProximoNumeroFactura, CodigoSucursal = c.CodigoSucursal })
+            .Select(c => new CajaResumenDto
+            {
+                Id = c.Id,
+                Numero = c.Numero,
+                Activa = c.Activa,
+                ProximoNumeroFactura = c.ProximoNumeroFactura,
+                CodigoSucursal = c.CodigoSucursal,
+                FormatoImpresion = c.FormatoImpresion
+            })
             .ToListAsync(ct);
 
     // --- CRUD de cajas (Admin): incluye inactivas y expone ProximoNumeroFactura para
@@ -40,6 +48,7 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             IpPermitida = request.IpPermitida,
             HostnamePermitido = request.HostnamePermitido,
             ProximoNumeroFactura = request.ProximoNumeroFactura < 1 ? 1 : request.ProximoNumeroFactura,
+            FormatoImpresion = request.FormatoImpresion,
             CreadoPorUsuarioId = usuarioId
         };
 
@@ -70,6 +79,7 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         caja.IpPermitida = request.IpPermitida;
         caja.HostnamePermitido = request.HostnamePermitido;
         caja.ProximoNumeroFactura = request.ProximoNumeroFactura;
+        caja.FormatoImpresion = request.FormatoImpresion;
         caja.ActualizadoEn = DateTime.UtcNow;
         caja.ActualizadoPorUsuarioId = usuarioId;
 
@@ -83,7 +93,8 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         Activa = c.Activa,
         IpPermitida = c.IpPermitida,
         HostnamePermitido = c.HostnamePermitido,
-        ProximoNumeroFactura = c.ProximoNumeroFactura
+        ProximoNumeroFactura = c.ProximoNumeroFactura,
+        FormatoImpresion = c.FormatoImpresion
     };
 
     public async Task<Guid> AbrirTurnoAsync(

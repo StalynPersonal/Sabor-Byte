@@ -1,5 +1,12 @@
 namespace SaborByte.Web.Api.Dtos;
 
+public enum FormatoImpresion
+{
+    Ticket80mm,
+    Ticket58mm,
+    Carta
+}
+
 public class CajaResumenDto
 {
     public Guid Id { get; set; }
@@ -7,6 +14,7 @@ public class CajaResumenDto
     public bool Activa { get; set; }
     public long ProximoNumeroFactura { get; set; }
     public string? CodigoSucursal { get; set; }
+    public FormatoImpresion FormatoImpresion { get; set; }
 }
 
 public class CajaDto
@@ -18,6 +26,7 @@ public class CajaDto
     public string? IpPermitida { get; set; }
     public string? HostnamePermitido { get; set; }
     public long ProximoNumeroFactura { get; set; }
+    public FormatoImpresion FormatoImpresion { get; set; }
 }
 
 public class GuardarCajaRequestDto
@@ -27,6 +36,7 @@ public class GuardarCajaRequestDto
     public string? IpPermitida { get; set; }
     public string? HostnamePermitido { get; set; }
     public long ProximoNumeroFactura { get; set; } = 1;
+    public FormatoImpresion FormatoImpresion { get; set; } = FormatoImpresion.Ticket80mm;
 }
 
 public class AbrirTurnoRequestDto

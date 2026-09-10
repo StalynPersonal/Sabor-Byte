@@ -1,5 +1,14 @@
 namespace SaborByte.Dominio.Caja;
 
+// Determina qué plantilla de impresión (ancho/tipografía) usa esta caja al facturar —
+// ver comentario en Home.razor sobre cómo se elige la clase CSS del recibo según esto.
+public enum FormatoImpresion
+{
+    Ticket80mm,
+    Ticket58mm,
+    Carta
+}
+
 public class Caja
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -21,6 +30,8 @@ public class Caja
     // Se avanza con compare-and-swap (igual que SecuenciaNcf.SecuenciaProxima) para que
     // dos ventas concurrentes en la misma caja nunca reciban el mismo número.
     public long ProximoNumeroFactura { get; set; } = 1;
+
+    public FormatoImpresion FormatoImpresion { get; set; } = FormatoImpresion.Ticket80mm;
 
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     // Nullable: la caja de siembra inicial no tiene un usuario autenticado que la haya creado.

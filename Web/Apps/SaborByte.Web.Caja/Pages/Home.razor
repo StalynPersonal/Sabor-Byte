@@ -796,7 +796,7 @@ else
 
 @if (_ultimaVenta is not null)
 {
-    <div class="solo-imprimir">
+    <div class="solo-imprimir @ClaseFormatoImpresion">
         @EncabezadoRecibo("FACTURA", _ultimaVenta.NumeroFactura, _ultimaVenta.NumeroNcf, _ultimaVenta.FechaEmision,
             _ultimaVenta.ClienteNombre, _ultimaVenta.ClienteRncOCedula)
         @foreach (var linea in _lineasUltimaVenta)
@@ -874,7 +874,7 @@ else
 
 @if (_ultimaNota is not null)
 {
-    <div class="solo-imprimir">
+    <div class="solo-imprimir @ClaseFormatoImpresion">
         @EncabezadoRecibo("NOTA DE CRÉDITO", _ultimaNota.NumeroNota, _ultimaNota.NumeroNcf, _ultimaNota.FechaEmision,
             _ultimaNota.ClienteNombre, _ultimaNota.ClienteRncOCedula)
         <p style="margin:0">Factura original: @_ultimaNota.NumeroFacturaOriginal</p>
@@ -895,7 +895,7 @@ else
 
 @if (_facturaAReimprimir is not null)
 {
-    <div class="solo-imprimir">
+    <div class="solo-imprimir @ClaseFormatoImpresion">
         <p style="text-align:center; margin:0; font-weight:bold; font-size:1.2em">*** DUPLICADO ***</p>
         @EncabezadoRecibo("FACTURA", _facturaAReimprimir.NumeroFactura, _facturaAReimprimir.NumeroNcf, _facturaAReimprimir.FechaEmision,
             _facturaAReimprimir.ClienteNombre, _facturaAReimprimir.ClienteRncOCedula)
@@ -943,6 +943,18 @@ else
     private TurnoAbiertoDto? _turnoAbierto;
 
     private string NumeroCajaActual => _cajas.FirstOrDefault(c => c.Id == _cajaSeleccionadaId)?.Numero ?? "?";
+
+    // Formato de impresión configurado en la caja activa — mismo contenido de recibo para
+    // los 3 casos, solo cambia la clase CSS (ancho/tipografía) aplicada al imprimir.
+    private FormatoImpresion FormatoActual =>
+        _cajas.FirstOrDefault(c => c.Id == _cajaSeleccionadaId)?.FormatoImpresion ?? FormatoImpresion.Ticket80mm;
+
+    private string ClaseFormatoImpresion => FormatoActual switch
+    {
+        FormatoImpresion.Ticket58mm => "formato-ticket-58mm",
+        FormatoImpresion.Carta => "formato-carta",
+        _ => "formato-ticket-80mm"
+    };
 
     // Mismo formato que usa la factura real al emitirse: CodigoSucursal + NumeroCaja +
     // secuencia de 5 dígitos (ej. "010100023").
