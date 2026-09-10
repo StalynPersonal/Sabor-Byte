@@ -89,7 +89,7 @@ else
             <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
             <MudTd DataLabel="Tipo">@TextoTipo(context)</MudTd>
             <MudTd DataLabel="Combo">@(context.EsCombo ? "Sí" : "No")</MudTd>
-            <MudTd DataLabel="Precio (con ITBIS)">RD$ @((context.Precio * (1 + context.TasaItbis)).ToString("0.00"))</MudTd>
+            <MudTd DataLabel="Precio (con ITBIS)">RD$ @((context.Precio * (1 + context.TasaItbis)).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudTd>
             <MudTd DataLabel="Unidad">@(_unidadesMedida.FirstOrDefault(u => u.Id == context.UnidadMedidaId)?.Nombre ?? "—")</MudTd>
             <MudTd DataLabel="Stock">@(context.Inventariable ? context.StockActual.ToString("0.###") : "-")</MudTd>
             <MudTd DataLabel="Activo">@(context.Activo ? "Sí" : "No")</MudTd>
@@ -461,7 +461,7 @@ else
                             <td>@fila.TipoProducto</td>
                             <td>@fila.CategoriaNombre</td>
                             <td>@fila.UnidadMedidaNombre</td>
-                            <td>RD$ @fila.PrecioConItbis.ToString("0.00")</td>
+                            <td>RD$ @fila.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</td>
                             <td>
                                 @if (fila.Error is not null)
                                 {
@@ -526,7 +526,7 @@ else
                     <tr><td>Códigos de barra</td><td>@(_detalle.CodigosBarra.Count > 0 ? string.Join(", ", _detalle.CodigosBarra) : "—")</td></tr>
                     <tr><td>Tipo</td><td>@TextoTipo(_detalle)</td></tr>
                     <tr><td>Categoría</td><td>@(_categorias.FirstOrDefault(c => c.Id == _detalle.CategoriaId)?.Nombre ?? "—")</td></tr>
-                    <tr><td>Precio</td><td>RD$ @_detalle.Precio.ToString("0.00")</td></tr>
+                    <tr><td>Precio</td><td>RD$ @_detalle.Precio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</td></tr>
                     <tr><td>Costo unitario</td><td>@(_detalle.CostoUnitario is decimal costo ? $"RD$ {costo:0.00}" : "—")</td></tr>
                     <tr><td>Tasa de ITBIS</td><td>@(_detalle.TasaItbis * 100)%</td></tr>
                     <tr><td>Unidad de medida</td><td>@(_unidadesMedida.FirstOrDefault(u => u.Id == _detalle.UnidadMedidaId)?.Nombre ?? "—")</td></tr>

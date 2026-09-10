@@ -77,7 +77,7 @@ else
                               Clearable="true" Class="mb-1" />
             @if (_productoSeleccionado is not null)
             {
-                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">Precio actual: RD$ @_productoSeleccionado.Precio.ToString("0.00")</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">Precio actual: RD$ @_productoSeleccionado.Precio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             }
         }
         else

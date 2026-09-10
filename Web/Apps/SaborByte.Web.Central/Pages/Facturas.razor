@@ -79,7 +79,7 @@ else
                 <MudTd>@context.SucursalCodigo</MudTd>
                 <MudTd>@context.CajaNumero</MudTd>
                 <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>
                     <MudTooltip Text="Ver detalle">
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerDetalleAsync(context.Id)" />
@@ -140,10 +140,10 @@ else
                 <RowTemplate>
                     <MudTd>@context.NombreProducto</MudTd>
                     <MudTd>@context.Cantidad.ToString("0.###")</MudTd>
-                    <MudTd>RD$ @context.PrecioUnitario.ToString("0.00")</MudTd>
-                    <MudTd>RD$ @context.Descuento.ToString("0.00")</MudTd>
-                    <MudTd>RD$ @context.Itbis.ToString("0.00")</MudTd>
-                    <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.PrecioUnitario.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>RD$ @context.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>RD$ @context.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd>@(context.CantidadAcreditada > 0 ? context.CantidadAcreditada.ToString("0.###") : "—")</MudTd>
                 </RowTemplate>
             </MudTable>
@@ -157,7 +157,7 @@ else
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.NombreMetodoPago</MudTd>
-                    <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd>@(context.NumeroComprobante ?? "—")</MudTd>
                 </RowTemplate>
             </MudTable>
@@ -166,24 +166,24 @@ else
                 <div style="min-width:280px">
                     <div class="d-flex justify-space-between">
                         <MudText Typo="Typo.body2">Subtotal</MudText>
-                        <MudText Typo="Typo.body2">RD$ @_detalle.Subtotal.ToString("0.00")</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Subtotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                     </div>
                     <div class="d-flex justify-space-between">
                         <MudText Typo="Typo.body2">ITBIS</MudText>
-                        <MudText Typo="Typo.body2">RD$ @_detalle.Itbis.ToString("0.00")</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                     </div>
                     <div class="d-flex justify-space-between">
                         <MudText Typo="Typo.body2">Descuento</MudText>
-                        <MudText Typo="Typo.body2">RD$ @_detalle.Descuento.ToString("0.00")</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                     </div>
                     <div class="d-flex justify-space-between">
                         <MudText Typo="Typo.body2">Propina</MudText>
-                        <MudText Typo="Typo.body2">RD$ @_detalle.Propina.ToString("0.00")</MudText>
+                        <MudText Typo="Typo.body2">RD$ @_detalle.Propina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                     </div>
                     <MudDivider Class="my-1" />
                     <div class="d-flex justify-space-between">
                         <MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText>
-                        <MudText Typo="Typo.subtitle1"><strong>RD$ @_detalle.Total.ToString("0.00")</strong></MudText>
+                        <MudText Typo="Typo.subtitle1"><strong>RD$ @_detalle.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                     </div>
                 </div>
             </div>

@@ -43,8 +43,8 @@ else
                 <RowTemplate Context="cuenta">
                     <MudTd>@cuenta.ClienteNombre</MudTd>
                     <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
-                    <MudTd>RD$ @cuenta.MontoOriginal.ToString("0.00")</MudTd>
-                    <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @cuenta.MontoOriginal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>RD$ @cuenta.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd>@TextoEstado(cuenta.Estado)</MudTd>
                     <MudTd>@cuenta.RegistradaPorNombre</MudTd>
                     <MudTd>
@@ -92,7 +92,7 @@ else
                     <MudTd>@cuenta.ProveedorNombre</MudTd>
                     <MudTd>@cuenta.DocumentoReferencia</MudTd>
                     <MudTd>@cuenta.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
-                    <MudTd>RD$ @cuenta.SaldoPendiente.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @cuenta.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd>@TextoEstado(cuenta.Estado)</MudTd>
                     <MudTd>@cuenta.RegistradaPorNombre</MudTd>
                     <MudTd>
@@ -194,7 +194,7 @@ else
 </MudDialog>
 
 <MudDialog @bind-Visible="_pagandoCxC" Options="_opcionesDialogo">
-    <TitleContent>Registrar pago — saldo RD$ @(_cuentaPagoCxC?.SaldoPendiente.ToString("0.00"))</TitleContent>
+    <TitleContent>Registrar pago — saldo RD$ @(_cuentaPagoCxC?.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</TitleContent>
     <DialogContent>
         <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxC.Monto" Class="mb-2" />
         <MudSelect T="Guid" Label="Forma de pago" @bind-Value="_formPagoCxC.MetodoPagoId" Class="mb-2">
@@ -245,7 +245,7 @@ else
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.Monto.ToString("0.00")</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.MetodoPagoNombre</MudTd>
                     <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@(context.NumeroComprobante ?? "—")</MudTd>
                     <MudTd>@context.RegistradoPorNombre</MudTd>
@@ -279,7 +279,7 @@ else
 </MudDialog>
 
 <MudDialog @bind-Visible="_anulandoPago" Options="_opcionesDialogo">
-    <TitleContent>Anular pago — RD$ @(_pagoAAnular?.Monto.ToString("0.00"))</TitleContent>
+    <TitleContent>Anular pago — RD$ @(_pagoAAnular?.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</TitleContent>
     <DialogContent>
         <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
             El pago no se borra: queda marcado como anulado (con este motivo, quién y cuándo)
@@ -360,7 +360,7 @@ else
 </MudDialog>
 
 <MudDialog @bind-Visible="_pagandoCxP" Options="_opcionesDialogo">
-    <TitleContent>Registrar pago — saldo RD$ @(_cuentaPagoCxP?.SaldoPendiente.ToString("0.00"))</TitleContent>
+    <TitleContent>Registrar pago — saldo RD$ @(_cuentaPagoCxP?.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</TitleContent>
     <DialogContent>
         <MudNumericField T="decimal" Label="Monto del pago" @bind-Value="_formPagoCxP.Monto" Class="mb-2" />
         <MudSelect T="Guid" Label="Forma de pago" @bind-Value="_formPagoCxP.MetodoPagoId" Class="mb-2">

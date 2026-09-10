@@ -40,7 +40,7 @@ else
             </MudItem>
             <MudItem xs="12" sm="3" Class="d-flex flex-column align-end">
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Total del periodo</MudText>
-                <MudText Typo="Typo.h6">RD$ @_resumen.TotalPeriodo.ToString("0.00")</MudText>
+                <MudText Typo="Typo.h6">RD$ @_resumen.TotalPeriodo.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -63,7 +63,7 @@ else
             <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaGasto.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
             <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.CategoriaGastoNombre</MudTd>
             <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.Descripcion</MudTd>
-            <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")"><strong>RD$ @context.Monto.ToString("0.00")</strong></MudTd>
+            <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")"><strong>RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudTd>
             <MudTd>@context.MetodoPagoNombre @(context.AfectoCaja ? "(caja)" : "")</MudTd>
             <MudTd>@(context.EsGastoDelNegocio ? "" : "No es del negocio")</MudTd>
             <MudTd>@context.RegistradoPorNombre</MudTd>
@@ -102,7 +102,7 @@ else
             {
                 <div class="d-flex justify-space-between mb-1">
                     <MudText Typo="Typo.body2">@fila.CategoriaGastoNombre (@fila.Cantidad)</MudText>
-                    <MudText Typo="Typo.body2"><strong>RD$ @fila.Total.ToString("0.00")</strong></MudText>
+                    <MudText Typo="Typo.body2"><strong>RD$ @fila.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                 </div>
             }
         }
@@ -206,7 +206,7 @@ else
 </MudDialog>
 
 <MudDialog @bind-Visible="_anulando" Options="_opcionesDialogo">
-    <TitleContent>Anular gasto — RD$ @(_gastoAAnular?.Monto.ToString("0.00"))</TitleContent>
+    <TitleContent>Anular gasto — RD$ @(_gastoAAnular?.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</TitleContent>
     <DialogContent>
         <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
             El gasto no se borra: queda marcado como anulado (con este motivo, quién y cuándo).

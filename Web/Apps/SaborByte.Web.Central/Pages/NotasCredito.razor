@@ -80,7 +80,7 @@ else
                 <MudTd>@context.NumeroFacturaOriginal</MudTd>
                 <MudTd>@context.Motivo</MudTd>
                 <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                <MudTd>RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>
                     <MudTooltip Text="Ver detalle">
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => _notaDetalle = context" />
@@ -107,7 +107,7 @@ else
                     <tr><td>Sucursal / Caja</td><td>@_notaDetalle.SucursalCodigo / @_notaDetalle.CajaNumero</td></tr>
                     <tr><td>Motivo</td><td>@_notaDetalle.Motivo</td></tr>
                     <tr><td>Fecha</td><td>@_notaDetalle.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td></tr>
-                    <tr><td>Monto</td><td>RD$ @_notaDetalle.Monto.ToString("0.00")</td></tr>
+                    <tr><td>Monto</td><td>RD$ @_notaDetalle.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</td></tr>
                 </tbody>
             </MudSimpleTable>
 
@@ -121,7 +121,7 @@ else
                 <RowTemplate>
                     <MudTd>@context.NombreProducto</MudTd>
                     <MudTd>@context.Cantidad.ToString("0.###")</MudTd>
-                    <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 </RowTemplate>
             </MudTable>
         }

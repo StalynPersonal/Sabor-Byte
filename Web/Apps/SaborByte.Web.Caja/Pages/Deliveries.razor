@@ -38,7 +38,7 @@ else
             <MudTd>@context.Nombre</MudTd>
             <MudTd>@(context.Telefono ?? "—")</MudTd>
             <MudTd Style="@(context.SaldoPendiente > 0 ? "color:var(--mud-palette-error); font-weight:bold" : "")">
-                RD$ @context.SaldoPendiente.ToString("0.00")
+                RD$ @context.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
             </MudTd>
             <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
             <MudTd>
@@ -58,15 +58,15 @@ else
             <MudGrid Class="mb-3">
                 <MudItem xs="4">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Total facturado</MudText>
-                    <MudText Typo="Typo.body1">RD$ @_facturas.Sum(f => f.MontoFactura).ToString("0.00")</MudText>
+                    <MudText Typo="Typo.body1">RD$ @_facturas.Sum(f => f.MontoFactura).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                 </MudItem>
                 <MudItem xs="4">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Total abonado</MudText>
-                    <MudText Typo="Typo.body1">RD$ @_abonos.Where(a => !a.Anulado).Sum(a => a.Monto).ToString("0.00")</MudText>
+                    <MudText Typo="Typo.body1">RD$ @_abonos.Where(a => !a.Anulado).Sum(a => a.Monto).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                 </MudItem>
                 <MudItem xs="4">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Saldo pendiente</MudText>
-                    <MudText Typo="Typo.body1"><strong>RD$ @_deliverySeleccionado.SaldoPendiente.ToString("0.00")</strong></MudText>
+                    <MudText Typo="Typo.body1"><strong>RD$ @_deliverySeleccionado.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                 </MudItem>
             </MudGrid>
 
@@ -86,8 +86,8 @@ else
                 <RowTemplate>
                     <MudTd>@context.NumeroFactura</MudTd>
                     <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                    <MudTd>RD$ @context.MontoFactura.ToString("0.00")</MudTd>
-                    <MudTd>RD$ @context.MontoDelivery.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.MontoFactura.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>RD$ @context.MontoDelivery.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd>@context.AsignadoPorNombre</MudTd>
                     <MudTd>
                         <MudTooltip Text="Reimprimir recibo informativo">
@@ -122,7 +122,7 @@ else
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.Monto.ToString("0.00")</MudTd>
+                    <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@context.MetodoPagoNombre</MudTd>
                     <MudTd Style="@(context.Anulado ? "text-decoration:line-through; opacity:0.6" : "")">@(context.NumeroComprobante ?? "—")</MudTd>
                     <MudTd>@context.RegistradoPorNombre</MudTd>
@@ -192,7 +192,7 @@ else
 </MudDialog>
 
 <MudDialog @bind-Visible="_registrandoAbono" Options="_opcionesDialogo">
-    <TitleContent>Registrar abono — saldo RD$ @(_deliverySeleccionado?.SaldoPendiente.ToString("0.00"))</TitleContent>
+    <TitleContent>Registrar abono — saldo RD$ @(_deliverySeleccionado?.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</TitleContent>
     <DialogContent>
         <MudNumericField T="decimal" Label="Monto del abono" @bind-Value="_formAbono.Monto" Class="mb-2" />
         <MudSelect T="Guid" Label="Forma de pago" @bind-Value="_formAbono.MetodoPagoId" Class="mb-2">
@@ -223,7 +223,7 @@ else
 </MudDialog>
 
 <MudDialog @bind-Visible="_anulandoAbono" Options="_opcionesDialogo">
-    <TitleContent>Anular abono — RD$ @(_abonoAAnular?.Monto.ToString("0.00"))</TitleContent>
+    <TitleContent>Anular abono — RD$ @(_abonoAAnular?.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</TitleContent>
     <DialogContent>
         <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
             El abono no se borra: queda marcado como anulado (con este motivo, quién y cuándo)
@@ -257,11 +257,11 @@ else
         <p style="margin:0">Fecha: @_reciboAImprimir.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
         <p style="margin:0">Delivery: @_deliverySeleccionado?.Nombre</p>
         <hr />
-        <div style="display:flex; justify-content:space-between"><span>Productos</span><span>@_reciboAImprimir.MontoFactura.ToString("0.00")</span></div>
-        <div style="display:flex; justify-content:space-between"><span>Delivery/Flete</span><span>@_reciboAImprimir.MontoDelivery.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between"><span>Productos</span><span>@_reciboAImprimir.MontoFactura.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
+        <div style="display:flex; justify-content:space-between"><span>Delivery/Flete</span><span>@_reciboAImprimir.MontoDelivery.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         <hr />
         <div style="display:flex; justify-content:space-between; font-weight:bold">
-            <span>TOTAL PAGADO</span><span>RD$ @((_reciboAImprimir.MontoFactura + _reciboAImprimir.MontoDelivery).ToString("0.00"))</span>
+            <span>TOTAL PAGADO</span><span>RD$ @((_reciboAImprimir.MontoFactura + _reciboAImprimir.MontoDelivery).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</span>
         </div>
         <hr />
         <p style="text-align:center; margin-top:8px; font-size:0.85em">Este recibo es solo informativo, no reemplaza la factura.</p>

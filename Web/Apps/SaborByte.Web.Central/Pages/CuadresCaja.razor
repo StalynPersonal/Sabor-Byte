@@ -73,9 +73,9 @@ else
                 <MudTd>@(context.FechaHoraCierre?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>
                 <MudTd>@(context.UsuarioAperturaNombre ?? "—")</MudTd>
                 <MudTd>@(context.UsuarioCierreNombre ?? "—")</MudTd>
-                <MudTd>RD$ @context.TotalVendido.ToString("0.00")</MudTd>
+                <MudTd>RD$ @context.TotalVendido.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd Style="@EstiloDiferencia(context.DiferenciaTotal)">
-                    @(context.DiferenciaTotal > 0 ? "+" : "")RD$ @context.DiferenciaTotal.ToString("0.00")
+                    @(context.DiferenciaTotal > 0 ? "+" : "")RD$ @context.DiferenciaTotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
                 </MudTd>
                 <MudTd>
                     <MudTooltip Text="Ver detalle">
@@ -106,7 +106,7 @@ else
                     </MudText>
 
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Monto de apertura (efectivo)</MudText>
-                    <MudText Typo="Typo.body2">RD$ @_detalle.MontoAperturaEfectivo.ToString("0.00")</MudText>
+                    <MudText Typo="Typo.body2">RD$ @_detalle.MontoAperturaEfectivo.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                 </MudItem>
                 <MudItem xs="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Cierre</MudText>
@@ -126,10 +126,10 @@ else
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.MetodoPagoNombre</MudTd>
-                    <MudTd>RD$ @context.Esperado.ToString("0.00")</MudTd>
-                    <MudTd>RD$ @context.Contado.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Esperado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>RD$ @context.Contado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd Style="@EstiloDiferencia(context.Diferencia)">
-                        @(context.Diferencia > 0 ? "+" : "")RD$ @context.Diferencia.ToString("0.00")
+                        @(context.Diferencia > 0 ? "+" : "")RD$ @context.Diferencia.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -144,9 +144,9 @@ else
                         <MudTh>Subtotal</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>RD$ @context.Denominacion?.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @context.Denominacion?.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                         <MudTd>@context.Cantidad</MudTd>
-                        <MudTd>RD$ @context.Subtotal.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @context.Subtotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     </RowTemplate>
                 </MudTable>
             }

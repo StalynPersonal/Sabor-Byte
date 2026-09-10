@@ -72,9 +72,9 @@ else
             <RowTemplate Context="v">
                 <MudTd>@v.Fecha.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@v.CantidadFacturas</MudTd>
-                <MudTd>RD$ @v.TotalVendido.ToString("0.00")</MudTd>
-                <MudTd>RD$ @v.TotalItbis.ToString("0.00")</MudTd>
-                <MudTd>RD$ @v.TicketPromedio.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TotalVendido.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @v.TotalItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @v.TicketPromedio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
             </RowTemplate>
         </MudTable>
     }
@@ -99,10 +99,10 @@ else
                 <MudTd>@(v.NumeroNcf ?? "—")</MudTd>
                 <MudTd>@v.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
                 <MudTd>@v.ClienteNombre</MudTd>
-                <MudTd>RD$ @v.Subtotal.ToString("0.00")</MudTd>
-                <MudTd>RD$ @v.Itbis.ToString("0.00")</MudTd>
-                <MudTd>RD$ @v.Descuento.ToString("0.00")</MudTd>
-                <MudTd>RD$ @v.Total.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.Subtotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @v.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @v.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @v.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>@v.FormasPago</MudTd>
                 <MudTd>@v.CajeroNombre</MudTd>
                 <MudTd>@(v.MeseroNombre ?? "—")</MudTd>
@@ -121,8 +121,8 @@ else
             <RowTemplate Context="v">
                 <MudTd>@v.NombreCajero</MudTd>
                 <MudTd>@v.CantidadFacturas</MudTd>
-                <MudTd>RD$ @v.TotalVendido.ToString("0.00")</MudTd>
-                <MudTd>RD$ @v.TicketPromedio.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TotalVendido.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @v.TicketPromedio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
             </RowTemplate>
         </MudTable>
     }
@@ -138,8 +138,8 @@ else
             <RowTemplate Context="v">
                 <MudTd>@v.NombreMesero</MudTd>
                 <MudTd>@v.CantidadFacturas</MudTd>
-                <MudTd>RD$ @v.TotalVendido.ToString("0.00")</MudTd>
-                <MudTd>RD$ @v.TicketPromedio.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TotalVendido.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @v.TicketPromedio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
             </RowTemplate>
         </MudTable>
     }
@@ -174,7 +174,7 @@ else
             <RowTemplate Context="p">
                 <MudTd>@p.NombreProducto</MudTd>
                 <MudTd>@p.CantidadVendida.ToString("0.##")</MudTd>
-                <MudTd>RD$ @p.TotalVendido.ToString("0.00")</MudTd>
+                <MudTd>RD$ @p.TotalVendido.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>@(p.UtilidadEstimada.HasValue ? $"RD$ {p.UtilidadEstimada:0.00}" : "—")</MudTd>
             </RowTemplate>
         </MudTable>
@@ -190,7 +190,7 @@ else
             <RowTemplate Context="v">
                 <MudTd>@v.NombreMetodo</MudTd>
                 <MudTd>@v.CantidadPagos</MudTd>
-                <MudTd>RD$ @v.TotalCobrado.ToString("0.00")</MudTd>
+                <MudTd>RD$ @v.TotalCobrado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
             </RowTemplate>
         </MudTable>
     }
@@ -227,8 +227,8 @@ else
             </HeaderContent>
             <RowTemplate Context="c">
                 <MudTd>@c.Nombre</MudTd>
-                <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
-                <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
+                <MudTd>RD$ @c.MontoOriginal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @c.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@c.Estado</MudTd>
             </RowTemplate>
@@ -246,8 +246,8 @@ else
             </HeaderContent>
             <RowTemplate Context="c">
                 <MudTd>@c.Nombre</MudTd>
-                <MudTd>RD$ @c.MontoOriginal.ToString("0.00")</MudTd>
-                <MudTd>RD$ @c.SaldoPendiente.ToString("0.00")</MudTd>
+                <MudTd>RD$ @c.MontoOriginal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @c.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>@c.FechaVencimiento.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@c.Estado</MudTd>
             </RowTemplate>
@@ -268,7 +268,7 @@ else
             <RowTemplate Context="p">
                 <MudTd>@p.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
                 <MudTd>@p.Nombre</MudTd>
-                <MudTd>RD$ @p.Monto.ToString("0.00")</MudTd>
+                <MudTd>RD$ @p.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>@p.MetodoPagoNombre</MudTd>
                 <MudTd>@(p.NumeroComprobante ?? "—")</MudTd>
                 <MudTd>@p.RegistradoPorNombre</MudTd>
@@ -291,7 +291,7 @@ else
             <RowTemplate Context="p">
                 <MudTd>@p.FechaPago.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
                 <MudTd>@p.Nombre</MudTd>
-                <MudTd>RD$ @p.Monto.ToString("0.00")</MudTd>
+                <MudTd>RD$ @p.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>@p.MetodoPagoNombre</MudTd>
                 <MudTd>@(p.NumeroComprobante ?? "—")</MudTd>
                 <MudTd>@p.RegistradoPorNombre</MudTd>

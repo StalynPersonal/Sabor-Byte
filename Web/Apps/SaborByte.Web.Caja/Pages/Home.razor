@@ -85,7 +85,7 @@ else if (_cerrando)
             {
                 <div class="d-flex justify-space-between">
                     <MudText Typo="Typo.body2">@total.MetodoPagoNombre</MudText>
-                    <MudText Typo="Typo.body2">RD$ @total.Esperado.ToString("0.00")</MudText>
+                    <MudText Typo="Typo.body2">RD$ @total.Esperado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                 </div>
             }
 
@@ -102,7 +102,7 @@ else if (_cerrando)
             </MudGrid>
 
             <MudText Typo="Typo.subtitle1" Class="mt-3">
-                Total efectivo contado: RD$ @TotalEfectivoContado.ToString("0.00")
+                Total efectivo contado: RD$ @TotalEfectivoContado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
             </MudText>
 
             <MudDivider Class="my-3" />
@@ -128,19 +128,19 @@ else if (_cerrando)
             <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
                 Esta acción no se puede deshacer. Verifica el conteo de efectivo antes de continuar.
             </MudAlert>
-            <MudText Typo="Typo.body2">Total efectivo contado: <strong>RD$ @TotalEfectivoContado.ToString("0.00")</strong></MudText>
-            <MudText Typo="Typo.body2" Class="mt-1">Total esperado (todas las formas de pago): <strong>RD$ @TotalEsperadoCierre.ToString("0.00")</strong></MudText>
+            <MudText Typo="Typo.body2">Total efectivo contado: <strong>RD$ @TotalEfectivoContado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
+            <MudText Typo="Typo.body2" Class="mt-1">Total esperado (todas las formas de pago): <strong>RD$ @TotalEsperadoCierre.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
             @if (Math.Abs(DiferenciaCierre) < 0.01m)
             {
                 <MudText Typo="Typo.body2" Color="Color.Success" Class="mt-1">Cuadra exacto — sin faltante ni sobrante.</MudText>
             }
             else if (DiferenciaCierre < 0)
             {
-                <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-1"><strong>Faltante: RD$ @Math.Abs(DiferenciaCierre).ToString("0.00")</strong></MudText>
+                <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-1"><strong>Faltante: RD$ @Math.Abs(DiferenciaCierre).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
             }
             else
             {
-                <MudText Typo="Typo.body2" Color="Color.Warning" Class="mt-1"><strong>Sobrante: RD$ @DiferenciaCierre.ToString("0.00")</strong></MudText>
+                <MudText Typo="Typo.body2" Color="Color.Warning" Class="mt-1"><strong>Sobrante: RD$ @DiferenciaCierre.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
             }
         </DialogContent>
         <DialogActions>
@@ -224,12 +224,12 @@ else
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Cód. @producto.Codigo</MudText>
                                 @if (oferta.Promocion is not null)
                                 {
-                                    <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("0.00")</strong></MudText>
+                                    <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                                 }
                                 else
                                 {
-                                    <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                    <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                                 }
                             </MudCardContent>
                         </MudCard>
@@ -287,7 +287,7 @@ else
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Sin: @string.Join(", ", linea.NombresExcluidos)</MudText>
                             }
                         </div>
-                        <MudText Typo="Typo.body2">RD$ @((linea.Precio * linea.Cantidad).ToString("0.00"))</MudText>
+                        <MudText Typo="Typo.body2">RD$ @((linea.Precio * linea.Cantidad).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudText>
                         @if (!linea.EsDeComanda)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
@@ -297,11 +297,9 @@ else
                 }
 
                 <MudDivider Class="my-2" />
-                <MudText Typo="Typo.body2">Subtotal: RD$ @TotalCarrito.ToString("0.00")</MudText>
-                <MudText Typo="Typo.body2">ITBIS (18%): RD$ @ItbisCarrito.ToString("0.00")</MudText>
                 @if (DescuentoPromocionesCarrito > 0)
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Success">Descuento por oferta: -RD$ @DescuentoPromocionesCarrito.ToString("0.00")</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Success">Descuento por oferta: -RD$ @DescuentoPromocionesCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                 }
 
                 <MudSelect T="decimal" Label="Propina" @bind-Value="_porcentajePropina" Class="my-2">
@@ -314,7 +312,7 @@ else
                 @if (_descuentoAutorizado)
                 {
                     <MudAlert Severity="Severity.Success" Dense="true" Class="my-2">
-                        Descuento autorizado (RD$ @_montoDescuento.ToString("0.00"))
+                        Descuento autorizado (RD$ @_montoDescuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))
                     </MudAlert>
                 }
                 else
@@ -324,7 +322,9 @@ else
                     </MudButton>
                 }
 
-                <MudText Typo="Typo.subtitle1">Total: RD$ @TotalConPropina.ToString("0.00")</MudText>
+                <MudText Typo="Typo.body2">Subtotal: RD$ @TotalCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                <MudText Typo="Typo.body2" Class="mb-1">ITBIS (18%): RD$ @ItbisCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                <MudText Typo="Typo.subtitle1">Total: RD$ @TotalConPropina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
 
                 <div class="d-flex align-center gap-1 mt-3 mb-1">
                     <MudText Typo="Typo.subtitle2">Forma(s) de pago</MudText>
@@ -336,7 +336,7 @@ else
                 @foreach (var pago in _pagos)
                 {
                     <div class="d-flex gap-2 align-center mb-2">
-                        <MudSelect T="Guid" Value="pago.MetodoPagoId" ValueChanged="v => pago.MetodoPagoId = v" Style="width:140px">
+                        <MudSelect T="Guid" Label="Forma de pago" Value="pago.MetodoPagoId" ValueChanged="v => pago.MetodoPagoId = v" Style="width:140px">
                             @foreach (var metodo in _metodosPago)
                             {
                                 <MudSelectItem Value="@metodo.Id">@metodo.Nombre</MudSelectItem>
@@ -359,7 +359,7 @@ else
                 @if (CambioCarrito > 0)
                 {
                     <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Info">
-                        Cambio: RD$ @CambioCarrito.ToString("0.00")
+                        Cambio: RD$ @CambioCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
                     </MudText>
                 }
 
@@ -441,7 +441,7 @@ else
                     <MudTd>@context.NumeroFactura</MudTd>
                     <MudTd>@(context.NumeroNcf ?? "(sin NCF)")</MudTd>
                     <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
-                    <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                    <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                     <MudTd>
                         <MudTooltip Text="Ver detalle">
                             <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerDetalleFacturaNotaAsync(context.Id)" />
@@ -463,7 +463,7 @@ else
         {
             <div class="d-flex justify-space-between align-center mb-3">
                 <MudText Typo="Typo.h6">
-                    Factura @_facturaParaNota.NumeroFactura (@(_facturaParaNota.NumeroNcf ?? "sin NCF")) — Total RD$ @_facturaParaNota.Total.ToString("0.00")
+                    Factura @_facturaParaNota.NumeroFactura (@(_facturaParaNota.NumeroNcf ?? "sin NCF")) — Total RD$ @_facturaParaNota.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
                 </MudText>
                 <MudButton Size="Size.Small" OnClick="() => _facturaParaNota = null">Cambiar factura</MudButton>
             </div>
@@ -681,10 +681,10 @@ else
                     <RowTemplate>
                         <MudTd>@context.NombreProducto</MudTd>
                         <MudTd>@context.Cantidad.ToString("0.###")</MudTd>
-                        <MudTd>RD$ @context.PrecioUnitario.ToString("0.00")</MudTd>
-                        <MudTd>RD$ @context.Descuento.ToString("0.00")</MudTd>
-                        <MudTd>RD$ @context.Itbis.ToString("0.00")</MudTd>
-                        <MudTd>RD$ @context.Total.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @context.PrecioUnitario.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                        <MudTd>RD$ @context.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                        <MudTd>RD$ @context.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                        <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                         <MudTd>@(context.CantidadAcreditada > 0 ? context.CantidadAcreditada.ToString("0.###") : "—")</MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -698,7 +698,7 @@ else
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.NombreMetodoPago</MudTd>
-                        <MudTd>RD$ @context.Monto.ToString("0.00")</MudTd>
+                        <MudTd>RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                         <MudTd>@(context.NumeroComprobante ?? "—")</MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -707,24 +707,24 @@ else
                     <div style="min-width:280px">
                         <div class="d-flex justify-space-between">
                             <MudText Typo="Typo.body2">Subtotal</MudText>
-                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Subtotal.ToString("0.00")</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Subtotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                         </div>
                         <div class="d-flex justify-space-between">
                             <MudText Typo="Typo.body2">ITBIS</MudText>
-                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Itbis.ToString("0.00")</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                         </div>
                         <div class="d-flex justify-space-between">
                             <MudText Typo="Typo.body2">Descuento</MudText>
-                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Descuento.ToString("0.00")</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                         </div>
                         <div class="d-flex justify-space-between">
                             <MudText Typo="Typo.body2">Propina</MudText>
-                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Propina.ToString("0.00")</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalleFacturaNota.Propina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                         </div>
                         <MudDivider Class="my-1" />
                         <div class="d-flex justify-space-between">
                             <MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText>
-                            <MudText Typo="Typo.subtitle1"><strong>RD$ @_detalleFacturaNota.Total.ToString("0.00")</strong></MudText>
+                            <MudText Typo="Typo.subtitle1"><strong>RD$ @_detalleFacturaNota.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                         </div>
                     </div>
                 </div>
@@ -758,7 +758,7 @@ else
             {
                 <div class="d-flex justify-space-between mb-1">
                     <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
-                    <MudText Typo="Typo.body2">RD$ @((linea.Precio * linea.Cantidad).ToString("0.00"))</MudText>
+                    <MudText Typo="Typo.body2">RD$ @((linea.Precio * linea.Cantidad).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudText>
                 </div>
                 @if (linea.NombresExcluidos.Count > 0)
                 {
@@ -767,35 +767,35 @@ else
                 @if (PromocionDeLinea(linea.ProductoId) is { } promoLinea)
                 {
                     <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">
-                        Precio venta: RD$ @promoLinea.PrecioUnitario.ToString("0.00") — Oferta "@promoLinea.NombrePromocion": -RD$ @promoLinea.DescuentoPromocionUnitario.ToString("0.00")/u
+                        Precio venta: RD$ @promoLinea.PrecioUnitario.ToString("N2", System.Globalization.CultureInfo.InvariantCulture) — Oferta "@promoLinea.NombrePromocion": -RD$ @promoLinea.DescuentoPromocionUnitario.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)/u
                     </MudText>
                 }
             }
             <MudDivider Class="my-2" />
-            <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Subtotal</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Subtotal.ToString("0.00")</MudText></div>
-            <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">ITBIS</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Itbis.ToString("0.00")</MudText></div>
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Subtotal</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Subtotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">ITBIS</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
             @if (_ultimaVenta.Descuento > 0)
             {
-                <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Descuento</MudText><MudText Typo="Typo.body2">-RD$ @_ultimaVenta.Descuento.ToString("0.00")</MudText></div>
+                <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Descuento</MudText><MudText Typo="Typo.body2">-RD$ @_ultimaVenta.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
             }
             @if (_ultimaVenta.Propina > 0)
             {
-                <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Propina</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Propina.ToString("0.00")</MudText></div>
+                <div class="d-flex justify-space-between"><MudText Typo="Typo.body2">Propina</MudText><MudText Typo="Typo.body2">RD$ @_ultimaVenta.Propina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText></div>
             }
             <MudDivider Class="my-1" />
-            <div class="d-flex justify-space-between"><MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText><MudText Typo="Typo.subtitle1"><strong>RD$ @_ultimaVenta.Total.ToString("0.00")</strong></MudText></div>
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText><MudText Typo="Typo.subtitle1"><strong>RD$ @_ultimaVenta.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText></div>
 
             <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Forma(s) de pago</MudText>
             @foreach (var pago in _ultimaVenta.Pagos)
             {
                 <div class="d-flex justify-space-between">
                     <MudText Typo="Typo.body2">@NombreMetodoPago(pago.MetodoPagoId)@(string.IsNullOrEmpty(pago.NumeroComprobante) ? "" : $" (comp. {pago.NumeroComprobante})")</MudText>
-                    <MudText Typo="Typo.body2">RD$ @pago.Monto.ToString("0.00")</MudText>
+                    <MudText Typo="Typo.body2">RD$ @pago.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                 </div>
             }
             @if (CambioUltimaVenta > 0)
             {
-                <div class="d-flex justify-space-between mt-1"><MudText Typo="Typo.subtitle2"><strong>Cambio</strong></MudText><MudText Typo="Typo.subtitle2"><strong>RD$ @CambioUltimaVenta.ToString("0.00")</strong></MudText></div>
+                <div class="d-flex justify-space-between mt-1"><MudText Typo="Typo.subtitle2"><strong>Cambio</strong></MudText><MudText Typo="Typo.subtitle2"><strong>RD$ @CambioUltimaVenta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText></div>
             }
         }
     </DialogContent>
@@ -814,7 +814,7 @@ else
         {
             <div style="display:flex; justify-content:space-between">
                 <span>@linea.Cantidad x @linea.Nombre</span>
-                <span>@((linea.Precio * linea.Cantidad).ToString("0.00"))</span>
+                <span>@((linea.Precio * linea.Cantidad).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</span>
             </div>
             @if (linea.NombresExcluidos.Count > 0)
             {
@@ -822,33 +822,33 @@ else
             }
             @if (PromocionDeLinea(linea.ProductoId) is { } promoLineaImp)
             {
-                <div style="margin-left:12px; font-size:0.85em">Precio venta: @promoLineaImp.PrecioUnitario.ToString("0.00") — Oferta "@promoLineaImp.NombrePromocion": -@promoLineaImp.DescuentoPromocionUnitario.ToString("0.00")/u</div>
+                <div style="margin-left:12px; font-size:0.85em">Precio venta: @promoLineaImp.PrecioUnitario.ToString("N2", System.Globalization.CultureInfo.InvariantCulture) — Oferta "@promoLineaImp.NombrePromocion": -@promoLineaImp.DescuentoPromocionUnitario.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)/u</div>
             }
         }
         <hr />
-        <div style="display:flex; justify-content:space-between"><span>Subtotal</span><span>@_ultimaVenta.Subtotal.ToString("0.00")</span></div>
-        <div style="display:flex; justify-content:space-between"><span>ITBIS</span><span>@_ultimaVenta.Itbis.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between"><span>Subtotal</span><span>@_ultimaVenta.Subtotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
+        <div style="display:flex; justify-content:space-between"><span>ITBIS</span><span>@_ultimaVenta.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         @if (_ultimaVenta.Descuento > 0)
         {
-            <div style="display:flex; justify-content:space-between"><span>Descuento</span><span>-@_ultimaVenta.Descuento.ToString("0.00")</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Descuento</span><span>-@_ultimaVenta.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
         @if (_ultimaVenta.Propina > 0)
         {
-            <div style="display:flex; justify-content:space-between"><span>Propina</span><span>@_ultimaVenta.Propina.ToString("0.00")</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Propina</span><span>@_ultimaVenta.Propina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
-        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_ultimaVenta.Total.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_ultimaVenta.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         <hr />
         <p style="margin:0; font-weight:bold">FORMAS DE PAGO</p>
         @foreach (var pago in _ultimaVenta.Pagos)
         {
             <div style="display:flex; justify-content:space-between">
                 <span>@NombreMetodoPago(pago.MetodoPagoId)@(string.IsNullOrEmpty(pago.NumeroComprobante) ? "" : $" (comp. {pago.NumeroComprobante})")</span>
-                <span>@pago.Monto.ToString("0.00")</span>
+                <span>@pago.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
             </div>
         }
         @if (CambioUltimaVenta > 0)
         {
-            <div style="display:flex; justify-content:space-between; font-weight:bold"><span>CAMBIO</span><span>@CambioUltimaVenta.ToString("0.00")</span></div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold"><span>CAMBIO</span><span>@CambioUltimaVenta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
         @PieRecibo(NumeroCajaActual, _ultimaVenta.CajeroNombre, _ultimaVenta.CodigoSeguridadDgii)
     </div>
@@ -870,11 +870,11 @@ else
             {
                 <div class="d-flex justify-space-between mb-1">
                     <MudText Typo="Typo.body2">@linea.Cantidad x @linea.NombreProducto</MudText>
-                    <MudText Typo="Typo.body2">RD$ @linea.Monto.ToString("0.00")</MudText>
+                    <MudText Typo="Typo.body2">RD$ @linea.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                 </div>
             }
             <MudDivider Class="my-2" />
-            <div class="d-flex justify-space-between"><MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText><MudText Typo="Typo.subtitle1"><strong>RD$ @_ultimaNota.Monto.ToString("0.00")</strong></MudText></div>
+            <div class="d-flex justify-space-between"><MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText><MudText Typo="Typo.subtitle1"><strong>RD$ @_ultimaNota.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText></div>
         }
     </DialogContent>
     <DialogActions>
@@ -895,11 +895,11 @@ else
         {
             <div style="display:flex; justify-content:space-between">
                 <span>@linea.Cantidad x @linea.NombreProducto</span>
-                <span>@linea.Monto.ToString("0.00")</span>
+                <span>@linea.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
             </div>
         }
         <hr />
-        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_ultimaNota.Monto.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_ultimaNota.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         @PieRecibo(NumeroCajaActual, _ultimaNota.CajeroNombre, _ultimaNota.CodigoSeguridadDgii)
     </div>
 }
@@ -914,28 +914,28 @@ else
         {
             <div style="display:flex; justify-content:space-between">
                 <span>@linea.Cantidad x @linea.NombreProducto</span>
-                <span>@linea.Total.ToString("0.00")</span>
+                <span>@linea.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
             </div>
         }
         <hr />
-        <div style="display:flex; justify-content:space-between"><span>Subtotal</span><span>@_facturaAReimprimir.Subtotal.ToString("0.00")</span></div>
-        <div style="display:flex; justify-content:space-between"><span>ITBIS</span><span>@_facturaAReimprimir.Itbis.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between"><span>Subtotal</span><span>@_facturaAReimprimir.Subtotal.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
+        <div style="display:flex; justify-content:space-between"><span>ITBIS</span><span>@_facturaAReimprimir.Itbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         @if (_facturaAReimprimir.Descuento > 0)
         {
-            <div style="display:flex; justify-content:space-between"><span>Descuento</span><span>-@_facturaAReimprimir.Descuento.ToString("0.00")</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Descuento</span><span>-@_facturaAReimprimir.Descuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
         @if (_facturaAReimprimir.Propina > 0)
         {
-            <div style="display:flex; justify-content:space-between"><span>Propina</span><span>@_facturaAReimprimir.Propina.ToString("0.00")</span></div>
+            <div style="display:flex; justify-content:space-between"><span>Propina</span><span>@_facturaAReimprimir.Propina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
-        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_facturaAReimprimir.Total.ToString("0.00")</span></div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold"><span>TOTAL</span><span>RD$ @_facturaAReimprimir.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         <hr />
         <p style="margin:0; font-weight:bold">FORMAS DE PAGO</p>
         @foreach (var pago in _facturaAReimprimir.Pagos)
         {
             <div style="display:flex; justify-content:space-between">
                 <span>@pago.NombreMetodoPago@(string.IsNullOrEmpty(pago.NumeroComprobante) ? "" : $" (comp. {pago.NumeroComprobante})")</span>
-                <span>@pago.Monto.ToString("0.00")</span>
+                <span>@pago.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
             </div>
         }
         @PieRecibo(_facturaAReimprimir.CajaNumero, _facturaAReimprimir.CajeroNombre, _facturaAReimprimir.CodigoSeguridadDgii)

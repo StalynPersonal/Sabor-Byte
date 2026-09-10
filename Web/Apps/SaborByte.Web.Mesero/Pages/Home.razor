@@ -62,12 +62,12 @@ else
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Cód. @producto.Codigo</MudText>
                                         @if (oferta.Promocion is not null)
                                         {
-                                            <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
-                                            <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("0.00")</strong></MudText>
+                                            <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                                         }
                                         else
                                         {
-                                            <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("0.00")</MudText>
+                                            <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                                         }
                                     </MudCardContent>
                                 </MudCard>
