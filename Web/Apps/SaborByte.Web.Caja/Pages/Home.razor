@@ -291,7 +291,6 @@ else
     <MudTabPanel Text="Facturas">
         @if (_facturaParaNota is null)
         {
-            <MudText Typo="Typo.h6" Class="mb-2">Facturas</MudText>
             <MudTextField T="string" Label="Buscar factura (N° o NCF)" @bind-Value="_textoBusquedaNota"
                            Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarFacturasNotaAsync" Class="mb-3"
                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
@@ -1271,8 +1270,8 @@ else
     private async Task AbrirCuentaDeliveryAsync(DeliveryDto delivery)
     {
         _deliverySeleccionado = delivery;
-        _desdeCuentaDelivery = null;
-        _hastaCuentaDelivery = null;
+        _desdeCuentaDelivery = DateTime.Today;
+        _hastaCuentaDelivery = DateTime.Today;
         _resumenCuentaDelivery = await ApiClient.ObtenerResumenCuentaDeliveryAsync(SucursalId, delivery.Id);
         _viendoCuentaDelivery = true;
         // Las tablas ya están montadas (se reusan entre deliveries) — hay que forzar la

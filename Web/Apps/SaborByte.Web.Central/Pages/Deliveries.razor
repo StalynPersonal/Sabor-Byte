@@ -469,8 +469,8 @@ else
     private async Task AbrirCuentaAsync(DeliveryDto delivery)
     {
         _deliverySeleccionado = delivery;
-        _desdeCuenta = null;
-        _hastaCuenta = null;
+        _desdeCuenta = DateTime.Today;
+        _hastaCuenta = DateTime.Today;
         _resumenCuenta = await ApiClient.ObtenerResumenCuentaDeliveryAsync(SucursalId, delivery.Id);
         _viendoCuenta = true;
         // Las tablas ya están montadas (se reusan entre deliveries) — hay que forzar la
