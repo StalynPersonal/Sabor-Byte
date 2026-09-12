@@ -1,11 +1,14 @@
 @page "/inicio"
 @using SaborByte.Web.Api
 @using SaborByte.Web.Api.Dtos
+@using SaborByte.Web.Caja.Services
+@implements IDisposable
 @inject SaborByteApiClient ApiClient
 @inject SesionCliente Sesion
 @inject NavigationManager Navegacion
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
+@inject CierreTurnoSignal CierreTurnoSignal
 
 <PageTitle>SaborByte</PageTitle>
 
@@ -403,9 +406,9 @@ else
         <div class="d-flex align-center gap-2 mb-4" style="max-width:450px">
             <MudTextField T="string" Label="Buscar por nombre" @bind-Value="_textoBusquedaDelivery"
                            Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarDeliveriesAsync"
-                           Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="flex:1" />
+                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="flex:1" />
             <MudTooltip Text="Actualizar">
-                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" OnClick="CargarDeliveriesAsync" />
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="CargarDeliveriesAsync" />
             </MudTooltip>
         </div>
 
@@ -768,9 +771,6 @@ else
                 {
                     <MudText>Facturar</MudText>
                 }
-            </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="IniciarCierreAsync" Disabled="_procesandoAccion">
-                Cerrar turno
             </MudButton>
         </MudPaper>
     </MudItem>
@@ -1684,6 +1684,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        CierreTurnoSignal.Solicitado += OnCierreTurnoSolicitado;
+
         if (!Sesion.EstaAutenticado)
         {
             Navegacion.NavigateTo("/login");
@@ -2254,8 +2256,44 @@ else
         }
     }
 
+    // Disparado por el ícono "Cerrar turno" del MudAppBar (ver MainLayout) — ese componente
+    // no tiene acceso directo al estado de esta página, así que se comunica por este evento.
+    private void OnCierreTurnoSolicitado()
+    {
+        InvokeAsync(async () =>
+        {
+            if (_turnoCajaId is null)
+            {
+                Snackbar.Add("No hay ningún turno abierto.", Severity.Warning);
+                return;
+            }
+
+            await IniciarCierreAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => CierreTurnoSignal.Solicitado -= OnCierreTurnoSolicitado;
+
     private async Task IniciarCierreAsync()
     {
+        // Mismas reglas que valida el backend al confirmar el cierre (ver CajaAppService.
+        // CerrarTurnoAsync), pero chequeadas ANTES de abrir el conteo de efectivo — sin esto,
+        // el cajero contaba todo el dinero y recién al final se enteraba de que no podía cerrar.
+        await CargarComandasAbiertasAsync();
+        if (_comandasAbiertas.Count > 0)
+        {
+            Snackbar.Add("No se puede cerrar el turno: hay comandas sin facturar en esta sucursal. Factúrelas o cancélelas primero.", Severity.Error);
+            return;
+        }
+
+        await CargarDeliveriesAsync();
+        if (_deliveries.Any(d => d.SaldoPendiente != 0))
+        {
+            Snackbar.Add("No se puede cerrar el turno: hay deliveries con saldo pendiente en esta sucursal. Salde sus cuentas primero.", Severity.Error);
+            return;
+        }
+
         _resumenCierre = await ApiClient.ObtenerResumenTurnoAsync(_turnoCajaId!.Value);
         _cerrando = true;
     }
@@ -2312,6 +2350,15 @@ else
             foreach (var d in _denominacionesEfectivo)
                 _cantidadesPorDenominacion[d] = 0;
             _montoContadoPorMetodo.Clear();
+
+            // El turno solo llega a cerrar si ya no quedaba ningún delivery con saldo
+            // pendiente (ver IniciarCierreAsync) — se refresca la pestaña para que el
+            // próximo turno la vea limpia, sin la cuenta de un delivery abierta en pantalla.
+            _viendoCuentaDelivery = false;
+            _deliverySeleccionado = null;
+            _facturasDelivery = [];
+            _abonosDelivery = [];
+            await CargarDeliveriesAsync();
         }
         catch (Exception ex)
         {

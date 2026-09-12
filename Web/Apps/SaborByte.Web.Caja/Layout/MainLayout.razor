@@ -5,6 +5,7 @@
 @inject SaborByteApiClient ApiClient
 @inject NavigationManager Navegacion
 @inject ISnackbar Snackbar
+@inject SaborByte.Web.Caja.Services.CierreTurnoSignal CierreTurnoSignal
 
 <MudThemeProvider Theme="_tema" IsDarkMode="false" ObserveSystemDarkModeChange="false" />
 <MudPopoverProvider />
@@ -17,6 +18,9 @@
         <MudSpacer />
         <MudTooltip Text="Ir a caja">
             <MudIconButton Icon="@Icons.Material.Filled.PointOfSale" Color="Color.Inherit" OnClick="@(() => Navegacion.NavigateTo("/inicio"))" />
+        </MudTooltip>
+        <MudTooltip Text="Cerrar turno">
+            <MudIconButton Icon="@Icons.Material.Filled.MeetingRoom" Color="Color.Inherit" OnClick="@(() => CierreTurnoSignal.Solicitar())" />
         </MudTooltip>
         @if (Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor"))
         {

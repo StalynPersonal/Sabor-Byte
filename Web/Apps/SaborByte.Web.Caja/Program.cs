@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using SaborByte.Web.Api;
 using SaborByte.Web.Caja;
+using SaborByte.Web.Caja.Services;
 
 CulturaApp.Aplicar();
 
@@ -14,6 +15,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.BaseAddress;
 
 builder.Services.AddSingleton<SesionCliente>();
+builder.Services.AddSingleton<CierreTurnoSignal>();
 builder.Services.AddScoped(sp =>
 {
     var handler = new SesionExpiradaHandler(sp.GetRequiredService<SesionCliente>(), sp.GetRequiredService<NavigationManager>())
