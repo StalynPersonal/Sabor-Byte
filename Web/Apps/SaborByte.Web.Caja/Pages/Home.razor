@@ -443,11 +443,11 @@ else
                     <MudGrid Class="mb-3">
                         <MudItem xs="4">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">Total facturado</MudText>
-                            <MudText Typo="Typo.body1">RD$ @(_resumenCuentaDelivery?.TotalFacturado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                            <MudText Typo="Typo.body1">RD$ @((_resumenCuentaDelivery?.TotalFacturado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudText>
                         </MudItem>
                         <MudItem xs="4">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">Total abonado</MudText>
-                            <MudText Typo="Typo.body1">RD$ @(_resumenCuentaDelivery?.TotalAbonado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                            <MudText Typo="Typo.body1">RD$ @((_resumenCuentaDelivery?.TotalAbonado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudText>
                         </MudItem>
                         <MudItem xs="4">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">Saldo pendiente</MudText>
@@ -457,10 +457,10 @@ else
 
                     <MudGrid Class="mb-3">
                         <MudItem xs="6" sm="4">
-                            <MudDatePicker Label="Desde" Date="_desdeCuentaDelivery" DateChanged="OnFiltroFechaCuentaDeliveryCambiadoAsync" Clearable="true" />
+                            <MudDatePicker Label="Desde" Date="_desdeCuentaDelivery" DateChanged="OnDesdeCuentaDeliveryCambiadaAsync" Clearable="true" />
                         </MudItem>
                         <MudItem xs="6" sm="4">
-                            <MudDatePicker Label="Hasta" Date="_hastaCuentaDelivery" DateChanged="OnFiltroFechaCuentaDeliveryCambiadoAsync" Clearable="true" />
+                            <MudDatePicker Label="Hasta" Date="_hastaCuentaDelivery" DateChanged="OnHastaCuentaDeliveryCambiadaAsync" Clearable="true" />
                         </MudItem>
                     </MudGrid>
 
@@ -1294,7 +1294,17 @@ else
         await (_tablaAbonosDelivery?.ReloadServerData() ?? Task.CompletedTask);
     }
 
-    private Task OnFiltroFechaCuentaDeliveryCambiadoAsync(DateTime? _) => RecargarCuentaDeliveryAsync();
+    private Task OnDesdeCuentaDeliveryCambiadaAsync(DateTime? fecha)
+    {
+        _desdeCuentaDelivery = fecha;
+        return RecargarCuentaDeliveryAsync();
+    }
+
+    private Task OnHastaCuentaDeliveryCambiadaAsync(DateTime? fecha)
+    {
+        _hastaCuentaDelivery = fecha;
+        return RecargarCuentaDeliveryAsync();
+    }
 
     private async Task<TableData<FacturaDeliveryDto>> CargarPaginaFacturasDeliveryAsync(TableState estado, CancellationToken ct)
     {

@@ -96,11 +96,11 @@ else
             <MudGrid Class="mb-3">
                 <MudItem xs="4">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Total facturado</MudText>
-                    <MudText Typo="Typo.body1">RD$ @(_resumenCuenta?.TotalFacturado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                    <MudText Typo="Typo.body1">RD$ @((_resumenCuenta?.TotalFacturado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudText>
                 </MudItem>
                 <MudItem xs="4">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Total abonado</MudText>
-                    <MudText Typo="Typo.body1">RD$ @(_resumenCuenta?.TotalAbonado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                    <MudText Typo="Typo.body1">RD$ @((_resumenCuenta?.TotalAbonado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudText>
                 </MudItem>
                 <MudItem xs="4">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">Saldo pendiente</MudText>
@@ -110,10 +110,10 @@ else
 
             <MudGrid Class="mb-3">
                 <MudItem xs="6" sm="4">
-                    <MudDatePicker Label="Desde" Date="_desdeCuenta" DateChanged="OnFiltroFechaCuentaCambiadoAsync" Clearable="true" />
+                    <MudDatePicker Label="Desde" Date="_desdeCuenta" DateChanged="OnDesdeCuentaCambiadaAsync" Clearable="true" />
                 </MudItem>
                 <MudItem xs="6" sm="4">
-                    <MudDatePicker Label="Hasta" Date="_hastaCuenta" DateChanged="OnFiltroFechaCuentaCambiadoAsync" Clearable="true" />
+                    <MudDatePicker Label="Hasta" Date="_hastaCuenta" DateChanged="OnHastaCuentaCambiadaAsync" Clearable="true" />
                 </MudItem>
             </MudGrid>
 
@@ -492,7 +492,17 @@ else
         await (_tablaAbonos?.ReloadServerData() ?? Task.CompletedTask);
     }
 
-    private Task OnFiltroFechaCuentaCambiadoAsync(DateTime? _) => RecargarCuentaAsync();
+    private Task OnDesdeCuentaCambiadaAsync(DateTime? fecha)
+    {
+        _desdeCuenta = fecha;
+        return RecargarCuentaAsync();
+    }
+
+    private Task OnHastaCuentaCambiadaAsync(DateTime? fecha)
+    {
+        _hastaCuenta = fecha;
+        return RecargarCuentaAsync();
+    }
 
     private async Task<TableData<FacturaDeliveryDto>> CargarPaginaFacturasAsync(TableState estado, CancellationToken ct)
     {
