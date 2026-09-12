@@ -188,7 +188,7 @@ else
                 <MudItem xs="8">
                     <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
                                    @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
-                                   OnDebounceIntervalElapsed="BuscarAsync" />
+                                   OnDebounceIntervalElapsed="BuscarAsync" Clearable="true" OnClearButtonClick="BuscarAsync" />
                 </MudItem>
                 <MudItem xs="4">
                     <MudSelect T="Guid?" Label="Categoría" Value="_categoriaId" ValueChanged="OnCategoriaCambiadaAsync" Clearable="true">
