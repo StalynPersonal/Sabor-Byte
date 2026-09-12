@@ -12,6 +12,36 @@
 
 <PageTitle>SaborByte</PageTitle>
 
+<style>
+    @@media (max-width: 959.98px) {
+        .panel-carrito {
+            position: static !important;
+            height: auto !important;
+            margin-top: 16px;
+        }
+
+        .lista-carrito {
+            max-height: 40vh !important;
+        }
+
+        .area-productos {
+            max-height: none !important;
+        }
+    }
+
+    .panel-carrito-inner {
+        overflow: hidden;
+    }
+
+    .panel-carrito-inner > * {
+        flex-shrink: 0;
+    }
+
+    .panel-carrito-inner > .lista-carrito {
+        flex-shrink: 1;
+    }
+</style>
+
 @if (!Sesion.EstaAutenticado)
 {
     <MudText>Redirigiendo al inicio de sesión...</MudText>
@@ -174,7 +204,7 @@ else
     </MudPaper>
 
     <MudGrid>
-    <MudItem xs="8">
+    <MudItem xs="12" md="8">
     <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4" @bind-ActivePanelIndex="_tabIndex">
     <MudTabPanel Text="Venta">
     <div style="position:relative">
@@ -201,7 +231,7 @@ else
                 </MudItem>
             </MudGrid>
 
-            <div style="max-height: calc(100vh - 290px); overflow-y: auto; padding-right: 4px;">
+            <div class="area-productos" style="max-height: calc(100vh - 290px); overflow-y: auto; padding-right: 4px;">
             <MudGrid>
                 @foreach (var producto in _productos)
                 {
@@ -696,8 +726,8 @@ else
     </MudTabs>
     </MudItem>
 
-    <MudItem xs="4" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 150px);">
-        <MudPaper Class="pa-4" Style="height: 100%; display: flex; flex-direction: column;">
+    <MudItem xs="12" md="4" Class="panel-carrito" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 150px);">
+        <MudPaper Class="pa-4 panel-carrito-inner" Style="height: 100%; display: flex; flex-direction: column;">
             <MudText Typo="Typo.h6" Class="mb-2">Carrito</MudText>
 
             @if (_comandaOrigen is not null)
@@ -723,7 +753,7 @@ else
                 </MudTooltip>
             </div>
 
-            <div style="flex: 0 1 auto; min-height: 60px; max-height: 100%; overflow-y: auto;">
+            <div class="lista-carrito" style="flex: 1 1 auto; min-height: 60px; overflow-y: auto;">
                 @foreach (var linea in _carrito)
                 {
                     <div class="d-flex justify-space-between align-center mb-1 gap-1">
@@ -785,8 +815,6 @@ else
             <MudText Typo="Typo.body2" Class="mb-1">ITBIS (18%): RD$ @ItbisCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             <MudText Typo="Typo.h5" Class="font-weight-bold my-1">Total: RD$ @TotalConPropina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
 
-            <div style="flex: 1 1 auto; min-height: 8px;"></div>
-
             <div class="d-flex align-center gap-1 mt-3 mb-1">
                 <MudText Typo="Typo.subtitle2">Forma(s) de pago</MudText>
                 <MudTooltip Text="Agregar otra forma de pago">
@@ -815,7 +843,7 @@ else
                 </div>
             }
             <MudText Typo="Typo.body2" Class="mt-1 mb-2" Color="@(FaltaPorCubrir == 0 ? Color.Success : Color.Error)">
-                @(FaltaPorCubrir == 0 ? "Pagos completos" : $"Falta por cubrir: RD$ {FaltaPorCubrir:0.00}")
+                @(FaltaPorCubrir == 0 ? "Pagos completos" : $"Falta por cubrir: RD$ {FaltaPorCubrir.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)}")
             </MudText>
             @if (CambioCarrito > 0)
             {
@@ -836,7 +864,7 @@ else
                     <MudText>Facturar</MudText>
                 }
             </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" Class="mb-2"
                        Disabled="@(_carrito.Count == 0 || _procesandoAccion)" OnClick="AbrirGuardarVentaSuspendidaDialog">
                 Guardar venta para después
             </MudButton>
@@ -1296,8 +1324,12 @@ else
         {
             <div style="display:flex; justify-content:space-between">
                 <span>@pago.NombreMetodoPago@(string.IsNullOrEmpty(pago.NumeroComprobante) ? "" : $" (comp. {pago.NumeroComprobante})")</span>
-                <span>@pago.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
+                <span>@((pago.MontoRecibido ?? pago.Monto).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</span>
             </div>
+        }
+        @if (_facturaAReimprimir.Cambio > 0)
+        {
+            <div style="display:flex; justify-content:space-between; font-weight:bold"><span>CAMBIO</span><span>@_facturaAReimprimir.Cambio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
         @PieRecibo(_facturaAReimprimir.CajaNumero, _facturaAReimprimir.CajeroNombre, _facturaAReimprimir.CodigoSeguridadDgii)
         <p style="text-align:center; margin-top:8px; font-weight:bold">*** DUPLICADO — NO VÁLIDO COMO ORIGINAL ***</p>
@@ -2249,7 +2281,7 @@ else
             return;
         }
 
-        _carrito.Add(new LineaCarrito
+        _carrito.Insert(0, new LineaCarrito
         {
             ProductoId = producto.Id,
             CategoriaId = producto.CategoriaId,
@@ -2439,22 +2471,22 @@ else
         try
         {
         // El monto de cada forma de pago lo escribe el cajero — no se asume. Solo se
-        // permite cobrar de más (y devolver cambio) cuando hay una única forma de pago
-        // y es en efectivo; en cualquier otro caso la suma debe cuadrar exacto con el total.
-        var esPagoUnicoEnEfectivo = _pagos.Count == 1 && _metodosPago.FirstOrDefault(m => m.Id == _pagos[0].MetodoPagoId)?.EsEfectivo == true;
-        var sumaPagos = _pagos.Sum(p => p.Monto);
+        // permite cobrar de más (y devolver cambio) cuando el excedente queda cubierto
+        // por efectivo: con tarjeta/transferencia no se puede devolver cambio, así que
+        // esos métodos nunca pueden sumar más que el total; el efectivo sí puede sobrar.
+        var montoEfectivo = _pagos.Where(p => _metodosPago.FirstOrDefault(m => m.Id == p.MetodoPagoId)?.EsEfectivo == true).Sum(p => p.Monto);
+        var montoNoEfectivo = _pagos.Where(p => _metodosPago.FirstOrDefault(m => m.Id == p.MetodoPagoId)?.EsEfectivo != true).Sum(p => p.Monto);
+        var sumaPagos = montoEfectivo + montoNoEfectivo;
 
-        if (esPagoUnicoEnEfectivo)
+        if (montoNoEfectivo > TotalConPropina + 0.01m)
         {
-            if (sumaPagos < TotalConPropina - 0.01m)
-            {
-                Snackbar.Add($"El efectivo recibido (RD$ {sumaPagos:0.00}) es menor al total de la venta (RD$ {TotalConPropina:0.00}).", Severity.Error);
-                return;
-            }
+            Snackbar.Add("Las formas de pago distintas a efectivo no pueden sumar más que el total — con tarjeta o transferencia no se puede devolver cambio.", Severity.Error);
+            return;
         }
-        else if (Math.Abs(sumaPagos - TotalConPropina) > 0.01m)
+
+        if (sumaPagos < TotalConPropina - 0.01m)
         {
-            Snackbar.Add($"La suma de las formas de pago (RD$ {sumaPagos:0.00}) no coincide con el total de la venta (RD$ {TotalConPropina:0.00}).", Severity.Error);
+            Snackbar.Add($"La suma de las formas de pago (RD$ {sumaPagos:0.00}) no cubre el total de la venta (RD$ {TotalConPropina:0.00}).", Severity.Error);
             return;
         }
 

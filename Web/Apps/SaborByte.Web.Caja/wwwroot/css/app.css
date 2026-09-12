@@ -31,7 +31,15 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    
+
+  }
+
+  /* El diálogo de confirmación "Venta registrada" (MudDialog) queda abierto en pantalla
+     mientras se imprime — sin esto, algunos navegadores igual lo pintan sobre el papel
+     (con el estilo de color secundario de MudBlazor) encima o en vez de .solo-imprimir. */
+  .mud-overlay,
+  .mud-dialog-container {
+    display: none !important;
   }
 
   /* Formato configurable por caja (ver Caja.FormatoImpresion) — mismo contenido, solo
@@ -41,14 +49,14 @@ body {
   .solo-imprimir.formato-ticket-80mm {
     width: 100%;
     font-family: "Courier New", monospace;
-    font-size: 14px;
+    font-size: 13px;
     padding: 5mm 10mm;
   }
 
   .solo-imprimir.formato-ticket-58mm {
     width: 100%;
     font-family: "Courier New", monospace;
-    font-size: 14px;
+    font-size: 13px;
     padding: 5mm 10mm;
   }
 

@@ -197,28 +197,41 @@ public class VentaAppService(
             throw new InvalidOperationException("Una de las formas de pago seleccionadas no existe.");
 
         var cambio = ValidarPagosYCalcularCambio(request.Pagos, factura.Total, metodosPago);
+        factura.Cambio = cambio;
 
         await AsignarNumeroFacturaAsync(sucursal, turno.CajaId, factura, ct);
         await AsignarNcfSiAplicaAsync(sucursalId, sucursal.EcfActivo, factura, ct);
 
         db.Facturas.Add(factura);
 
-        // Solo puede haber cambio cuando es un único pago en efectivo (ver
-        // ValidarPagosYCalcularCambio) — en ese caso, lo que se registra como venta/ingreso
-        // es el total, no el efectivo recibido completo; el resto es cambio que sale de la
-        // caja, no ingreso. Para cualquier otro caso (varias formas de pago, o una sola que
-        // no es efectivo) el monto ya viene validado exacto y se registra tal cual.
+        // El cambio siempre sale del efectivo recibido (ver ValidarPagosYCalcularCambio:
+        // las formas de pago que no son efectivo nunca pueden sumar más que el total). Lo
+        // que se registra como venta/ingreso por cada pago en efectivo es lo aplicado al
+        // total, no lo recibido completo; el resto es cambio que sale de la caja, no
+        // ingreso. Las formas de pago que no son efectivo se registran tal cual, sin tocar.
+        var cambioPendiente = cambio;
         var pagosParaResultado = new List<PagoVentaRequestDto>();
         foreach (var pago in request.Pagos)
         {
             var metodo = metodosPago[pago.MetodoPagoId];
-            var montoAplicado = cambio > 0 ? pago.Monto - cambio : pago.Monto;
+            decimal montoAplicado;
+            if (metodo.EsEfectivo && cambioPendiente > 0)
+            {
+                var reduccion = Math.Min(cambioPendiente, pago.Monto);
+                montoAplicado = pago.Monto - reduccion;
+                cambioPendiente -= reduccion;
+            }
+            else
+            {
+                montoAplicado = pago.Monto;
+            }
 
             factura.Pagos.Add(new FacturaPago
             {
                 FacturaId = factura.Id,
                 MetodoPagoId = pago.MetodoPagoId,
                 Monto = montoAplicado,
+                MontoRecibido = metodo.EsEfectivo ? pago.Monto : null,
                 NumeroComprobante = metodo.RequiereComprobante ? pago.NumeroComprobante : null
             });
 
@@ -232,10 +245,12 @@ public class VentaAppService(
                 Descripcion = $"Venta {factura.NumeroFactura}"
             });
 
+            // En el recibo se muestra lo que el cliente realmente entregó (ej. RD$200 con un
+            // billete grande), no lo aplicado a la venta — el cambio ya aparece aparte.
             pagosParaResultado.Add(new PagoVentaRequestDto
             {
                 MetodoPagoId = pago.MetodoPagoId,
-                Monto = montoAplicado,
+                Monto = pago.Monto,
                 NumeroComprobante = pago.NumeroComprobante
             });
         }
@@ -338,11 +353,12 @@ public class VentaAppService(
         return mejor;
     }
 
-    // Al menos un pago y montos positivos siempre. La suma debe cuadrar exacto con el
-    // total, EXCEPTO cuando es un único pago en efectivo: ahí se permite recibir de más
-    // (el cajero cobró con un billete grande) y se devuelve como cambio — nunca se permite
-    // pagar de menos, ni dar cambio cuando hay varias formas de pago o una forma distinta
-    // a efectivo (tarjeta/transferencia no dan "vuelto").
+    // Al menos un pago y montos positivos siempre. Se permite recibir de más y devolver
+    // cambio siempre que el excedente quede cubierto por efectivo: tarjeta/transferencia
+    // nunca pueden sumar más que el total (no dan "vuelto"), pero el efectivo sí puede
+    // sobrar — sea la única forma de pago o se combine con otras (ej. transferencia +
+    // efectivo, donde el cliente paga el efectivo con un billete grande y se le devuelve
+    // el cambio en efectivo). Nunca se permite pagar de menos.
     private static decimal ValidarPagosYCalcularCambio(List<PagoVentaRequestDto> pagos, decimal total, Dictionary<Guid, Dominio.Catalogo.MetodoPago> metodosPago)
     {
         if (pagos.Count == 0)
@@ -351,23 +367,19 @@ public class VentaAppService(
         if (pagos.Any(p => p.Monto <= 0))
             throw new InvalidOperationException("El monto de cada forma de pago debe ser mayor a cero.");
 
-        var sumaPagos = pagos.Sum(p => p.Monto);
-        var esPagoUnicoEnEfectivo = pagos.Count == 1 && metodosPago[pagos[0].MetodoPagoId].EsEfectivo;
+        var montoEfectivo = pagos.Where(p => metodosPago[p.MetodoPagoId].EsEfectivo).Sum(p => p.Monto);
+        var montoNoEfectivo = pagos.Where(p => !metodosPago[p.MetodoPagoId].EsEfectivo).Sum(p => p.Monto);
+        var sumaPagos = montoEfectivo + montoNoEfectivo;
 
-        if (esPagoUnicoEnEfectivo)
-        {
-            if (sumaPagos < total - 0.01m)
-                throw new InvalidOperationException(
-                    $"El efectivo recibido (RD$ {sumaPagos:0.00}) es menor al total de la venta (RD$ {total:0.00}).");
-
-            return Math.Max(0, Math.Round(sumaPagos - total, 2));
-        }
-
-        if (Math.Abs(sumaPagos - total) > 0.01m)
+        if (montoNoEfectivo > total + 0.01m)
             throw new InvalidOperationException(
-                $"La suma de las formas de pago (RD$ {sumaPagos:0.00}) no coincide con el total de la venta (RD$ {total:0.00}).");
+                "Las formas de pago distintas a efectivo no pueden sumar más que el total — con tarjeta o transferencia no se puede devolver cambio.");
 
-        return 0m;
+        if (sumaPagos < total - 0.01m)
+            throw new InvalidOperationException(
+                $"La suma de las formas de pago (RD$ {sumaPagos:0.00}) no cubre el total de la venta (RD$ {total:0.00}).");
+
+        return Math.Max(0, Math.Round(sumaPagos - total, 2));
     }
 
     // Número interno de factura (no fiscal), siempre asignado: CodigoSucursal(2) + Caja.Numero(2)

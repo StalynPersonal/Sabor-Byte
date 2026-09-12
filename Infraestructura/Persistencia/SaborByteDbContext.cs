@@ -349,6 +349,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Descuento).HasColumnType("decimal(18,2)");
             b.Property(x => x.Propina).HasColumnType("decimal(18,2)");
             b.Property(x => x.Total).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Cambio).HasColumnType("decimal(18,2)");
             b.Property(x => x.NumeroFactura).HasMaxLength(9);
             b.HasIndex(x => x.NumeroFactura).IsUnique();
             b.Property(x => x.NumeroNcf).HasMaxLength(20);
@@ -379,6 +380,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
         {
             b.ToTable("FacturaPagos", "facturacion");
             b.Property(x => x.Monto).HasColumnType("decimal(18,2)");
+            b.Property(x => x.MontoRecibido).HasColumnType("decimal(18,2)");
             b.Property(x => x.NumeroComprobante).HasMaxLength(50);
             b.HasOne(x => x.Factura).WithMany(f => f.Pagos).HasForeignKey(x => x.FacturaId)
                 .OnDelete(DeleteBehavior.Cascade);

@@ -36,7 +36,14 @@ html, body {
         /* Padding vertical igual arriba y abajo para que la comanda cierre con el mismo
            margen con el que abre. */
         padding: 5mm;
-         
+
+    }
+
+    /* Un MudDialog de confirmación abierto en pantalla no debe colarse en la impresión
+       encima o en vez de .solo-imprimir. */
+    .mud-overlay,
+    .mud-dialog-container {
+        display: none !important;
     }
 }
 

@@ -47,6 +47,7 @@ public class Factura
     public decimal Descuento { get; set; }
     public decimal Propina { get; set; }
     public decimal Total { get; set; }
+    public decimal Cambio { get; set; }
 
     public EstadoDgii EstadoDgii { get; set; } = EstadoDgii.NoAplica;
     public DateTime FechaEmision { get; set; } = DateTime.UtcNow;

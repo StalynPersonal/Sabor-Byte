@@ -28,6 +28,7 @@ public class FacturaPagoDetalleDto
 {
     public string NombreMetodoPago { get; set; } = string.Empty;
     public decimal Monto { get; set; }
+    public decimal? MontoRecibido { get; set; }
     public string? NumeroComprobante { get; set; }
 }
 
@@ -50,6 +51,7 @@ public class FacturaDetalleCompletoDto
     public decimal Descuento { get; set; }
     public decimal Propina { get; set; }
     public decimal Total { get; set; }
+    public decimal Cambio { get; set; }
 
     public string? CodigoSeguridadDgii { get; set; }
 

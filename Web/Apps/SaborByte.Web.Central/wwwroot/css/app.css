@@ -29,6 +29,13 @@ html, body {
         left: 0;
     }
 
+    /* Un MudDialog de confirmación abierto en pantalla no debe colarse en la impresión
+       encima o en vez de .solo-imprimir. */
+    .mud-overlay,
+    .mud-dialog-container {
+        display: none !important;
+    }
+
     /* Formato configurable (ver FormatoImpresion) — mismo contenido, solo cambia
        ancho/tipografía según la impresora física conectada a esa estación. El padding
        vertical es igual arriba y abajo para que el documento cierre con el mismo margen

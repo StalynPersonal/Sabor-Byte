@@ -152,12 +152,14 @@ else
             <MudTable Items="_detalle.Pagos" Hover="true" Dense="true" Class="mb-3">
                 <HeaderContent>
                     <MudTh>Método</MudTh>
-                    <MudTh>Monto</MudTh>
+                    <MudTh>Monto aplicado</MudTh>
+                    <MudTh>Recibido</MudTh>
                     <MudTh>N° Comprobante</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.NombreMetodoPago</MudTd>
                     <MudTd>RD$ @context.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>@(context.MontoRecibido is null ? "—" : $"RD$ {context.MontoRecibido.Value.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)}")</MudTd>
                     <MudTd>@(context.NumeroComprobante ?? "—")</MudTd>
                 </RowTemplate>
             </MudTable>
@@ -185,6 +187,13 @@ else
                         <MudText Typo="Typo.subtitle1"><strong>Total</strong></MudText>
                         <MudText Typo="Typo.subtitle1"><strong>RD$ @_detalle.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                     </div>
+                    @if (_detalle.Cambio > 0)
+                    {
+                        <div class="d-flex justify-space-between">
+                            <MudText Typo="Typo.body2">Cambio</MudText>
+                            <MudText Typo="Typo.body2">RD$ @_detalle.Cambio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                        </div>
+                    }
                 </div>
             </div>
         }

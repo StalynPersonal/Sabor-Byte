@@ -117,6 +117,7 @@ public class FacturaAppService(IAppDbContext db)
             Descuento = factura.Descuento,
             Propina = factura.Propina,
             Total = factura.Total,
+            Cambio = factura.Cambio,
             Lineas = factura.Detalle.Select(d => new FacturaLineaDetalleDto
             {
                 NombreProducto = d.NombreProducto,
@@ -133,6 +134,7 @@ public class FacturaAppService(IAppDbContext db)
             {
                 NombreMetodoPago = p.MetodoPago?.Nombre ?? "?",
                 Monto = p.Monto,
+                MontoRecibido = p.MontoRecibido,
                 NumeroComprobante = p.NumeroComprobante
             }).ToList()
         };
