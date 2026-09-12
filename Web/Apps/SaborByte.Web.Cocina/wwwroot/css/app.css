@@ -10,6 +10,13 @@ html, body {
 }
 
 @media print {
+    /* Margen 0 del navegador/impresora: el espacio de arriba y abajo del documento lo
+       controla desde acá el padding de .solo-imprimir, no el diálogo de impresión (que
+       varía por impresora y por si el usuario lo toca). */
+    @page {
+        margin: 0;
+    }
+
     body * {
         visibility: hidden;
     }
@@ -26,6 +33,10 @@ html, body {
         width: 80mm;
         font-family: 'Courier New', monospace;
         font-size: 12px;
+        /* Padding vertical igual arriba y abajo para que la comanda cierre con el mismo
+           margen con el que abre. */
+        padding: 5mm;
+         
     }
 }
 

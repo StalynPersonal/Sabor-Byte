@@ -71,12 +71,18 @@ else
         <hr />
         @foreach (var item in _comandaAImprimir.Items.Where(i => i.Estado != EstadoItemComanda.Cancelado))
         {
-            <p style="margin:4px 0">@item.Cantidad x @item.NombreProducto</p>
+            <p style="margin:4px 0">@item.Cantidad x @item.NombreProducto@(string.IsNullOrEmpty(item.CodigoProducto) ? "" : $" ({item.CodigoProducto})")</p>
             @if (!string.IsNullOrEmpty(item.Notas))
             {
                 <p style="margin:0 0 4px 12px">Nota: @item.Notas</p>
             }
         }
+        @* Cierre con contenido real (no padding): muchas impresoras térmicas recortan el
+           espacio vacío al final para ahorrar papel, pero no pueden recortar contenido ya
+           impreso. También le confirma a cocina que la comanda salió completa. *@
+        <p style="margin:8px 0 0 0">&nbsp;</p>
+        <p style="text-align:center; margin:0">------------------------------</p>
+        <p style="text-align:center; margin:0; font-weight:bold">FIN DEL DOCUMENTO</p>
     </div>
 }
 

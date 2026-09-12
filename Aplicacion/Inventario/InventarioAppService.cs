@@ -265,7 +265,8 @@ public class InventarioAppService(IAppDbContext db, IEmailSender emailSender)
 
         var stock = await ObtenerOCrearStockAsync(insumoId, sucursalId, ct);
 
-        if (tipo == TipoMovimientoInventario.ConsumoVenta && stock.StockActual + cantidadConSigno < 0)
+        if (tipo == TipoMovimientoInventario.ConsumoVenta && !insumo.PermiteVentaConStockNegativo &&
+            stock.StockActual + cantidadConSigno < 0)
         {
             throw new InvalidOperationException(
                 $"Stock insuficiente de '{insumo.Nombre}' en esta sucursal: disponible {stock.StockActual:0.###}, solicitado {-cantidadConSigno:0.###}.");

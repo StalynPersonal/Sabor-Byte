@@ -44,6 +44,11 @@ public class Producto : EntidadBase
     // un Vendible-Inventariable no debe tener líneas de receta (ver ProductoAppService).
     public bool Inventariable { get; set; }
 
+    // Solo tiene efecto si Inventariable = true. Si está en false (default), vender por
+    // debajo de 0 se bloquea (ver InventarioAppService.RegistrarMovimientoAsync); si se
+    // marca en true, se permite vender aunque el stock quede negativo.
+    public bool PermiteVentaConStockNegativo { get; set; }
+
     public Guid UnidadMedidaId { get; set; }
     public UnidadMedida? UnidadMedida { get; set; }
 

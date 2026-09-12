@@ -119,8 +119,8 @@ else
             </MudAlert>
         }
 
-        <MudAutocomplete T="ProductoDetalleDto" Label="Producto" Value="_productoSeleccionadoForm" ValueChanged="p => _productoSeleccionadoForm = p"
-                          SearchFunc="BuscarInsumosAsync" ToStringFunc="@(p => p is null ? string.Empty : $"{p.Nombre} (stock: {p.StockActual:0.###})")"
+        <MudAutocomplete T="ProductoDetalleDto" Label="Producto (nombre o código)" Value="_productoSeleccionadoForm" ValueChanged="p => _productoSeleccionadoForm = p"
+                          SearchFunc="BuscarInsumosAsync" ToStringFunc="@(p => p is null ? string.Empty : $"{p.Nombre} ({p.Codigo}) — stock: {p.StockActual:0.###}")"
                           Clearable="true" Class="mb-2" />
 
         @if (_esAjuste)

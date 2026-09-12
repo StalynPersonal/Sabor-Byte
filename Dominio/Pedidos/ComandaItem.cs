@@ -17,6 +17,7 @@ public class ComandaItem
 
     public Guid ProductoId { get; set; }
     public string NombreProducto { get; set; } = string.Empty; // snapshot al pedir
+    public string? CodigoProducto { get; set; } // snapshot al pedir
     public decimal Cantidad { get; set; }
     public EstadoItemComanda Estado { get; set; } = EstadoItemComanda.Pendiente;
     public string? Notas { get; set; }

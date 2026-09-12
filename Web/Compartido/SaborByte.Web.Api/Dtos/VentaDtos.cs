@@ -11,9 +11,19 @@ public class ProductoResumenDto
     public Guid CategoriaId { get; set; }
     public string CategoriaNombre { get; set; } = string.Empty;
 
+    // Solo tienen sentido si Inventariable = true (stock propio, ej. reventa) — un
+    // producto que se prepara por receta no lleva stock directo y siempre viaja en 0/false.
+    public bool Inventariable { get; set; }
+    public decimal StockActual { get; set; }
+    public bool PermiteVentaConStockNegativo { get; set; }
+
     // Precio que se muestra en las pantallas de venta (Caja/Mesero): el que carga el
     // cliente en el carrito/pedido es el base (sin ITBIS) — este es solo para mostrar.
     public decimal PrecioConItbis => Precio * (1 + TasaItbis);
+
+    // true si este producto no se puede agregar más (lleva stock propio, está en 0 o
+    // menos, y no tiene permitida la venta con stock negativo).
+    public bool SinStock => Inventariable && StockActual <= 0 && !PermiteVentaConStockNegativo;
 }
 
 public class ItemVentaDto

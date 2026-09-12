@@ -18,6 +18,8 @@ public class UnidadMedidaAppService(IAppDbContext db)
 
     public async Task<Guid> CrearAsync(GuardarUnidadMedidaRequestDto request, CancellationToken ct = default)
     {
+        ValidarNombre(request.Nombre);
+
         var yaExiste = await db.UnidadesMedida.AnyAsync(u => u.Nombre == request.Nombre, ct);
         if (yaExiste)
             throw new InvalidOperationException($"Ya existe una unidad de medida llamada '{request.Nombre}'.");
@@ -30,6 +32,8 @@ public class UnidadMedidaAppService(IAppDbContext db)
 
     public async Task ActualizarAsync(Guid unidadMedidaId, GuardarUnidadMedidaRequestDto request, CancellationToken ct = default)
     {
+        ValidarNombre(request.Nombre);
+
         var unidad = await db.UnidadesMedida.FirstOrDefaultAsync(u => u.Id == unidadMedidaId, ct)
             ?? throw new InvalidOperationException("La unidad de medida no existe.");
 
@@ -40,5 +44,11 @@ public class UnidadMedidaAppService(IAppDbContext db)
         unidad.Nombre = request.Nombre;
         unidad.Activo = request.Activo;
         await db.SaveChangesAsync(ct);
+    }
+
+    private static void ValidarNombre(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new InvalidOperationException("El nombre de la unidad de medida es obligatorio.");
     }
 }

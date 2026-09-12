@@ -18,9 +18,6 @@
         <MudTooltip Text="Ir a caja">
             <MudIconButton Icon="@Icons.Material.Filled.PointOfSale" Color="Color.Inherit" OnClick="@(() => Navegacion.NavigateTo("/inicio"))" />
         </MudTooltip>
-        <MudTooltip Text="Deliveries">
-            <MudIconButton Icon="@Icons.Material.Filled.DeliveryDining" Color="Color.Inherit" OnClick="@(() => Navegacion.NavigateTo("/deliveries"))" />
-        </MudTooltip>
         @if (Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor"))
         {
             <MudTooltip Text="Gastos">

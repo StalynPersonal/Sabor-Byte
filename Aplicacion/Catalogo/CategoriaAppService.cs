@@ -17,6 +17,8 @@ public class CategoriaAppService(IAppDbContext db)
 
     public async Task<Guid> CrearAsync(Guid usuarioId, GuardarCategoriaRequestDto request, CancellationToken ct = default)
     {
+        ValidarNombre(request.Nombre);
+
         var categoria = new Categoria
         {
             Nombre = request.Nombre,
@@ -31,6 +33,8 @@ public class CategoriaAppService(IAppDbContext db)
 
     public async Task ActualizarAsync(Guid categoriaId, GuardarCategoriaRequestDto request, CancellationToken ct = default)
     {
+        ValidarNombre(request.Nombre);
+
         var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Id == categoriaId, ct)
             ?? throw new InvalidOperationException("La categoría no existe.");
 
@@ -38,5 +42,11 @@ public class CategoriaAppService(IAppDbContext db)
         categoria.Orden = request.Orden;
         categoria.Activo = request.Activo;
         await db.SaveChangesAsync(ct);
+    }
+
+    private static void ValidarNombre(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            throw new InvalidOperationException("El nombre de la categoría es obligatorio.");
     }
 }

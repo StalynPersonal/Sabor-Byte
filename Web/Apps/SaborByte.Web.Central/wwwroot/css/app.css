@@ -7,6 +7,13 @@ html, body {
 }
 
 @media print {
+    /* Margen 0 del navegador/impresora: el espacio de arriba y abajo del documento lo
+       controla desde acá el padding de .solo-imprimir, no el diálogo de impresión (que
+       varía por impresora y por si el usuario lo toca). */
+    @page {
+        margin: 0;
+    }
+
     body * {
         visibility: hidden;
     }
@@ -23,23 +30,28 @@ html, body {
     }
 
     /* Formato configurable (ver FormatoImpresion) — mismo contenido, solo cambia
-       ancho/tipografía según la impresora física conectada a esa estación. */
+       ancho/tipografía según la impresora física conectada a esa estación. El padding
+       vertical es igual arriba y abajo para que el documento cierre con el mismo margen
+       con el que abre. */
     .solo-imprimir.formato-ticket-80mm {
         width: 80mm;
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: 14px;
+        padding: 5mm;
     }
 
     .solo-imprimir.formato-ticket-58mm {
         width: 58mm;
         font-family: 'Courier New', monospace;
-        font-size: 10px;
+        font-size: 14px;
+        padding: 5mm;
     }
 
     .solo-imprimir.formato-carta {
         width: 190mm;
         font-family: Arial, Helvetica, sans-serif;
         font-size: 13px;
+        padding: 15mm;
     }
 }
 

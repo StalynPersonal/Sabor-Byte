@@ -16,8 +16,14 @@ namespace SaborByte.Api.Controllers;
 public class ProductosController(ProductoAppService productos) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Buscar([FromQuery] string? texto, [FromQuery] Guid? categoriaId, CancellationToken ct) =>
-        Ok(await productos.BuscarAsync(texto ?? string.Empty, categoriaId, ct));
+    public async Task<IActionResult> Buscar(
+        [FromQuery] string? texto, [FromQuery] Guid? categoriaId, [FromQuery] Guid? sucursalId, CancellationToken ct)
+    {
+        if (sucursalId is Guid sid && !User.IsInRole("Admin") && !User.TieneAccesoASucursal(sid))
+            return Forbid();
+
+        return Ok(await productos.BuscarAsync(texto ?? string.Empty, categoriaId, sucursalId, ct));
+    }
 
     [HttpGet("todos")]
     public async Task<IActionResult> Listar(

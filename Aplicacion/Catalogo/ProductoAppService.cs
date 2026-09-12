@@ -14,7 +14,10 @@ public class ProductoAppService(IAppDbContext db)
 {
     // Búsqueda rápida para Caja/Mesero: por código de barra exacto (cualquiera de los
     // asociados al producto) o por coincidencia parcial de nombre/código propio.
-    public async Task<List<ProductoResumenDto>> BuscarAsync(string texto, Guid? categoriaId = null, CancellationToken ct = default)
+    // sucursalId es opcional para no romper otros llamadores existentes, pero sin él no se
+    // puede marcar "sin stock" (StockActual queda en 0 y Inventariable en false).
+    public async Task<List<ProductoResumenDto>> BuscarAsync(
+        string texto, Guid? categoriaId = null, Guid? sucursalId = null, CancellationToken ct = default)
     {
         var query = db.Productos.Where(p => p.Activo && p.TipoProducto == TipoProducto.Vendible);
 
@@ -32,6 +35,8 @@ public class ProductoAppService(IAppDbContext db)
         return await (
                 from p in query
                 join c in db.Categorias on p.CategoriaId equals c.Id
+                join s in db.StockPorSucursal.Where(s => s.SucursalId == sucursalId) on p.Id equals s.ProductoId into stocks
+                from s in stocks.DefaultIfEmpty()
                 orderby p.Nombre
                 select new ProductoResumenDto
                 {
@@ -43,7 +48,10 @@ public class ProductoAppService(IAppDbContext db)
                     TasaItbis = p.TasaItbis,
                     TipoProducto = p.TipoProducto,
                     CategoriaId = p.CategoriaId,
-                    CategoriaNombre = c.Nombre
+                    CategoriaNombre = c.Nombre,
+                    Inventariable = p.Inventariable,
+                    StockActual = p.Inventariable ? (s != null ? s.StockActual : 0) : 0,
+                    PermiteVentaConStockNegativo = p.PermiteVentaConStockNegativo
                 })
             .Take(50)
             .ToListAsync(ct);
@@ -241,6 +249,7 @@ public class ProductoAppService(IAppDbContext db)
             TasaItbis = request.TasaItbis,
             TipoProducto = request.TipoProducto,
             Inventariable = inventariable,
+            PermiteVentaConStockNegativo = request.PermiteVentaConStockNegativo,
             UnidadMedidaId = request.UnidadMedidaId,
             CreadoPorUsuarioId = usuarioId
         };
@@ -317,6 +326,7 @@ public class ProductoAppService(IAppDbContext db)
         producto.TasaItbis = request.TasaItbis;
         producto.TipoProducto = request.TipoProducto;
         producto.Inventariable = inventariable;
+        producto.PermiteVentaConStockNegativo = request.PermiteVentaConStockNegativo;
         producto.UnidadMedidaId = request.UnidadMedidaId;
         producto.ActualizadoEn = DateTime.UtcNow;
         producto.ActualizadoPorUsuarioId = usuarioId;
@@ -687,6 +697,7 @@ public class ProductoAppService(IAppDbContext db)
         TasaItbis = p.TasaItbis,
         TipoProducto = p.TipoProducto,
         Inventariable = p.Inventariable,
+        PermiteVentaConStockNegativo = p.PermiteVentaConStockNegativo,
         UnidadMedidaId = p.UnidadMedidaId,
         EsCombo = p.EsCombo,
         CreadoEn = p.CreadoEn,

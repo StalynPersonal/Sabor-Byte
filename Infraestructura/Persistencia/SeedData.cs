@@ -24,12 +24,25 @@ public static class SeedData
         var sucursal = new Sucursal { EmpresaId = empresa.Id, Nombre = "Sucursal Principal", Codigo = "01" };
         db.Sucursales.Add(sucursal);
 
-        var roles = new[] { "Admin", "Supervisor", "Cajero", "Mesero", "Cocina", "AutorizaNotaCredito" }
-            .Select(nombre => new Rol { Nombre = nombre })
-            .ToList();
-        db.Roles.AddRange(roles);
+        // "AutorizaNotaCredito" puede ya existir aquí: la migración AgregaRolAutorizaNotaCredito
+        // lo inserta por SQL directo justo antes de que corra este seed (ver esa migración) —
+        // sin este chequeo, insertarlo de nuevo choca con el índice único de Roles.Nombre.
+        var nombresRoles = new[] { "Admin", "Supervisor", "Cajero", "Mesero", "Cocina", "AutorizaNotaCredito" };
+        var rolesPorNombre = await db.Roles
+            .Where(r => nombresRoles.Contains(r.Nombre))
+            .ToDictionaryAsync(r => r.Nombre);
 
-        var rolAdmin = roles.First(r => r.Nombre == "Admin");
+        foreach (var nombre in nombresRoles)
+        {
+            if (rolesPorNombre.ContainsKey(nombre))
+                continue;
+
+            var rol = new Rol { Nombre = nombre };
+            db.Roles.Add(rol);
+            rolesPorNombre[nombre] = rol;
+        }
+
+        var rolAdmin = rolesPorNombre["Admin"];
 
         var admin = new Usuario
         {
@@ -42,7 +55,7 @@ public static class SeedData
         db.UsuarioRoles.Add(new UsuarioRol { Usuario = admin, Rol = rolAdmin });
         db.UsuarioSucursales.Add(new UsuarioSucursal { Usuario = admin, SucursalId = sucursal.Id });
 
-        var rolSupervisor = roles.First(r => r.Nombre == "Supervisor");
+        var rolSupervisor = rolesPorNombre["Supervisor"];
         var supervisor = new Usuario
         {
             NombreUsuario = "supervisor",

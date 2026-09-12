@@ -244,6 +244,18 @@ else
                 </MudAlert>
             }
         }
+
+        @if (_form.TipoProducto == TipoProducto.Insumo || _form.Inventariable)
+        {
+            <MudCheckBox T="bool" @bind-Value="_form.PermiteVentaConStockNegativo" Label="Permitir venta con stock negativo" Class="mb-1" />
+            @if (_form.PermiteVentaConStockNegativo)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-2" Dense="true">
+                    Se podrá seguir vendiendo aunque el stock llegue a 0 o quede negativo. Por
+                    defecto esto está bloqueado para no vender algo que físicamente no existe.
+                </MudAlert>
+            }
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
@@ -395,7 +407,7 @@ else
 <MudDialog @bind-Visible="_creandoUnidadMedida" Options="_opcionesDialogo">
     <TitleContent>Nueva unidad de medida</TitleContent>
     <DialogContent>
-        <MudTextField T="string" Label="Nombre" @bind-Value="_formUnidadMedida.Nombre" Class="mb-2" />
+        <MudTextField T="string" Label="Nombre" @bind-Value="_formUnidadMedida.Nombre" Required="true" RequiredError="El nombre es obligatorio." Class="mb-2" />
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _creandoUnidadMedida = false">Cancelar</MudButton>
@@ -979,6 +991,7 @@ else
         TasaItbis = producto.TasaItbis,
         TipoProducto = producto.TipoProducto,
         Inventariable = producto.Inventariable,
+        PermiteVentaConStockNegativo = producto.PermiteVentaConStockNegativo,
         UnidadMedidaId = producto.UnidadMedidaId,
         CategoriaId = producto.CategoriaId,
         Receta = producto.Receta.Select(r => new IngredienteRequestDto

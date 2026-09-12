@@ -71,6 +71,7 @@ public class ComandaAppService(
                 ComandaId = comanda.Id,
                 ProductoId = producto.Id,
                 NombreProducto = producto.Nombre,
+                CodigoProducto = producto.Codigo,
                 Cantidad = item.Cantidad,
                 PrecioUnitario = producto.Precio,
                 Notas = item.Notas
@@ -93,9 +94,9 @@ public class ComandaAppService(
 
         mesa.Estado = EstadoMesa.Ocupada;
 
-        await db.SaveChangesAsync(ct); // asigna NumeroComanda (identity)
-
-        // Descontar inventario al enviar a cocina (ver sección 5 del plan).
+        // Descontar inventario ANTES de guardar (mismo orden que VentaAppService.CrearAsync):
+        // si algún insumo no tiene stock suficiente, la excepción evita que la comanda llegue
+        // a persistirse, en vez de quedar ya guardada y enviada a cocina con el descuento fallido.
         foreach (var item in comanda.Items)
         {
             await inventario.DescontarPorVentaAsync(
@@ -105,7 +106,7 @@ public class ComandaAppService(
             item.InventarioDescontado = true;
         }
 
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(ct); // asigna NumeroComanda (identity) y persiste todo junto
         await inventario.EnviarAlertasPendientesAsync(ct);
 
         var dto = MapearComanda(comanda);
@@ -316,6 +317,7 @@ public class ComandaAppService(
         Id = i.Id,
         ProductoId = i.ProductoId,
         NombreProducto = i.NombreProducto,
+        CodigoProducto = i.CodigoProducto,
         Cantidad = i.Cantidad,
         PrecioUnitario = i.PrecioUnitario,
         Estado = i.Estado,

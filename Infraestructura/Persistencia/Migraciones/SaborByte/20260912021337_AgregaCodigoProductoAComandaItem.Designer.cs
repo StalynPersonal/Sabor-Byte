@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SaborByte.Infraestructura.Persistencia;
 
 #nullable disable
 
-namespace SaborByte.Infraestructura.Persistencia.Migraciones
+namespace SaborByte.Infraestructura.Persistencia.Migraciones.SaborByte
 {
     [DbContext(typeof(SaborByteDbContext))]
-    partial class SaborByteDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912021337_AgregaCodigoProductoAComandaItem")]
+    partial class AgregaCodigoProductoAComandaItem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -404,9 +407,6 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("PermiteVentaConStockNegativo")
-                        .HasColumnType("bit");
 
                     b.Property<decimal>("Precio")
                         .HasColumnType("decimal(18,2)");

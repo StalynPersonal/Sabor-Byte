@@ -303,6 +303,12 @@ else
         </div>
         <hr />
         <p style="text-align:center; margin-top:8px; font-size:0.85em">Este recibo es solo informativo, no reemplaza la factura.</p>
+        @* Cierre con contenido real (no padding): muchas impresoras térmicas recortan el
+           espacio vacío al final para ahorrar papel, pero no pueden recortar contenido ya
+           impreso. *@
+        <p style="margin:8px 0 0 0">&nbsp;</p>
+        <p style="text-align:center; margin:0">------------------------------</p>
+        <p style="text-align:center; margin:0; font-weight:bold">FIN DEL DOCUMENTO</p>
     </div>
 }
 

@@ -56,7 +56,7 @@ else
 <MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
     <TitleContent>@(_categoriaId is null ? "Nueva categoría" : "Editar categoría")</TitleContent>
     <DialogContent>
-        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
+        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Required="true" RequiredError="El nombre es obligatorio." Class="mb-2" />
         <MudNumericField T="int" Label="Orden" @bind-Value="_form.Orden" Class="mb-2" />
         <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
     </DialogContent>
@@ -114,6 +114,13 @@ else
     private async Task GuardarAsync()
     {
         if (_procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_form.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Error);
+            return;
+        }
+
         _procesando = true;
         try
         {

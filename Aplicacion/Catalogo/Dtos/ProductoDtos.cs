@@ -13,6 +13,12 @@ public class ProductoResumenDto
     public TipoProducto TipoProducto { get; set; }
     public Guid CategoriaId { get; set; }
     public required string CategoriaNombre { get; set; }
+
+    // Solo tienen sentido si Inventariable = true (stock propio, ej. reventa) — un
+    // producto que se prepara por receta no lleva stock directo y siempre viaja en 0/false.
+    public bool Inventariable { get; set; }
+    public decimal StockActual { get; set; }
+    public bool PermiteVentaConStockNegativo { get; set; }
 }
 
 public class ComponenteComboRequestDto
@@ -66,6 +72,7 @@ public class ProductoDetalleDto
     public decimal TasaItbis { get; set; }
     public TipoProducto TipoProducto { get; set; }
     public bool Inventariable { get; set; }
+    public bool PermiteVentaConStockNegativo { get; set; }
     public Guid UnidadMedidaId { get; set; }
     public decimal? StockMinimo { get; set; }
     public decimal? StockMaximo { get; set; }
@@ -111,6 +118,10 @@ public class GuardarProductoRequestDto
     // Solo relevante cuando TipoProducto = Vendible (un Insumo siempre es inventariable,
     // se ignora este valor). Mutuamente excluyente con Receta — ver ProductoAppService.
     public bool Inventariable { get; set; }
+
+    // Solo tiene efecto si Inventariable = true (o si TipoProducto = Insumo). Ver
+    // Producto.PermiteVentaConStockNegativo.
+    public bool PermiteVentaConStockNegativo { get; set; }
 
     public Guid UnidadMedidaId { get; set; }
 

@@ -44,6 +44,7 @@ public class ComandaItemDto
     public Guid Id { get; set; }
     public Guid ProductoId { get; set; }
     public string NombreProducto { get; set; } = string.Empty;
+    public string? CodigoProducto { get; set; }
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
     public EstadoItemComanda Estado { get; set; }
