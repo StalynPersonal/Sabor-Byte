@@ -463,6 +463,14 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await http.GetFromJsonAsync<List<ClienteDto>>(url) ?? [];
     }
 
+    public async Task<ResultadoPaginadoDto<ClienteDto>> ListarClientesPaginadoAsync(Guid sucursalId, string? texto, int pagina, int tamanoPagina)
+    {
+        AdjuntarToken();
+        var url = $"api/clientes/todos?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
+        if (!string.IsNullOrWhiteSpace(texto)) url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<ClienteDto>>(url) ?? new();
+    }
+
     public async Task<ClienteDto?> ObtenerClienteGenericoAsync(Guid sucursalId)
     {
         AdjuntarToken();
@@ -685,10 +693,11 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<List<SecuenciaNcfDto>> ListarSecuenciasNcfAsync(Guid sucursalId)
+    public async Task<ResultadoPaginadoDto<SecuenciaNcfDto>> ListarSecuenciasNcfAsync(Guid sucursalId, int pagina, int tamanoPagina)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<List<SecuenciaNcfDto>>($"api/secuenciasncf?sucursalId={sucursalId}") ?? [];
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<SecuenciaNcfDto>>(
+            $"api/secuenciasncf?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}") ?? new();
     }
 
     public async Task<(bool Exito, string? Error)> CrearSecuenciaNcfAsync(Guid sucursalId, GuardarSecuenciaNcfRequestDto request)
@@ -1020,6 +1029,16 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         if (!string.IsNullOrWhiteSpace(texto))
             url += $"&texto={Uri.EscapeDataString(texto)}";
         return await http.GetFromJsonAsync<List<DeliveryDto>>(url) ?? [];
+    }
+
+    public async Task<ResultadoPaginadoDto<DeliveryDto>> ListarDeliveriesPaginadoAsync(
+        Guid sucursalId, bool incluirInactivos, string? texto, int pagina, int tamanoPagina)
+    {
+        AdjuntarToken();
+        var url = $"api/deliveries/todos?sucursalId={sucursalId}&incluirInactivos={incluirInactivos}&pagina={pagina}&tamanoPagina={tamanoPagina}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&texto={Uri.EscapeDataString(texto)}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<DeliveryDto>>(url) ?? new();
     }
 
     public async Task<(bool Exito, Guid? Id, string? Error)> CrearDeliveryAsync(Guid sucursalId, GuardarDeliveryRequestDto request)

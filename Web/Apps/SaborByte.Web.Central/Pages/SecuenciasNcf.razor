@@ -34,7 +34,7 @@ else
         }
     </MudSelect>
 
-    <MudTable Items="_secuencias" Hover="true" Dense="true">
+    <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="SecuenciaNcfDto">
         <HeaderContent>
             <MudTh>Serie</MudTh>
             <MudTh>Tipo</MudTh>
@@ -59,6 +59,9 @@ else
                 </MudTooltip>
             </MudTd>
         </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
     </MudTable>
 }
 
@@ -92,7 +95,7 @@ else
 @code {
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
 
-    private List<SecuenciaNcfDto> _secuencias = [];
+    private MudTable<SecuenciaNcfDto>? _tabla;
     private bool _editando;
     private bool _procesando;
     private Guid? _secuenciaId;
@@ -114,25 +117,23 @@ else
         _sucursalId = _sucursales.Any(s => s.Id == Sesion.SucursalActivaId)
             ? Sesion.SucursalActivaId
             : _sucursales.FirstOrDefault()?.Id ?? Guid.Empty;
-
-        await CargarAsync();
     }
 
     private async Task OnSucursalCambiadaAsync(Guid sucursalId)
     {
         _sucursalId = sucursalId;
-        await CargarAsync();
+        await RecargarAsync();
     }
 
-    private async Task CargarAsync()
+    private Task RecargarAsync() => _tabla?.ReloadServerData() ?? Task.CompletedTask;
+
+    private async Task<TableData<SecuenciaNcfDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
     {
         if (_sucursalId == Guid.Empty)
-        {
-            _secuencias = [];
-            return;
-        }
+            return new TableData<SecuenciaNcfDto>();
 
-        _secuencias = await ApiClient.ListarSecuenciasNcfAsync(_sucursalId);
+        var resultado = await ApiClient.ListarSecuenciasNcfAsync(_sucursalId, estado.Page + 1, estado.PageSize);
+        return new TableData<SecuenciaNcfDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
 
     private void NuevaSecuencia()
@@ -180,7 +181,7 @@ else
 
         Snackbar.Add(_secuenciaId is null ? "Secuencia creada." : "Secuencia actualizada.", Severity.Success);
         _editando = false;
-        await CargarAsync();
+        await RecargarAsync();
         }
         finally
         {

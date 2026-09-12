@@ -18,6 +18,15 @@ public class DeliveriesController(DeliveryAppService deliveries) : ControllerBas
         return Ok(await deliveries.ListarAsync(sucursalId, incluirInactivos, texto, ct));
     }
 
+    [HttpGet("todos")]
+    public async Task<IActionResult> ListarPaginado(
+        [FromQuery] Guid sucursalId, [FromQuery] bool incluirInactivos, [FromQuery] string? texto,
+        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+        return Ok(await deliveries.ListarPaginadoAsync(sucursalId, incluirInactivos, texto, pagina, tamanoPagina, ct));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Crear([FromQuery] Guid sucursalId, GuardarDeliveryRequestDto request, CancellationToken ct)
     {

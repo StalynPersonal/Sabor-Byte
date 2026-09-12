@@ -20,6 +20,16 @@ public class ClientesController(ClienteAppService clientes) : ControllerBase
         return Ok(await clientes.BuscarAsync(sucursalId, texto, ct));
     }
 
+    [HttpGet("todos")]
+    public async Task<IActionResult> ListarPaginado(
+        [FromQuery] Guid sucursalId, [FromQuery] string? texto, [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await clientes.ListarPaginadoAsync(sucursalId, texto, pagina, tamanoPagina, ct));
+    }
+
     [HttpGet("generico")]
     public async Task<IActionResult> ObtenerGenerico([FromQuery] Guid sucursalId, CancellationToken ct)
     {

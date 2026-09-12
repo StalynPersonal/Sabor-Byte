@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SaborByte.Aplicacion.Comun;
 using SaborByte.Aplicacion.Facturacion.Dtos;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Facturacion;
@@ -11,12 +12,24 @@ public class SecuenciaNcfAppService(IAppDbContext db)
     // esta lista para no dejar registrar un tipo inventado que después nadie use.
     private static readonly HashSet<string> TiposValidos = ["31", "32", "33", "34", "41", "43", "44", "45"];
 
-    public async Task<List<SecuenciaNcfDto>> ListarAsync(Guid sucursalId, CancellationToken ct = default) =>
-        await db.SecuenciasNcf
-            .Where(s => s.SucursalId == sucursalId)
+    public async Task<ResultadoPaginado<SecuenciaNcfDto>> ListarAsync(
+        Guid sucursalId, int pagina, int tamanoPagina, CancellationToken ct = default)
+    {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
+        var query = db.SecuenciasNcf.Where(s => s.SucursalId == sucursalId);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
             .OrderBy(s => s.TipoComprobante)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
             .Select(s => MapearDto(s))
             .ToListAsync(ct);
+
+        return new ResultadoPaginado<SecuenciaNcfDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
 
     public async Task<Guid> CrearAsync(Guid sucursalId, Guid usuarioId, GuardarSecuenciaNcfRequestDto request, CancellationToken ct = default)
     {

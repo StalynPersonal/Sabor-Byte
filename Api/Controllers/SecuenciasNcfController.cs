@@ -14,12 +14,13 @@ namespace SaborByte.Api.Controllers;
 public class SecuenciasNcfController(SecuenciaNcfAppService secuencias) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Listar([FromQuery] Guid sucursalId, CancellationToken ct)
+    public async Task<IActionResult> Listar(
+        [FromQuery] Guid sucursalId, [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
-        return Ok(await secuencias.ListarAsync(sucursalId, ct));
+        return Ok(await secuencias.ListarAsync(sucursalId, pagina, tamanoPagina, ct));
     }
 
     [HttpPost]

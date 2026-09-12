@@ -8,6 +8,37 @@ namespace SaborByte.Aplicacion.Deliveries;
 
 public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
 {
+    // Paginado, para el listado de administración en Central (ListarAsync de abajo se queda
+    // sin paginar — lo usa la pestaña de Deliveries en Caja, que no tiene paginador en su UI).
+    public async Task<ResultadoPaginado<DeliveryDto>> ListarPaginadoAsync(
+        Guid sucursalId, bool incluirInactivos, string? texto, int pagina, int tamanoPagina, CancellationToken ct = default)
+    {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
+        var query = db.Deliveries.Where(d => d.SucursalId == sucursalId && (incluirInactivos || d.Activo));
+
+        if (!string.IsNullOrWhiteSpace(texto))
+            query = query.Where(d => EF.Functions.Like(d.Nombre, $"%{texto}%"));
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderBy(d => d.Nombre)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .Select(d => new DeliveryDto
+            {
+                Id = d.Id,
+                Nombre = d.Nombre,
+                Telefono = d.Telefono,
+                Activo = d.Activo,
+                SaldoPendiente = d.SaldoPendiente
+            })
+            .ToListAsync(ct);
+
+        return new ResultadoPaginado<DeliveryDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
     public async Task<List<DeliveryDto>> ListarAsync(Guid sucursalId, bool incluirInactivos = false, string? texto = null, CancellationToken ct = default)
     {
         var query = db.Deliveries.Where(d => d.SucursalId == sucursalId && (incluirInactivos || d.Activo));

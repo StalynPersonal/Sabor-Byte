@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Clientes.Dtos;
+using SaborByte.Aplicacion.Comun;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Clientes;
 
@@ -7,6 +8,45 @@ namespace SaborByte.Aplicacion.Clientes;
 
 public class ClienteAppService(IAppDbContext db)
 {
+    // Paginado, para el listado de administración en Central (BuscarAsync de abajo se
+    // queda sin paginar — la usa el autocomplete de Caja/Mesero, que solo necesita las
+    // primeras coincidencias, no navegar por páginas).
+    public async Task<ResultadoPaginado<ClienteDto>> ListarPaginadoAsync(
+        Guid sucursalId, string? texto, int pagina, int tamanoPagina, CancellationToken ct = default)
+    {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
+        var query = db.Clientes.Where(c => c.SucursalId == sucursalId && c.Activo);
+
+        if (!string.IsNullOrWhiteSpace(texto))
+        {
+            query = query.Where(c =>
+                EF.Functions.Like(c.NombreORazonSocial, $"%{texto}%") ||
+                (c.RncOCedula != null && EF.Functions.Like(c.RncOCedula, $"%{texto}%")));
+        }
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderBy(c => c.NombreORazonSocial)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .Select(c => new ClienteDto
+            {
+                Id = c.Id,
+                NombreORazonSocial = c.NombreORazonSocial,
+                RncOCedula = c.RncOCedula,
+                Telefono = c.Telefono,
+                Email = c.Email,
+                Direccion = c.Direccion,
+                TipoCliente = c.TipoCliente,
+                Activo = c.Activo
+            })
+            .ToListAsync(ct);
+
+        return new ResultadoPaginado<ClienteDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
     public async Task<List<ClienteDto>> BuscarAsync(Guid sucursalId, string? texto, CancellationToken ct = default)
     {
         var query = db.Clientes.Where(c => c.SucursalId == sucursalId && c.Activo);

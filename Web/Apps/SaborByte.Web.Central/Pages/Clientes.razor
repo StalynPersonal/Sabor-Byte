@@ -22,9 +22,10 @@ else
     </div>
 
     <MudTextField T="string" Label="Buscar por nombre o RNC/Cédula" @bind-Value="_textoBusqueda"
-                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="CargarAsync" Class="mb-4" />
+                   Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarAsync"
+                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-4" />
 
-    <MudTable Items="_clientes" Hover="true" Dense="true">
+    <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="ClienteDto">
         <HeaderContent>
             <MudTh>Nombre / Razón social</MudTh>
             <MudTh>RNC/Cédula</MudTh>
@@ -46,6 +47,9 @@ else
                 </MudTooltip>
             </MudTd>
         </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
     </MudTable>
 }
 
@@ -85,14 +89,14 @@ else
 @code {
     private readonly DialogOptions _opcionesDialogo = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
 
-    private List<ClienteDto> _clientes = [];
+    private MudTable<ClienteDto>? _tabla;
     private string _textoBusqueda = string.Empty;
     private bool _editando;
     private bool _procesando;
     private Guid? _clienteId;
     private GuardarClienteRequestDto _form = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         if (!Sesion.EstaAutenticado)
         {
@@ -103,30 +107,27 @@ else
         if (Sesion.RequiereSeleccionSucursal)
         {
             Navegacion.NavigateTo("/seleccionar-sucursal");
-            return;
         }
-
-        await CargarAsync();
     }
 
-    private async Task CargarAsync()
+    private Task RecargarAsync() => _tabla?.ReloadServerData() ?? Task.CompletedTask;
+
+    private async Task<TableData<ClienteDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
     {
         var sucursalId = Sesion.SucursalActivaId;
         if (sucursalId == Guid.Empty)
-        {
-            _clientes = [];
-            return;
-        }
+            return new TableData<ClienteDto>();
 
         try
         {
-            _clientes = await ApiClient.BuscarClientesAsync(sucursalId, _textoBusqueda);
+            var resultado = await ApiClient.ListarClientesPaginadoAsync(sucursalId, _textoBusqueda, estado.Page + 1, estado.PageSize);
+            return new TableData<ClienteDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
         }
         catch (HttpRequestException)
         {
             // Sesión vencida (ver SesionExpiradaHandler) u otro problema de red: no tumbar
             // toda la pantalla, simplemente dejar el listado en blanco.
-            _clientes = [];
+            return new TableData<ClienteDto>();
         }
     }
 
@@ -175,7 +176,7 @@ else
 
             Snackbar.Add(_clienteId is null ? "Cliente creado." : "Cliente actualizado.", Severity.Success);
             _editando = false;
-            await CargarAsync();
+            await RecargarAsync();
         }
         finally
         {
@@ -188,6 +189,6 @@ else
         var sucursalId = Sesion.SucursalActivaId;
         await ApiClient.DesactivarClienteAsync(sucursalId, id);
         Snackbar.Add("Cliente desactivado.", Severity.Success);
-        await CargarAsync();
+        await RecargarAsync();
     }
 }
