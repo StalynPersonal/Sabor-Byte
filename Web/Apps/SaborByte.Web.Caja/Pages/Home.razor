@@ -1170,6 +1170,7 @@ else
     </DialogActions>
 </MudDialog>
 
+@* ===== RECIBO INFORMATIVO DE DELIVERY (no es comprobante fiscal) ===== *@
 @if (_reciboDeliveryAImprimir is not null)
 {
     <div class="solo-imprimir @ClaseFormatoImpresion">
@@ -1194,6 +1195,7 @@ else
     </div>
 }
 
+@* ===== FACTURA ORIGINAL (recién facturada, se imprime una sola vez) ===== *@
 @if (_ultimaVenta is not null)
 {
     <div class="solo-imprimir @ClaseFormatoImpresion">
@@ -1272,6 +1274,7 @@ else
     </DialogActions>
 </MudDialog>
 
+@* ===== NOTA DE CRÉDITO (anulación/devolución de una factura) ===== *@
 @if (_ultimaNota is not null)
 {
     <div class="solo-imprimir @ClaseFormatoImpresion">
@@ -1293,6 +1296,7 @@ else
     </div>
 }
 
+@* ===== DUPLICADO (reimpresión de una factura ya emitida, marcado "NO VÁLIDO COMO ORIGINAL") ===== *@
 @if (_facturaAReimprimir is not null)
 {
     <div class="solo-imprimir @ClaseFormatoImpresion">
