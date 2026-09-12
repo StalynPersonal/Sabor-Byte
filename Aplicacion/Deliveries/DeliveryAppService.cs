@@ -77,7 +77,12 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
     // el módulo de ventas/facturación se mantiene intacto.
     public async Task<List<FacturaAsignableDto>> BuscarFacturasAsignablesAsync(Guid sucursalId, string? texto, CancellationToken ct = default)
     {
-        var query = db.Facturas.Where(f => f.SucursalId == sucursalId);
+        // Solo facturas emitidas desde una caja actualmente activa de esta sucursal — una
+        // caja dada de baja no debería seguir generando facturas asignables a deliveries.
+        var cajasActivasIds = db.Cajas.Where(c => c.SucursalId == sucursalId && c.Activa).Select(c => c.Id);
+        var turnosDeCajasActivasIds = db.TurnosCaja.Where(t => cajasActivasIds.Contains(t.CajaId)).Select(t => t.Id);
+
+        var query = db.Facturas.Where(f => f.SucursalId == sucursalId && turnosDeCajasActivasIds.Contains(f.CajaTurnoId));
 
         if (!string.IsNullOrWhiteSpace(texto))
             query = query.Where(f =>

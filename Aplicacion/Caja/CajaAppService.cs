@@ -371,6 +371,13 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         if (hayComandasAbiertas)
             throw new InvalidOperationException("No se puede cerrar el turno: hay comandas sin facturar en esta sucursal. Factúrelas o cancélelas primero.");
 
+        // Un delivery con saldo pendiente es dinero que todavía debe devolver al negocio —
+        // si se deja cerrar el cuadre igual, ese dinero queda fuera del cierre y se pierde
+        // de vista (no hay forma de reflejarlo después con el turno ya cerrado).
+        var hayDeliveriesConSaldo = await db.Deliveries.AnyAsync(d => d.SucursalId == sucursalId && d.SaldoPendiente != 0, ct);
+        if (hayDeliveriesConSaldo)
+            throw new InvalidOperationException("No se puede cerrar el turno: hay deliveries con saldo pendiente en esta sucursal. Salde sus cuentas primero.");
+
         foreach (var d in request.Denominaciones)
         {
             db.DenominacionesCierre.Add(new DenominacionCierre
