@@ -378,6 +378,12 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
         if (hayDeliveriesConSaldo)
             throw new InvalidOperationException("No se puede cerrar el turno: hay deliveries con saldo pendiente en esta sucursal. Salde sus cuentas primero.");
 
+        // Una venta suspendida es un carrito que aún no se facturó — si se deja cerrar el
+        // cuadre igual, ese carrito queda huérfano cuando cambie el turno (o el cajero).
+        var hayVentasSuspendidas = await db.VentasSuspendidas.AnyAsync(v => v.SucursalId == sucursalId, ct);
+        if (hayVentasSuspendidas)
+            throw new InvalidOperationException("No se puede cerrar el turno: hay ventas guardadas sin resolver en esta sucursal. Recupérelas o elimínelas primero.");
+
         foreach (var d in request.Denominaciones)
         {
             db.DenominacionesCierre.Add(new DenominacionCierre

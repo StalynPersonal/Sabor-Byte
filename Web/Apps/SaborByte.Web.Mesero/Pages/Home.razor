@@ -43,40 +43,41 @@ else
                         {
                             var oferta = OfertaDeProducto(producto);
                             <MudItem xs="6" sm="4" md="3" lg="2">
-                                <MudCard Class="@(producto.SinStock ? "" : "cursor-pointer")" Style="position:relative" @onclick="async () => { if (!producto.SinStock) await AgregarAlPedidoAsync(producto); }">
+                                <MudCard Class="@(producto.SinStock ? "" : "cursor-pointer")" Style="position:relative; height:140px; overflow:hidden" @onclick="async () => { if (!producto.SinStock) await AgregarAlPedidoAsync(producto); }">
                                     @if (producto.SinStock)
                                     {
-                                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:1">SIN STOCK</MudChip>
+                                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:2">SIN STOCK</MudChip>
                                     }
                                     else if (oferta.Promocion is not null)
                                     {
-                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:1">OFERTA</MudChip>
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:2">OFERTA</MudChip>
                                     }
                                     <div style="@(producto.SinStock ? "opacity:0.4" : "")">
                                     @if (!string.IsNullOrEmpty(producto.ImagenUrl))
                                     {
-                                        <MudCardMedia Image="@producto.ImagenUrl" Height="100" />
+                                        <MudCardMedia Image="@producto.ImagenUrl" Height="140" />
                                     }
                                     else
                                     {
-                                        <div class="d-flex align-center justify-center mud-theme-primary" style="height:100px;background-color:var(--mud-palette-primary-lighten)">
+                                        <div class="d-flex align-center justify-center mud-theme-primary" style="height:140px;background-color:var(--mud-palette-primary-lighten)">
                                             <MudIcon Icon="@Icons.Material.Filled.RestaurantMenu" Size="Size.Large" Color="Color.Surface" />
                                         </div>
                                     }
                                     </div>
-                                    <MudCardContent Style="@(producto.SinStock ? "opacity:0.4" : "")">
-                                        <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Cód. @producto.Codigo</MudText>
+                                    <div style="position:absolute; left:0; right:0; bottom:0; padding:6px 8px 5px; background:linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.45) 70%, transparent); opacity:@(producto.SinStock ? "0.6" : "1")">
+                                        <MudText Typo="Typo.body2" Style="color:#fff; font-weight:600; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">@producto.Nombre</MudText>
                                         @if (oferta.Promocion is not null)
                                         {
-                                            <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
-                                            <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
+                                            <div class="d-flex align-center gap-1">
+                                                <MudText Typo="Typo.caption" Style="color:#ddd; text-decoration:line-through">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                                <MudText Typo="Typo.caption" Style="color:#ff8a80; font-weight:700">RD$ @oferta.PrecioConOferta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                            </div>
                                         }
                                         else
                                         {
-                                            <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                            <MudText Typo="Typo.caption" Style="color:#eee">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                                         }
-                                    </MudCardContent>
+                                    </div>
                                 </MudCard>
                             </MudItem>
                         }

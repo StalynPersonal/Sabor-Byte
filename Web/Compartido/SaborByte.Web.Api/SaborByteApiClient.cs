@@ -1129,6 +1129,38 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    // --- Ventas suspendidas (carritos de Caja guardados para retomar después) ---
+
+    public async Task<List<VentaSuspendidaResumenDto>> ListarVentasSuspendidasAsync(Guid sucursalId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<List<VentaSuspendidaResumenDto>>($"api/ventas-suspendidas?sucursalId={sucursalId}") ?? [];
+    }
+
+    public async Task<VentaSuspendidaDetalleDto?> ObtenerVentaSuspendidaAsync(Guid sucursalId, Guid id)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<VentaSuspendidaDetalleDto>($"api/ventas-suspendidas/{id}?sucursalId={sucursalId}");
+    }
+
+    public async Task<(bool Exito, Guid? Id, string? Error)> GuardarVentaSuspendidaAsync(Guid sucursalId, GuardarVentaSuspendidaRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/ventas-suspendidas?sucursalId={sucursalId}", request);
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        var resultado = await respuesta.Content.ReadFromJsonAsync<IdRespuestaDto>();
+        return (true, resultado?.Id, null);
+    }
+
+    public async Task<(bool Exito, string? Error)> EliminarVentaSuspendidaAsync(Guid sucursalId, Guid id)
+    {
+        AdjuntarToken();
+        var respuesta = await http.DeleteAsync($"api/ventas-suspendidas/{id}?sucursalId={sucursalId}");
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     // --- Gastos ---
 
     public async Task<List<CategoriaGastoDto>> ListarCategoriasGastoAsync(bool incluirInactivas = false)

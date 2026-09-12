@@ -11,6 +11,7 @@ using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
 using SaborByte.Dominio.Pedidos;
 using SaborByte.Dominio.Sucursales;
+using SaborByte.Dominio.Ventas;
 
 namespace SaborByte.Infraestructura.Persistencia;
 
@@ -71,6 +72,9 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
     public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<FacturaDelivery> FacturasDelivery => Set<FacturaDelivery>();
     public DbSet<AbonoDelivery> AbonosDelivery => Set<AbonoDelivery>();
+
+    public DbSet<VentaSuspendida> VentasSuspendidas => Set<VentaSuspendida>();
+    public DbSet<VentaSuspendidaItem> VentaSuspendidaItems => Set<VentaSuspendidaItem>();
 
     public DbSet<CategoriaGasto> CategoriasGasto => Set<CategoriaGasto>();
     public DbSet<Gasto> Gastos => Set<Gasto>();
@@ -504,6 +508,31 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.NumeroComprobante).HasMaxLength(50);
             b.Property(x => x.MotivoAnulacion).HasMaxLength(300);
             b.HasOne(x => x.MetodoPago).WithMany().HasForeignKey(x => x.MetodoPagoId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VentaSuspendida>(b =>
+        {
+            b.ToTable("VentasSuspendidas", "ventas");
+            b.Property(x => x.Nombre).HasMaxLength(150).IsRequired();
+            b.Property(x => x.ClienteNombre).HasMaxLength(200);
+            b.Property(x => x.PorcentajePropina).HasColumnType("decimal(5,2)");
+            b.Property(x => x.MontoDescuento).HasColumnType("decimal(18,2)");
+            b.HasMany(x => x.Items).WithOne(i => i.VentaSuspendida).HasForeignKey(i => i.VentaSuspendidaId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VentaSuspendidaItem>(b =>
+        {
+            b.ToTable("VentaSuspendidaItems", "ventas");
+            b.Property(x => x.NombreProducto).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Precio).HasColumnType("decimal(18,4)");
+            b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
+            b.HasMany(x => x.IngredientesExcluidos).WithOne().HasForeignKey(e => e.VentaSuspendidaItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VentaSuspendidaItemIngrediente>(b =>
+        {
+            b.ToTable("VentaSuspendidaItemIngredientes", "ventas");
+            b.Property(x => x.NombreIngrediente).HasMaxLength(150).IsRequired();
         });
 
         modelBuilder.Entity<CategoriaGasto>(b =>

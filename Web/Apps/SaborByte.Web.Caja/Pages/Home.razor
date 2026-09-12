@@ -207,40 +207,41 @@ else
                 {
                     var oferta = OfertaDeProducto(producto);
                     <MudItem xs="6" sm="4" md="3" lg="2">
-                        <MudCard Class="@(producto.SinStock ? "" : "cursor-pointer")" Style="position:relative" @onclick="async () => { if (!producto.SinStock) await AgregarAlCarritoAsync(producto); }">
+                        <MudCard Class="@(producto.SinStock ? "" : "cursor-pointer")" Style="position:relative; height:140px; overflow:hidden" @onclick="async () => { if (!producto.SinStock) await AgregarAlCarritoAsync(producto); }">
                             @if (producto.SinStock)
                             {
-                                <MudChip T="string" Color="Color.Dark" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:1">SIN STOCK</MudChip>
+                                <MudChip T="string" Color="Color.Dark" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:2">SIN STOCK</MudChip>
                             }
                             else if (oferta.Promocion is not null)
                             {
-                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:1">OFERTA</MudChip>
+                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Style="position:absolute; top:4px; right:4px; z-index:2">OFERTA</MudChip>
                             }
                             <div style="@(producto.SinStock ? "opacity:0.4" : "")">
                             @if (!string.IsNullOrEmpty(producto.ImagenUrl))
                             {
-                                <MudCardMedia Image="@producto.ImagenUrl" Height="100" />
+                                <MudCardMedia Image="@producto.ImagenUrl" Height="140" />
                             }
                             else
                             {
-                                <div class="d-flex align-center justify-center mud-theme-primary" style="height:100px;background-color:var(--mud-palette-primary-lighten)">
+                                <div class="d-flex align-center justify-center mud-theme-primary" style="height:140px;background-color:var(--mud-palette-primary-lighten)">
                                     <MudIcon Icon="@Icons.Material.Filled.RestaurantMenu" Size="Size.Large" Color="Color.Surface" />
                                 </div>
                             }
                             </div>
-                            <MudCardContent Style="@(producto.SinStock ? "opacity:0.4" : "")">
-                                <MudText Typo="Typo.subtitle2">@producto.Nombre</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Cód. @producto.Codigo</MudText>
+                            <div style="position:absolute; left:0; right:0; bottom:0; padding:6px 8px 5px; background:linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.45) 70%, transparent); opacity:@(producto.SinStock ? "0.6" : "1")">
+                                <MudText Typo="Typo.body2" Style="color:#fff; font-weight:600; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">@producto.Nombre</MudText>
                                 @if (oferta.Promocion is not null)
                                 {
-                                    <MudText Typo="Typo.caption" Style="text-decoration:line-through" Class="mud-text-secondary">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Error"><strong>RD$ @oferta.PrecioConOferta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
+                                    <div class="d-flex align-center gap-1">
+                                        <MudText Typo="Typo.caption" Style="color:#ddd; text-decoration:line-through">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                        <MudText Typo="Typo.caption" Style="color:#ff8a80; font-weight:700">RD$ @oferta.PrecioConOferta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                    </div>
                                 }
                                 else
                                 {
-                                    <MudText Typo="Typo.body2">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                                    <MudText Typo="Typo.caption" Style="color:#eee">RD$ @producto.PrecioConItbis.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                                 }
-                            </MudCardContent>
+                            </div>
                         </MudCard>
                     </MudItem>
                 }
@@ -647,6 +648,51 @@ else
         </MudDialog>
 
     </MudTabPanel>
+
+    <MudTabPanel Text="Ventas guardadas">
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+            Guarda el carrito actual con un nombre para retomarlo después — útil si algo
+            interrumpe la venta y necesitas atender a otra persona mientras tanto.
+        </MudText>
+
+        <div class="d-flex align-center gap-2 mb-4">
+            <MudTooltip Text="Actualizar">
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="CargarVentasSuspendidasAsync" />
+            </MudTooltip>
+        </div>
+
+        <MudTable Items="_ventasSuspendidas" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>Nombre</MudTh>
+                <MudTh>Cliente</MudTh>
+                <MudTh>Ítems</MudTh>
+                <MudTh>Total aprox.</MudTh>
+                <MudTh>Hora</MudTh>
+                <MudTh>Guardado por</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Nombre</MudTd>
+                <MudTd>@(context.ClienteNombre ?? "—")</MudTd>
+                <MudTd>@context.CantidadItems</MudTd>
+                <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>@context.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>@context.CreadoPorNombre</MudTd>
+                <MudTd>
+                    <MudTooltip Text="Recuperar">
+                        <MudIconButton Icon="@Icons.Material.Filled.RestoreFromTrash" Size="Size.Small" Color="Color.Primary" OnClick="() => RecuperarVentaSuspendidaAsync(context.Id)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Eliminar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => EliminarVentaSuspendidaAsync(context.Id)" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2">No hay ventas guardadas.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+
+    </MudTabPanel>
     </MudTabs>
     </MudItem>
 
@@ -786,9 +832,34 @@ else
                     <MudText>Facturar</MudText>
                 }
             </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                       Disabled="@(_carrito.Count == 0 || _procesandoAccion)" OnClick="AbrirGuardarVentaSuspendidaDialog">
+                Guardar venta para después
+            </MudButton>
         </MudPaper>
     </MudItem>
     </MudGrid>
+
+    <MudDialog @bind-Visible="_guardandoVentaSuspendida" Options="_opcionesDialogo">
+        <TitleContent>Guardar venta</TitleContent>
+        <DialogContent>
+            <MudTextField T="string" Label="Nombre / referencia" @bind-Value="_nombreVentaSuspendida"
+                           Required="true" RequiredError="El nombre es obligatorio." Class="mb-2" />
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _guardandoVentaSuspendida = false">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConfirmarGuardarVentaSuspendidaAsync" Disabled="_procesandoVentaSuspendida">
+                @if (_procesandoVentaSuspendida)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <MudText>Guardar</MudText>
+                }
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
 
     @if (_mostrarDialogoAutorizacionNota)
     {
@@ -1261,6 +1332,140 @@ else
     private FacturaDeliveryDto? _reciboDeliveryAImprimir;
 
     private bool PuedeGestionarAbonosDelivery => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
+
+    // --- Pestaña Ventas guardadas ---
+    private List<VentaSuspendidaResumenDto> _ventasSuspendidas = [];
+    private bool _guardandoVentaSuspendida;
+    private bool _procesandoVentaSuspendida;
+    private string _nombreVentaSuspendida = string.Empty;
+
+    private async Task CargarVentasSuspendidasAsync()
+    {
+        _ventasSuspendidas = await ApiClient.ListarVentasSuspendidasAsync(SucursalId);
+    }
+
+    private void AbrirGuardarVentaSuspendidaDialog()
+    {
+        _nombreVentaSuspendida = string.Empty;
+        _guardandoVentaSuspendida = true;
+    }
+
+    private async Task ConfirmarGuardarVentaSuspendidaAsync()
+    {
+        if (_procesandoVentaSuspendida) return;
+
+        if (string.IsNullOrWhiteSpace(_nombreVentaSuspendida))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Error);
+            return;
+        }
+
+        _procesandoVentaSuspendida = true;
+        try
+        {
+            var request = new GuardarVentaSuspendidaRequestDto
+            {
+                Nombre = _nombreVentaSuspendida,
+                TurnoCajaId = _turnoCajaId,
+                ClienteId = _clienteSeleccionado?.Id,
+                ClienteNombre = _clienteSeleccionado?.NombreORazonSocial,
+                PorcentajePropina = _porcentajePropina,
+                MontoDescuento = _descuentoAutorizado ? _montoDescuento : 0,
+                DescuentoAutorizado = _descuentoAutorizado,
+                Items = _carrito.Select(l => new VentaSuspendidaItemDto
+                {
+                    ProductoId = l.ProductoId,
+                    CategoriaId = l.CategoriaId,
+                    NombreProducto = l.Nombre,
+                    Precio = l.Precio,
+                    Cantidad = l.Cantidad,
+                    IngredientesExcluidosIds = l.IngredientesExcluidosIds.ToList(),
+                    NombresExcluidos = l.NombresExcluidos
+                }).ToList()
+            };
+
+            var (exito, _, error) = await ApiClient.GuardarVentaSuspendidaAsync(SucursalId, request);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Venta guardada.", Severity.Success);
+            _guardandoVentaSuspendida = false;
+
+            // Limpia el carrito activo — quedó a salvo en la venta guardada.
+            _carrito.Clear();
+            _comandaOrigen = null;
+            _porcentajePropina = 0;
+            _descuentoAutorizado = false;
+            _montoDescuento = 0;
+            _clienteSeleccionado = _clienteContado;
+            _pagos = [new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId }];
+
+            await CargarVentasSuspendidasAsync();
+        }
+        finally
+        {
+            _procesandoVentaSuspendida = false;
+        }
+    }
+
+    private async Task RecuperarVentaSuspendidaAsync(Guid id)
+    {
+        var detalle = await ApiClient.ObtenerVentaSuspendidaAsync(SucursalId, id);
+        if (detalle is null)
+        {
+            Snackbar.Add("No se pudo cargar la venta guardada.", Severity.Error);
+            return;
+        }
+
+        _carrito.Clear();
+        foreach (var item in detalle.Items)
+        {
+            _carrito.Add(new LineaCarrito
+            {
+                ProductoId = item.ProductoId,
+                CategoriaId = item.CategoriaId,
+                Nombre = item.NombreProducto,
+                Precio = item.Precio,
+                Cantidad = (int)item.Cantidad,
+                IngredientesExcluidosIds = [.. item.IngredientesExcluidosIds],
+                NombresExcluidos = item.NombresExcluidos
+            });
+        }
+
+        _comandaOrigen = null;
+        _porcentajePropina = detalle.PorcentajePropina;
+        _montoDescuento = detalle.MontoDescuento;
+        _descuentoAutorizado = detalle.DescuentoAutorizado;
+
+        _clienteSeleccionado = detalle.ClienteId is null
+            ? _clienteContado
+            : (await ApiClient.BuscarClientesAsync(SucursalId, detalle.ClienteNombre)).FirstOrDefault(c => c.Id == detalle.ClienteId)
+              ?? _clienteContado;
+
+        var (exito, error) = await ApiClient.EliminarVentaSuspendidaAsync(SucursalId, id);
+        if (!exito)
+            Snackbar.Add(error ?? "La venta se recuperó, pero no se pudo quitar de la lista de guardadas.", Severity.Warning);
+
+        await CargarVentasSuspendidasAsync();
+        _tabIndex = 0;
+        Snackbar.Add("Venta recuperada — sigue en el Carrito.", Severity.Success);
+    }
+
+    private async Task EliminarVentaSuspendidaAsync(Guid id)
+    {
+        var (exito, error) = await ApiClient.EliminarVentaSuspendidaAsync(SucursalId, id);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Venta guardada eliminada.", Severity.Success);
+        await CargarVentasSuspendidasAsync();
+    }
 
     private async Task CargarDeliveriesAsync()
     {
@@ -1787,6 +1992,7 @@ else
         _clienteSeleccionado = _clienteContado;
 
         await CargarDeliveriesAsync();
+        await CargarVentasSuspendidasAsync();
 
         if (_cajaSeleccionadaId != Guid.Empty)
             await VerificarTurnoAbiertoAsync();
@@ -2355,6 +2561,13 @@ else
         if (_deliveries.Any(d => d.SaldoPendiente != 0))
         {
             Snackbar.Add("No se puede cerrar el turno: hay deliveries con saldo pendiente en esta sucursal. Salde sus cuentas primero.", Severity.Error);
+            return;
+        }
+
+        await CargarVentasSuspendidasAsync();
+        if (_ventasSuspendidas.Count > 0)
+        {
+            Snackbar.Add("No se puede cerrar el turno: hay ventas guardadas sin resolver en esta sucursal. Recupérelas o elimínelas primero.", Severity.Error);
             return;
         }
 

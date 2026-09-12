@@ -11,6 +11,7 @@ using SaborByte.Dominio.Identidad;
 using SaborByte.Dominio.Inventario;
 using SaborByte.Dominio.Pedidos;
 using SaborByte.Dominio.Sucursales;
+using SaborByte.Dominio.Ventas;
 
 namespace SaborByte.Aplicacion.Interfaces;
 
@@ -72,6 +73,9 @@ public interface IAppDbContext
     DbSet<Delivery> Deliveries { get; }
     DbSet<FacturaDelivery> FacturasDelivery { get; }
     DbSet<AbonoDelivery> AbonosDelivery { get; }
+
+    DbSet<VentaSuspendida> VentasSuspendidas { get; }
+    DbSet<VentaSuspendidaItem> VentaSuspendidaItems { get; }
 
     DbSet<CategoriaGasto> CategoriasGasto { get; }
     DbSet<Gasto> Gastos { get; }
