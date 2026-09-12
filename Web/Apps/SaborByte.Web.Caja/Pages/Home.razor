@@ -443,11 +443,11 @@ else
                     <MudGrid Class="mb-3">
                         <MudItem xs="4">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">Total facturado</MudText>
-                            <MudText Typo="Typo.body1">RD$ @_facturasDelivery.Sum(f => f.MontoFactura).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                            <MudText Typo="Typo.body1">RD$ @(_resumenCuentaDelivery?.TotalFacturado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                         </MudItem>
                         <MudItem xs="4">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">Total abonado</MudText>
-                            <MudText Typo="Typo.body1">RD$ @_abonosDelivery.Where(a => !a.Anulado).Sum(a => a.Monto).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                            <MudText Typo="Typo.body1">RD$ @(_resumenCuentaDelivery?.TotalAbonado ?? 0).ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                         </MudItem>
                         <MudItem xs="4">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">Saldo pendiente</MudText>
@@ -455,11 +455,20 @@ else
                         </MudItem>
                     </MudGrid>
 
+                    <MudGrid Class="mb-3">
+                        <MudItem xs="6" sm="4">
+                            <MudDatePicker Label="Desde" Date="_desdeCuentaDelivery" DateChanged="OnFiltroFechaCuentaDeliveryCambiadoAsync" Clearable="true" />
+                        </MudItem>
+                        <MudItem xs="6" sm="4">
+                            <MudDatePicker Label="Hasta" Date="_hastaCuentaDelivery" DateChanged="OnFiltroFechaCuentaDeliveryCambiadoAsync" Clearable="true" />
+                        </MudItem>
+                    </MudGrid>
+
                     <div class="d-flex justify-space-between align-center mb-1">
                         <MudText Typo="Typo.subtitle2">Facturas asignadas</MudText>
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AbrirAsignarFacturaDelivery">Asignar factura</MudButton>
                     </div>
-                    <MudTable Items="_facturasDelivery" Hover="true" Dense="true" Class="mb-4">
+                    <MudTable @ref="_tablaFacturasDelivery" ServerData="CargarPaginaFacturasDeliveryAsync" Hover="true" Dense="true" Class="mb-4" T="FacturaDeliveryDto">
                         <HeaderContent>
                             <MudTh>N° Factura</MudTh>
                             <MudTh>Fecha</MudTh>
@@ -489,13 +498,16 @@ else
                         <NoRecordsContent>
                             <MudText Typo="Typo.body2">Todavía no hay facturas asignadas.</MudText>
                         </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+                        </PagerContent>
                     </MudTable>
 
                     <div class="d-flex justify-space-between align-center mb-1">
                         <MudText Typo="Typo.subtitle2">Abonos</MudText>
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_deliverySeleccionado.SaldoPendiente <= 0" OnClick="AbrirRegistrarAbonoDelivery">Registrar abono</MudButton>
                     </div>
-                    <MudTable Items="_abonosDelivery" Hover="true" Dense="true">
+                    <MudTable @ref="_tablaAbonosDelivery" ServerData="CargarPaginaAbonosDeliveryAsync" Hover="true" Dense="true" T="AbonoDeliveryDto">
                         <HeaderContent>
                             <MudTh>Fecha</MudTh>
                             <MudTh>Monto</MudTh>
@@ -535,6 +547,9 @@ else
                         <NoRecordsContent>
                             <MudText Typo="Typo.body2">Todavía no se ha registrado ningún abono.</MudText>
                         </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+                        </PagerContent>
                     </MudTable>
                 }
             </DialogContent>
@@ -1227,8 +1242,11 @@ else
 
     private bool _viendoCuentaDelivery;
     private DeliveryDto? _deliverySeleccionado;
-    private List<FacturaDeliveryDto> _facturasDelivery = [];
-    private List<AbonoDeliveryDto> _abonosDelivery = [];
+    private ResumenCuentaDeliveryDto? _resumenCuentaDelivery;
+    private DateTime? _desdeCuentaDelivery;
+    private DateTime? _hastaCuentaDelivery;
+    private MudTable<FacturaDeliveryDto>? _tablaFacturasDelivery;
+    private MudTable<AbonoDeliveryDto>? _tablaAbonosDelivery;
 
     private bool _asignandoFacturaDelivery;
     private FacturaAsignableDto? _facturaAAsignarDelivery;
@@ -1253,9 +1271,14 @@ else
     private async Task AbrirCuentaDeliveryAsync(DeliveryDto delivery)
     {
         _deliverySeleccionado = delivery;
-        _facturasDelivery = await ApiClient.ListarFacturasDeliveryAsync(SucursalId, delivery.Id);
-        _abonosDelivery = await ApiClient.ListarAbonosDeliveryAsync(SucursalId, delivery.Id);
+        _desdeCuentaDelivery = null;
+        _hastaCuentaDelivery = null;
+        _resumenCuentaDelivery = await ApiClient.ObtenerResumenCuentaDeliveryAsync(SucursalId, delivery.Id);
         _viendoCuentaDelivery = true;
+        // Las tablas ya están montadas (se reusan entre deliveries) — hay que forzar la
+        // recarga o seguirían mostrando los datos del delivery visto anteriormente.
+        await (_tablaFacturasDelivery?.ReloadServerData() ?? Task.CompletedTask);
+        await (_tablaAbonosDelivery?.ReloadServerData() ?? Task.CompletedTask);
     }
 
     private async Task RecargarCuentaDeliveryAsync()
@@ -1266,8 +1289,33 @@ else
         _deliveries = await ApiClient.ListarDeliveriesAsync(SucursalId, incluirInactivos: true, texto: _textoBusquedaDelivery);
         _deliverySeleccionado = _deliveries.FirstOrDefault(d => d.Id == _deliverySeleccionado.Id) ?? _deliverySeleccionado;
 
-        _facturasDelivery = await ApiClient.ListarFacturasDeliveryAsync(SucursalId, _deliverySeleccionado.Id);
-        _abonosDelivery = await ApiClient.ListarAbonosDeliveryAsync(SucursalId, _deliverySeleccionado.Id);
+        _resumenCuentaDelivery = await ApiClient.ObtenerResumenCuentaDeliveryAsync(SucursalId, _deliverySeleccionado.Id);
+        await (_tablaFacturasDelivery?.ReloadServerData() ?? Task.CompletedTask);
+        await (_tablaAbonosDelivery?.ReloadServerData() ?? Task.CompletedTask);
+    }
+
+    private Task OnFiltroFechaCuentaDeliveryCambiadoAsync(DateTime? _) => RecargarCuentaDeliveryAsync();
+
+    private async Task<TableData<FacturaDeliveryDto>> CargarPaginaFacturasDeliveryAsync(TableState estado, CancellationToken ct)
+    {
+        if (_deliverySeleccionado is null)
+            return new TableData<FacturaDeliveryDto>();
+
+        var resultado = await ApiClient.ListarFacturasDeliveryAsync(
+            SucursalId, _deliverySeleccionado.Id, _desdeCuentaDelivery, _hastaCuentaDelivery?.Date.AddDays(1).AddSeconds(-1),
+            estado.Page + 1, estado.PageSize);
+        return new TableData<FacturaDeliveryDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private async Task<TableData<AbonoDeliveryDto>> CargarPaginaAbonosDeliveryAsync(TableState estado, CancellationToken ct)
+    {
+        if (_deliverySeleccionado is null)
+            return new TableData<AbonoDeliveryDto>();
+
+        var resultado = await ApiClient.ListarAbonosDeliveryAsync(
+            SucursalId, _deliverySeleccionado.Id, _desdeCuentaDelivery, _hastaCuentaDelivery?.Date.AddDays(1).AddSeconds(-1),
+            estado.Page + 1, estado.PageSize);
+        return new TableData<AbonoDeliveryDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
     }
 
     private void AbrirAsignarFacturaDelivery()
@@ -1308,17 +1356,24 @@ else
             }
 
             Snackbar.Add("Factura asignada.", Severity.Success);
-            _asignandoFacturaDelivery = false;
-            await RecargarCuentaDeliveryAsync();
 
             // Recibo informativo automático solo si se indicó un monto de delivery — si es
-            // 0, no hay nada que informar aparte de la factura misma.
+            // 0, no hay nada que informar aparte de la factura misma. Se arma con los datos
+            // que ya se tienen a mano (no hace falta buscarla en la tabla paginada).
             if (_montoDeliveryAAsignar > 0)
             {
-                var asignada = _facturasDelivery.FirstOrDefault(f => f.FacturaId == _facturaAAsignarDelivery.FacturaId);
-                if (asignada is not null)
-                    await ImprimirReciboDeliveryAsync(asignada);
+                await ImprimirReciboDeliveryAsync(new FacturaDeliveryDto
+                {
+                    FacturaId = _facturaAAsignarDelivery.FacturaId,
+                    NumeroFactura = _facturaAAsignarDelivery.NumeroFactura,
+                    FechaEmision = _facturaAAsignarDelivery.FechaEmision,
+                    MontoFactura = _facturaAAsignarDelivery.Total,
+                    MontoDelivery = _montoDeliveryAAsignar
+                });
             }
+
+            _asignandoFacturaDelivery = false;
+            await RecargarCuentaDeliveryAsync();
         }
         finally
         {
@@ -2356,8 +2411,7 @@ else
             // próximo turno la vea limpia, sin la cuenta de un delivery abierta en pantalla.
             _viendoCuentaDelivery = false;
             _deliverySeleccionado = null;
-            _facturasDelivery = [];
-            _abonosDelivery = [];
+            _resumenCuentaDelivery = null;
             await CargarDeliveriesAsync();
         }
         catch (Exception ex)

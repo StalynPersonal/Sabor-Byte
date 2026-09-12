@@ -1056,10 +1056,20 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await http.GetFromJsonAsync<List<FacturaAsignableDto>>(url) ?? [];
     }
 
-    public async Task<List<FacturaDeliveryDto>> ListarFacturasDeliveryAsync(Guid sucursalId, Guid deliveryId)
+    public async Task<ResumenCuentaDeliveryDto?> ObtenerResumenCuentaDeliveryAsync(Guid sucursalId, Guid deliveryId)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<List<FacturaDeliveryDto>>($"api/deliveries/{deliveryId}/facturas?sucursalId={sucursalId}") ?? [];
+        return await http.GetFromJsonAsync<ResumenCuentaDeliveryDto>($"api/deliveries/{deliveryId}/resumen-cuenta?sucursalId={sucursalId}");
+    }
+
+    public async Task<ResultadoPaginadoDto<FacturaDeliveryDto>> ListarFacturasDeliveryAsync(
+        Guid sucursalId, Guid deliveryId, DateTime? desde, DateTime? hasta, int pagina, int tamanoPagina)
+    {
+        AdjuntarToken();
+        var url = $"api/deliveries/{deliveryId}/facturas?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
+        if (desde is not null) url += $"&desde={desde:O}";
+        if (hasta is not null) url += $"&hasta={hasta:O}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<FacturaDeliveryDto>>(url) ?? new();
     }
 
     public async Task<(bool Exito, string? Error)> AsignarFacturaADeliveryAsync(Guid sucursalId, Guid deliveryId, AsignarFacturaRequestDto request)
@@ -1076,10 +1086,14 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<List<AbonoDeliveryDto>> ListarAbonosDeliveryAsync(Guid sucursalId, Guid deliveryId)
+    public async Task<ResultadoPaginadoDto<AbonoDeliveryDto>> ListarAbonosDeliveryAsync(
+        Guid sucursalId, Guid deliveryId, DateTime? desde, DateTime? hasta, int pagina, int tamanoPagina)
     {
         AdjuntarToken();
-        return await http.GetFromJsonAsync<List<AbonoDeliveryDto>>($"api/deliveries/{deliveryId}/abonos?sucursalId={sucursalId}") ?? [];
+        var url = $"api/deliveries/{deliveryId}/abonos?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
+        if (desde is not null) url += $"&desde={desde:O}";
+        if (hasta is not null) url += $"&hasta={hasta:O}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<AbonoDeliveryDto>>(url) ?? new();
     }
 
     public async Task<(bool Exito, string? Error)> RegistrarAbonoDeliveryAsync(Guid sucursalId, Guid deliveryId, RegistrarAbonoDeliveryRequestDto request)

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SaborByte.Aplicacion.Comun;
 using SaborByte.Aplicacion.Deliveries.Dtos;
 using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Deliveries;
@@ -166,63 +167,100 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<List<FacturaDeliveryDto>> ListarFacturasAsignadasAsync(Guid sucursalId, Guid deliveryId, CancellationToken ct = default)
+    public async Task<ResumenCuentaDeliveryDto> ObtenerResumenCuentaAsync(Guid sucursalId, Guid deliveryId, CancellationToken ct = default)
     {
         var existe = await db.Deliveries.AnyAsync(d => d.Id == deliveryId && d.SucursalId == sucursalId, ct);
         if (!existe)
             throw new InvalidOperationException("El delivery no existe.");
 
-        return await (
-                from fd in db.FacturasDelivery
-                join f in db.Facturas on fd.FacturaId equals f.Id
-                join u in db.Usuarios on fd.AsignadoPorUsuarioId equals u.Id
-                where fd.DeliveryId == deliveryId
-                orderby fd.FechaAsignacion descending
-                select new FacturaDeliveryDto
-                {
-                    Id = fd.Id,
-                    FacturaId = fd.FacturaId,
-                    NumeroFactura = f.NumeroFactura,
-                    NumeroNcf = f.NumeroNcf,
-                    FechaEmision = f.FechaEmision,
-                    MontoFactura = fd.MontoFactura,
-                    MontoDelivery = fd.MontoDelivery,
-                    FechaAsignacion = fd.FechaAsignacion,
-                    AsignadoPorNombre = u.Nombre
-                }
-            )
-            .ToListAsync(ct);
+        return new ResumenCuentaDeliveryDto
+        {
+            TotalFacturado = await db.FacturasDelivery.Where(fd => fd.DeliveryId == deliveryId).SumAsync(fd => fd.MontoFactura, ct),
+            TotalAbonado = await db.AbonosDelivery.Where(a => a.DeliveryId == deliveryId && !a.Anulado).SumAsync(a => a.Monto, ct)
+        };
     }
 
-    public async Task<List<AbonoDeliveryDto>> ListarAbonosAsync(Guid sucursalId, Guid deliveryId, CancellationToken ct = default)
+    public async Task<ResultadoPaginado<FacturaDeliveryDto>> ListarFacturasAsignadasAsync(
+        Guid sucursalId, Guid deliveryId, DateTime? desde, DateTime? hasta, int pagina, int tamanoPagina, CancellationToken ct = default)
     {
         var existe = await db.Deliveries.AnyAsync(d => d.Id == deliveryId && d.SucursalId == sucursalId, ct);
         if (!existe)
             throw new InvalidOperationException("El delivery no existe.");
 
-        return await (
-                from a in db.AbonosDelivery
-                join m in db.MetodosPago on a.MetodoPagoId equals m.Id
-                join u in db.Usuarios on a.CreadoPorUsuarioId equals u.Id
-                join ua in db.Usuarios on a.AnuladoPorUsuarioId equals ua.Id into anuladores
-                from ua in anuladores.DefaultIfEmpty()
-                where a.DeliveryId == deliveryId
-                orderby a.FechaPago descending
-                select new AbonoDeliveryDto
-                {
-                    Id = a.Id,
-                    Monto = a.Monto,
-                    FechaPago = a.FechaPago,
-                    MetodoPagoNombre = m.Nombre,
-                    NumeroComprobante = a.NumeroComprobante,
-                    RegistradoPorNombre = u.Nombre,
-                    Anulado = a.Anulado,
-                    FechaAnulacion = a.FechaAnulacion,
-                    AnuladoPorNombre = ua != null ? ua.Nombre : null,
-                    MotivoAnulacion = a.MotivoAnulacion
-                }
-            )
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
+        var query =
+            from fd in db.FacturasDelivery
+            join f in db.Facturas on fd.FacturaId equals f.Id
+            join u in db.Usuarios on fd.AsignadoPorUsuarioId equals u.Id
+            where fd.DeliveryId == deliveryId &&
+                  (desde == null || fd.FechaAsignacion >= desde) &&
+                  (hasta == null || fd.FechaAsignacion <= hasta)
+            select new FacturaDeliveryDto
+            {
+                Id = fd.Id,
+                FacturaId = fd.FacturaId,
+                NumeroFactura = f.NumeroFactura,
+                NumeroNcf = f.NumeroNcf,
+                FechaEmision = f.FechaEmision,
+                MontoFactura = fd.MontoFactura,
+                MontoDelivery = fd.MontoDelivery,
+                FechaAsignacion = fd.FechaAsignacion,
+                AsignadoPorNombre = u.Nombre
+            };
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(fd => fd.FechaAsignacion)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
             .ToListAsync(ct);
+
+        return new ResultadoPaginado<FacturaDeliveryDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
+    }
+
+    public async Task<ResultadoPaginado<AbonoDeliveryDto>> ListarAbonosAsync(
+        Guid sucursalId, Guid deliveryId, DateTime? desde, DateTime? hasta, int pagina, int tamanoPagina, CancellationToken ct = default)
+    {
+        var existe = await db.Deliveries.AnyAsync(d => d.Id == deliveryId && d.SucursalId == sucursalId, ct);
+        if (!existe)
+            throw new InvalidOperationException("El delivery no existe.");
+
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 1, 200);
+
+        var query =
+            from a in db.AbonosDelivery
+            join m in db.MetodosPago on a.MetodoPagoId equals m.Id
+            join u in db.Usuarios on a.CreadoPorUsuarioId equals u.Id
+            join ua in db.Usuarios on a.AnuladoPorUsuarioId equals ua.Id into anuladores
+            from ua in anuladores.DefaultIfEmpty()
+            where a.DeliveryId == deliveryId &&
+                  (desde == null || a.FechaPago >= desde) &&
+                  (hasta == null || a.FechaPago <= hasta)
+            select new AbonoDeliveryDto
+            {
+                Id = a.Id,
+                Monto = a.Monto,
+                FechaPago = a.FechaPago,
+                MetodoPagoNombre = m.Nombre,
+                NumeroComprobante = a.NumeroComprobante,
+                RegistradoPorNombre = u.Nombre,
+                Anulado = a.Anulado,
+                FechaAnulacion = a.FechaAnulacion,
+                AnuladoPorNombre = ua != null ? ua.Nombre : null,
+                MotivoAnulacion = a.MotivoAnulacion
+            };
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(a => a.FechaPago)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .ToListAsync(ct);
+
+        return new ResultadoPaginado<AbonoDeliveryDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
     }
 
     public async Task RegistrarAbonoAsync(Guid sucursalId, Guid deliveryId, Guid usuarioId, RegistrarAbonoDeliveryRequestDto request, CancellationToken ct = default)

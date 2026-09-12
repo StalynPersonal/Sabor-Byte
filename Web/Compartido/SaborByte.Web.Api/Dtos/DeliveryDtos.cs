@@ -71,3 +71,9 @@ public class AnularAbonoDeliveryRequestDto
 {
     public string Motivo { get; set; } = string.Empty;
 }
+
+public class ResumenCuentaDeliveryDto
+{
+    public decimal TotalFacturado { get; set; }
+    public decimal TotalAbonado { get; set; }
+}

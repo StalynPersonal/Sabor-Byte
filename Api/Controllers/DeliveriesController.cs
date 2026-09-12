@@ -73,14 +73,31 @@ public class DeliveriesController(DeliveryAppService deliveries) : ControllerBas
         return Ok(await deliveries.BuscarFacturasAsignablesAsync(sucursalId, texto, ct));
     }
 
-    [HttpGet("{deliveryId:guid}/facturas")]
-    public async Task<IActionResult> ListarFacturasAsignadas([FromQuery] Guid sucursalId, Guid deliveryId, CancellationToken ct)
+    [HttpGet("{deliveryId:guid}/resumen-cuenta")]
+    public async Task<IActionResult> ObtenerResumenCuenta([FromQuery] Guid sucursalId, Guid deliveryId, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
 
         try
         {
-            return Ok(await deliveries.ListarFacturasAsignadasAsync(sucursalId, deliveryId, ct));
+            return Ok(await deliveries.ObtenerResumenCuentaAsync(sucursalId, deliveryId, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { mensaje = ex.Message });
+        }
+    }
+
+    [HttpGet("{deliveryId:guid}/facturas")]
+    public async Task<IActionResult> ListarFacturasAsignadas(
+        [FromQuery] Guid sucursalId, Guid deliveryId, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta,
+        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+
+        try
+        {
+            return Ok(await deliveries.ListarFacturasAsignadasAsync(sucursalId, deliveryId, desde, hasta, pagina, tamanoPagina, ct));
         }
         catch (InvalidOperationException ex)
         {
@@ -125,13 +142,15 @@ public class DeliveriesController(DeliveryAppService deliveries) : ControllerBas
     }
 
     [HttpGet("{deliveryId:guid}/abonos")]
-    public async Task<IActionResult> ListarAbonos([FromQuery] Guid sucursalId, Guid deliveryId, CancellationToken ct)
+    public async Task<IActionResult> ListarAbonos(
+        [FromQuery] Guid sucursalId, Guid deliveryId, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta,
+        [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
 
         try
         {
-            return Ok(await deliveries.ListarAbonosAsync(sucursalId, deliveryId, ct));
+            return Ok(await deliveries.ListarAbonosAsync(sucursalId, deliveryId, desde, hasta, pagina, tamanoPagina, ct));
         }
         catch (InvalidOperationException ex)
         {

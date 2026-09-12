@@ -71,3 +71,11 @@ public class AnularAbonoDeliveryRequestDto
 {
     public required string Motivo { get; set; }
 }
+
+// Totales de toda la vida de la cuenta (no del rango/página que se esté viendo en las
+// tablas paginadas) — para las tarjetas de resumen del diálogo "Cuenta".
+public class ResumenCuentaDeliveryDto
+{
+    public decimal TotalFacturado { get; set; }
+    public decimal TotalAbonado { get; set; }
+}
