@@ -24,10 +24,10 @@ else
     <MudPaper Class="pa-3 mb-3">
         <MudGrid>
             <MudItem xs="6" sm="3">
-                <MudDatePicker Label="Desde" @bind-Date="_desde" />
+                <MudDatePicker Label="Desde" Date="_desde" DateChanged="OnDesdeCambiadaAsync" />
             </MudItem>
             <MudItem xs="6" sm="3">
-                <MudDatePicker Label="Hasta" @bind-Date="_hasta" />
+                <MudDatePicker Label="Hasta" Date="_hasta" DateChanged="OnHastaCambiadaAsync" />
             </MudItem>
             <MudItem xs="12" sm="3">
                 <MudSelect T="Guid?" Label="Categoría" Value="_categoriaId" ValueChanged="OnCategoriaFiltroCambiadaAsync">
@@ -295,6 +295,18 @@ else
     private async Task OnCategoriaFiltroCambiadaAsync(Guid? categoriaId)
     {
         _categoriaId = categoriaId;
+        await CargarAsync();
+    }
+
+    private async Task OnDesdeCambiadaAsync(DateTime? fecha)
+    {
+        _desde = fecha;
+        await CargarAsync();
+    }
+
+    private async Task OnHastaCambiadaAsync(DateTime? fecha)
+    {
+        _hasta = fecha;
         await CargarAsync();
     }
 
