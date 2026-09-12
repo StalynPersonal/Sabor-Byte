@@ -44,7 +44,6 @@ public class SucursalDto
     public bool ModuloMeseroActivo { get; set; }
     public bool ModuloCocinaActivo { get; set; }
     public bool EcfActivo { get; set; }
-    public FormatoImpresion FormatoImpresionDelivery { get; set; }
     public bool SmtpActivo { get; set; }
     public string? SmtpHost { get; set; }
     public int? SmtpPuerto { get; set; }
@@ -63,7 +62,6 @@ public class ActualizarSucursalRequestDto
     public bool ModuloMeseroActivo { get; set; }
     public bool ModuloCocinaActivo { get; set; }
     public bool EcfActivo { get; set; }
-    public FormatoImpresion FormatoImpresionDelivery { get; set; } = FormatoImpresion.Ticket80mm;
 }
 
 public class ActualizarSmtpRequestDto

@@ -295,8 +295,8 @@ else
 
     private FacturaDeliveryDto? _reciboAImprimir;
 
-    // Formato del recibo informativo, configurado por sucursal en Central → Sucursales
-    // (no hay un selector aquí — no está atado a una caja específica).
+    // Formato del recibo informativo: se toma de la caja activa de la sucursal (Central →
+    // Cajas). No hay selector aquí — asume una sola caja activa por sucursal.
     private FormatoImpresion _formatoImpresion = FormatoImpresion.Ticket80mm;
 
     private string ClaseFormatoImpresion => _formatoImpresion switch
@@ -325,9 +325,9 @@ else
         }
 
         _metodosPago = await ApiClient.ListarMetodosPagoAsync();
-        var sucursal = await ApiClient.ObtenerSucursalAsync(SucursalId);
-        if (sucursal is not null)
-            _formatoImpresion = sucursal.FormatoImpresionDelivery;
+        var cajas = await ApiClient.ListarCajasAsync(SucursalId);
+        if (cajas.Count > 0)
+            _formatoImpresion = cajas[0].FormatoImpresion;
 
         await CargarAsync();
     }

@@ -1,4 +1,3 @@
-using SaborByte.Dominio.Comun;
 
 namespace SaborByte.Dominio.Sucursales;
 
@@ -30,10 +29,6 @@ public class Sucursal
     public bool ModuloMeseroActivo { get; set; }
     public bool ModuloCocinaActivo { get; set; }
     public bool EcfActivo { get; set; }
-
-    // Formato del recibo informativo que se imprime al asignar una factura a un delivery
-    // (ver módulo Deliveries) — no está atado a una caja específica, así que vive aquí.
-    public FormatoImpresion FormatoImpresionDelivery { get; set; } = FormatoImpresion.Ticket80mm;
 
     // Configuración de correo saliente, opcional por sucursal (ver sección "Configuración"
     // del plan). Si SmtpActivo = false, IEmailSender no envía nada silenciosamente.
