@@ -26,10 +26,10 @@ html, body {
 
     /* Formato configurable por caja (ver Caja.FormatoImpresion) — mismo contenido, solo
        cambia ancho/tipografía según la impresora física conectada a esa estación. */
-    .solo-imprimir.formato-ticket-80mm {
+    .solo-imprimir.formato-ticket-80mm { 
         width: 80mm;
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: 14px;
     }
 
     .solo-imprimir.formato-ticket-58mm {
