@@ -35,7 +35,16 @@ else
             <MudTd>@string.Join(", ", context.Roles)</MudTd>
             <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
             <MudTd>
-                @if (context.EsAdminPrincipal)
+                @if (context.EsAdminPrincipal && context.Id == Sesion.UsuarioId)
+                {
+                    <MudTooltip Text="Editar mis datos">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarUsuario(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="El administrador principal no se puede desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Disabled="true" />
+                    </MudTooltip>
+                }
+                else if (context.EsAdminPrincipal)
                 {
                     <MudTooltip Text="El administrador principal no se puede editar ni desactivar">
                         <MudIconButton Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Disabled="true" />
@@ -68,7 +77,7 @@ else
         <MudTextField T="string" Label="Email (opcional)" @bind-Value="_form.Email" Class="mb-2" />
         <MudCheckBox T="bool" @bind-Value="_form.RecibirAlertaStockBajo" Label="Recibir correo de alerta de stock bajo" Class="mb-2" />
 
-        @if (_usuarioId is not null)
+        @if (_usuarioId is not null && !_editandoAdminPrincipalPropio)
         {
             <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" Class="mb-2" />
         }
@@ -116,6 +125,7 @@ else
     private bool _editando;
     private bool _procesando;
     private Guid? _usuarioId;
+    private bool _editandoAdminPrincipalPropio;
     private ActualizarUsuarioRequestDto _form = new();
 
     protected override async Task OnInitializedAsync()
@@ -140,6 +150,7 @@ else
     private void NuevoUsuario()
     {
         _usuarioId = null;
+        _editandoAdminPrincipalPropio = false;
         _form = new ActualizarUsuarioRequestDto { Activo = true };
         _editando = true;
     }
@@ -147,6 +158,7 @@ else
     private void EditarUsuario(UsuarioDto usuario)
     {
         _usuarioId = usuario.Id;
+        _editandoAdminPrincipalPropio = usuario.EsAdminPrincipal && usuario.Id == Sesion.UsuarioId;
         _form = new ActualizarUsuarioRequestDto
         {
             NombreUsuario = usuario.NombreUsuario,

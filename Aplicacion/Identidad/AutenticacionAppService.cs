@@ -40,6 +40,7 @@ public class AutenticacionAppService(
         return new LoginResponseDto
         {
             Token = token,
+            UsuarioId = usuario.Id,
             Nombre = usuario.Nombre,
             Roles = roles,
             SucursalesPermitidas = sucursalesAsignadas

@@ -19,6 +19,7 @@ public class SucursalPermitidaDto
 public class LoginResponseDto
 {
     public required string Token { get; set; }
+    public Guid UsuarioId { get; set; }
     public required string Nombre { get; set; }
     public List<string> Roles { get; set; } = [];
     public List<SucursalPermitidaDto> SucursalesPermitidas { get; set; } = [];

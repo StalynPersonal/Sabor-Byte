@@ -23,7 +23,7 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
 
         var resultado = await respuesta.Content.ReadFromJsonAsync<LoginResponseDto>();
         if (resultado is not null)
-            sesion.EstablecerSesion(resultado.Token, resultado.Nombre, resultado.Roles,
+            sesion.EstablecerSesion(resultado.Token, resultado.UsuarioId, resultado.Nombre, resultado.Roles,
                 resultado.SucursalesPermitidas.Select(s => new SucursalPermitida(s.Id, s.Nombre, s.EmpresaNombre)).ToList());
 
         return resultado;

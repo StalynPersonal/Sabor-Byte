@@ -7,6 +7,7 @@ public record SucursalPermitida(Guid Id, string Nombre, string? EmpresaNombre = 
 public class SesionCliente
 {
     public string? Token { get; private set; }
+    public Guid UsuarioId { get; private set; }
     public string? Nombre { get; private set; }
     public List<string> Roles { get; private set; } = [];
     public List<SucursalPermitida> SucursalesPermitidas { get; private set; } = [];
@@ -22,9 +23,10 @@ public class SesionCliente
 
     public event Action? CambioSesion;
 
-    public void EstablecerSesion(string token, string nombre, List<string> roles, List<SucursalPermitida> sucursales)
+    public void EstablecerSesion(string token, Guid usuarioId, string nombre, List<string> roles, List<SucursalPermitida> sucursales)
     {
         Token = token;
+        UsuarioId = usuarioId;
         Nombre = nombre;
         Roles = roles;
         SucursalesPermitidas = sucursales;
@@ -44,6 +46,7 @@ public class SesionCliente
     public void CerrarSesion()
     {
         Token = null;
+        UsuarioId = Guid.Empty;
         Nombre = null;
         Roles = [];
         SucursalesPermitidas = [];

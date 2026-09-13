@@ -93,8 +93,16 @@ public class UsuarioAppService(IAppDbContext db, IPasswordHasher passwordHasher)
             .FirstOrDefaultAsync(u => u.Id == usuarioId, ct)
             ?? throw new InvalidOperationException("El usuario no existe.");
 
-        if (usuarioId == await ObtenerIdAdminPrincipalAsync(ct))
+        // El admin principal sí puede editar sus propios datos (nombre, email, password,
+        // etc.) — el bloqueo es solo para que OTRO usuario lo edite. Desactivarse a sí
+        // mismo sigue prohibido más abajo, para no dejar el sistema sin nadie que
+        // administre usuarios.
+        var esAdminPrincipal = usuarioId == await ObtenerIdAdminPrincipalAsync(ct);
+        if (esAdminPrincipal && usuarioId != usuarioActorId)
             throw new InvalidOperationException("El administrador principal no se puede editar.");
+
+        if (esAdminPrincipal && !request.Activo)
+            throw new InvalidOperationException("El administrador principal no se puede desactivar.");
 
         if (string.IsNullOrWhiteSpace(request.NombreUsuario))
             throw new InvalidOperationException("El nombre de usuario es obligatorio.");
