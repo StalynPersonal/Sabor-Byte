@@ -112,6 +112,7 @@ public class FacturaAppService(IAppDbContext db)
             ClienteRncOCedula = factura.ClienteRncOCedula,
             CajeroNombre = cajeroNombre,
             CodigoSeguridadDgii = factura.CodigoSeguridadDgii,
+            UrlConsultaQrDgii = factura.UrlConsultaQrDgii,
             Subtotal = factura.Subtotal,
             Itbis = factura.Itbis,
             Descuento = factura.Descuento,

@@ -62,6 +62,7 @@ public class FacturaDetalleCompletoDto
     // Solo tienen valor si la sucursal factura e-CF real (ver Sucursal.EcfActivo);
     // para NCF tradicional o "sin NCF" quedan null.
     public string? CodigoSeguridadDgii { get; set; }
+    public string? UrlConsultaQrDgii { get; set; }
 
     public List<FacturaLineaDetalleDto> Lineas { get; set; } = [];
     public List<FacturaPagoDetalleDto> Pagos { get; set; } = [];

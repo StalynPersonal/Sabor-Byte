@@ -11,7 +11,7 @@ namespace SaborByte.Infraestructura.Facturacion;
 // librería independiente FacturacionElectronicaDGII. Se invoca únicamente cuando
 // Sucursal.EcfActivo = true.
 public class FacturacionElectronicaGateway(
-    SaborByteDbContext db, IServicioFacturacionElectronica servicioEcf) : IFacturacionElectronicaGateway
+    SaborByteDbContext db, IServicioFacturacionElectronica servicioEcf, FacturacionElectronicaOpciones opciones) : IFacturacionElectronicaGateway
 {
     public async Task<ResultadoEmisionEcf> EmitirAsync(Guid facturaId, CancellationToken ct = default)
     {
@@ -75,8 +75,17 @@ public class FacturacionElectronicaGateway(
 
         factura.XmlFirmadoDgii = xmlFirmado;
         factura.CodigoSeguridadDgii = servicioEcf.GenerarCodigoSeguridad(xmlFirmado);
-
         factura.FechaEnvioDgii = DateTime.UtcNow;
+
+        factura.UrlConsultaQrDgii = GeneradorUrlConsultaQr.Construir(
+            opciones,
+            rncEmisor: empresa.Rnc ?? string.Empty,
+            rncComprador: cliente?.RncOCedula,
+            numeroNcf: factura.NumeroNcf ?? string.Empty,
+            fechaEmision: factura.FechaEmision,
+            montoTotal: factura.Total,
+            fechaFirma: factura.FechaEnvioDgii.Value,
+            codigoSeguridad: factura.CodigoSeguridadDgii);
 
         try
         {

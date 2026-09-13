@@ -81,6 +81,7 @@ public class VentaResultadoDto
     public string? ClienteRncOCedula { get; set; }
     public string? CajeroNombre { get; set; }
     public string? CodigoSeguridadDgii { get; set; }
+    public string? UrlConsultaQrDgii { get; set; }
 
     public string? MensajeDgii { get; set; }
 }

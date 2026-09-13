@@ -319,6 +319,7 @@ public class VentaAppService(
             ClienteRncOCedula = factura.ClienteRncOCedula,
             CajeroNombre = cajeroNombre,
             CodigoSeguridadDgii = factura.CodigoSeguridadDgii,
+            UrlConsultaQrDgii = factura.UrlConsultaQrDgii,
             MensajeDgii = mensajeDgii
         };
     }

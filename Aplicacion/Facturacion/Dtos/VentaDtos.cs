@@ -76,6 +76,7 @@ public class VentaResultadoDto
     public string? ClienteRncOCedula { get; set; }
     public string? CajeroNombre { get; set; }
     public string? CodigoSeguridadDgii { get; set; }
+    public string? UrlConsultaQrDgii { get; set; }
 
     // Solo se llena si la sucursal tiene e-CF activo y se intentó enviar a DGII —
     // resultado o motivo del fallo, informativo (nunca bloqueó la venta).

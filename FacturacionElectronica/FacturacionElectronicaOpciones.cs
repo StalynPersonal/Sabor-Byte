@@ -19,4 +19,11 @@ public class FacturacionElectronicaOpciones
     // ConsultaTrackId espera el TrackId concatenado como query string (?TrackId=...),
     // no como parámetro separado — así lo entregó DGII.
     public string UrlConsultaTrackId { get; set; } = "https://ecf.dgii.gov.do/testecf/consultaresultado/api/Consultas/Estado?TrackId=";
+
+    // URLs base para el código QR impreso en el comprobante (ver GeneradorUrlConsultaQr).
+    // Confirmadas contra un integrador de referencia (carpeta /xsd/ValidadorAndromeda),
+    // no inventadas — mismo criterio que las URLs de arriba: para producción se
+    // sobreescriben por configuración.
+    public string UrlConsultaTimbre { get; set; } = "https://ecf.dgii.gov.do/testecf/consultatimbre";
+    public string UrlConsultaTimbreFc { get; set; } = "https://fc.dgii.gov.do/testecf/ConsultaTimbreFC";
 }

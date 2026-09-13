@@ -54,6 +54,7 @@ public class FacturaDetalleCompletoDto
     public decimal Cambio { get; set; }
 
     public string? CodigoSeguridadDgii { get; set; }
+    public string? UrlConsultaQrDgii { get; set; }
 
     public List<FacturaLineaDetalleDto> Lineas { get; set; } = [];
     public List<FacturaPagoDetalleDto> Pagos { get; set; } = [];

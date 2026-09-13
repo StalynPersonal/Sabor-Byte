@@ -1440,7 +1440,7 @@ else
         {
             <div style="display:flex; justify-content:space-between; font-weight:bold"><span>CAMBIO</span><span>@CambioUltimaVenta.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
-        @PieRecibo(NumeroCajaActual, _ultimaVenta.CajeroNombre, _ultimaVenta.CodigoSeguridadDgii)
+        @PieRecibo(NumeroCajaActual, _ultimaVenta.CajeroNombre, _ultimaVenta.CodigoSeguridadDgii, _ultimaVenta.UrlConsultaQrDgii)
     </div>
 }
 
@@ -1534,7 +1534,7 @@ else
         {
             <div style="display:flex; justify-content:space-between; font-weight:bold"><span>CAMBIO</span><span>@_facturaAReimprimir.Cambio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span></div>
         }
-        @PieRecibo(_facturaAReimprimir.CajaNumero, _facturaAReimprimir.CajeroNombre, _facturaAReimprimir.CodigoSeguridadDgii)
+        @PieRecibo(_facturaAReimprimir.CajaNumero, _facturaAReimprimir.CajeroNombre, _facturaAReimprimir.CodigoSeguridadDgii, _facturaAReimprimir.UrlConsultaQrDgii)
         <p style="text-align:center; margin-top:8px; font-weight:bold">*** DUPLICADO — NO VÁLIDO COMO ORIGINAL ***</p>
     </div>
 }
@@ -2252,6 +2252,12 @@ else
             @if (!string.IsNullOrEmpty(codigoSeguridad))
             {
                 <hr />
+                @if (!string.IsNullOrEmpty(urlConsultaQr))
+                {
+                    <div style="display:flex; justify-content:center; margin:4px 0">
+                        @((MarkupString)GenerarSvgQr(urlConsultaQr))
+                    </div>
+                }
                 <p style="text-align:center; margin:0; font-size:0.85em">Código de Seguridad: @codigoSeguridad</p>
             }
             @* Cierre con contenido real (no padding): muchas impresoras térmicas recortan
@@ -2262,6 +2268,18 @@ else
             <p style="text-align:center; margin:0">------------------------------</p>
             <p style="text-align:center; margin:0; font-weight:bold">FIN DEL DOCUMENTO</p>
         </text>;
+
+    // QR del comprobante — texto (la URL de verificación de la DGII, ya armada por el
+    // backend) a imagen, generado localmente en el navegador sin llamadas de red. SVG en
+    // vez de PNG: se ve nítido en cualquier tamaño de ticket, sin el borroneo típico de
+    // una imagen rasterizada muy chica.
+    private static string GenerarSvgQr(string texto)
+    {
+        using var generador = new QRCoder.QRCodeGenerator();
+        using var datosQr = generador.CreateQrCode(texto, QRCoder.QRCodeGenerator.ECCLevel.M);
+        var qrSvg = new QRCoder.SvgQRCode(datosQr);
+        return qrSvg.GetGraphic(4, "#000000", "#ffffff", false);
+    }
 
     private decimal TotalCarrito => _carrito.Sum(l => l.Precio * l.Cantidad);
     private decimal ItbisCarrito => TotalCarrito * 0.18m;
