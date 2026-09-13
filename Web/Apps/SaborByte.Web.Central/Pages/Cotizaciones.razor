@@ -100,10 +100,17 @@ else
                               ToStringFunc="@(c => c is null ? string.Empty : $"{c.NombreORazonSocial} ({c.RncOCedula})")"
                               Clearable="true" Style="flex:1" />
         </div>
-        <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_form.ClienteNombre" Required="true" Class="mb-2" />
-        <MudTextField T="string" Label="Teléfono" @bind-Value="_form.ClienteTelefono" Class="mb-2" />
-
-        <MudDatePicker Label="Vence el" Date="_form.FechaVencimiento" DateChanged="d => _form.FechaVencimiento = d" Class="mb-2" Style="max-width:220px" />
+        <MudGrid Class="mb-2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_form.ClienteNombre" Required="true" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudTextField T="string" Label="Teléfono" @bind-Value="_form.ClienteTelefono" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudDatePicker Label="Vence el" Date="_form.FechaVencimiento" DateChanged="d => _form.FechaVencimiento = d" />
+            </MudItem>
+        </MudGrid>
 
         <MudTextField T="string" Label="Notas / condiciones" @bind-Value="_form.Notas" Lines="2" Class="mb-3" />
 

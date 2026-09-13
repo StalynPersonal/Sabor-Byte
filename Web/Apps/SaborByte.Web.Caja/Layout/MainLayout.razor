@@ -6,6 +6,7 @@
 @inject NavigationManager Navegacion
 @inject ISnackbar Snackbar
 @inject SaborByte.Web.Caja.Services.CierreTurnoSignal CierreTurnoSignal
+@inject SaborByte.Web.Caja.Services.EstadoCajaSignal EstadoCajaSignal
 
 <MudThemeProvider Theme="_tema" IsDarkMode="false" ObserveSystemDarkModeChange="false" />
 <MudPopoverProvider />
@@ -16,17 +17,20 @@
     <MudAppBar Elevation="1" Color="Color.Primary">
         <MudText Typo="Typo.h6">Sabor<span class="marca-acento">Byte</span></MudText>
         <MudSpacer />
-        <MudTooltip Text="Ir a caja">
-            <MudIconButton Icon="@Icons.Material.Filled.PointOfSale" Color="Color.Inherit" OnClick="@(() => Navegacion.NavigateTo("/inicio"))" />
-        </MudTooltip>
-        <MudTooltip Text="Cerrar turno">
-            <MudIconButton Icon="@Icons.Material.Filled.MeetingRoom" Color="Color.Inherit" OnClick="@(() => CierreTurnoSignal.Solicitar())" />
-        </MudTooltip>
-        @if (Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor"))
+        @if (!EstadoCajaSignal.TurnoBloqueado)
         {
-            <MudTooltip Text="Gastos">
-                <MudIconButton Icon="@Icons.Material.Filled.MoneyOff" Color="Color.Inherit" OnClick="@(() => Navegacion.NavigateTo("/gastos"))" />
+            <MudTooltip Text="Ir a caja">
+                <MudIconButton Icon="@Icons.Material.Filled.PointOfSale" Color="Color.Inherit" OnClick="@(() => Navegacion.NavigateTo("/inicio"))" />
             </MudTooltip>
+            <MudTooltip Text="Cerrar turno">
+                <MudIconButton Icon="@Icons.Material.Filled.MeetingRoom" Color="Color.Inherit" OnClick="@(() => CierreTurnoSignal.Solicitar())" />
+            </MudTooltip>
+            @if (Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor"))
+            {
+                <MudTooltip Text="Gastos">
+                    <MudIconButton Icon="@Icons.Material.Filled.MoneyOff" Color="Color.Inherit" OnClick="@(() => Navegacion.NavigateTo("/gastos"))" />
+                </MudTooltip>
+            }
         }
         <MudTooltip Text="Cambiar contraseña">
             <MudButton Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Person" OnClick="AbrirCambiarPasswordAsync">
@@ -68,7 +72,10 @@
     {
         Navegacion.LocationChanged += VerificarSucursalSeleccionada;
         VerificarSucursalSeleccionada(this, null);
+        EstadoCajaSignal.Cambiado += OnEstadoCajaCambiado;
     }
+
+    private void OnEstadoCajaCambiado() => InvokeAsync(StateHasChanged);
 
     // Guarda central de "no dejar operar sin sucursal elegida": se revisa en cada cambio
     // de ruta porque MainLayout no se vuelve a instanciar por navegación dentro de la app.
@@ -118,7 +125,11 @@
         _cambiandoPassword = false;
     }
 
-    public void Dispose() => Navegacion.LocationChanged -= VerificarSucursalSeleccionada;
+    public void Dispose()
+    {
+        Navegacion.LocationChanged -= VerificarSucursalSeleccionada;
+        EstadoCajaSignal.Cambiado -= OnEstadoCajaCambiado;
+    }
 
     // Mismo verde en las 4 apps — se distinguen por el nombre en el login/AppBar, no por color.
     private readonly MudTheme _tema = new()

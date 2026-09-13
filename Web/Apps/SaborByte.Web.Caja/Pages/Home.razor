@@ -9,6 +9,7 @@
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
 @inject CierreTurnoSignal CierreTurnoSignal
+@inject EstadoCajaSignal EstadoCajaSignal
 
 <PageTitle>SaborByte</PageTitle>
 
@@ -1131,10 +1132,17 @@ else
     <MudDialog @bind-Visible="_mostrandoFormularioCotizacion" Options="_opcionesDialogoGrande">
         <TitleContent>Nueva cotización</TitleContent>
         <DialogContent>
-            <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_formCotizacion.ClienteNombre" Required="true" Class="mb-2" />
-            <MudTextField T="string" Label="Teléfono" @bind-Value="_formCotizacion.ClienteTelefono" Class="mb-2" />
-
-            <MudDatePicker Label="Vence el" Date="_formCotizacion.FechaVencimiento" DateChanged="d => _formCotizacion.FechaVencimiento = d" Class="mb-2" Style="max-width:220px" />
+            <MudGrid Class="mb-2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_formCotizacion.ClienteNombre" Required="true" />
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudTextField T="string" Label="Teléfono" @bind-Value="_formCotizacion.ClienteTelefono" />
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudDatePicker Label="Vence el" Date="_formCotizacion.FechaVencimiento" DateChanged="d => _formCotizacion.FechaVencimiento = d" />
+                </MudItem>
+            </MudGrid>
 
             <MudTextField T="string" Label="Notas / condiciones" @bind-Value="_formCotizacion.Notas" Lines="2" Class="mb-3" />
 
@@ -2410,6 +2418,7 @@ else
     private async Task VerificarTurnoAbiertoAsync()
     {
         _turnoBloqueadoOtroDia = null;
+        EstadoCajaSignal.EstablecerTurnoBloqueado(false);
         var turnoAbierto = await ApiClient.ObtenerTurnoAbiertoAsync(_cajaSeleccionadaId);
         if (turnoAbierto is null)
             return;
@@ -2417,6 +2426,7 @@ else
         if (turnoAbierto.EsDeOtroDia)
         {
             _turnoBloqueadoOtroDia = turnoAbierto;
+            EstadoCajaSignal.EstablecerTurnoBloqueado(true);
             return;
         }
 
@@ -2430,6 +2440,7 @@ else
     {
         _turnoCajaId = _turnoBloqueadoOtroDia!.TurnoCajaId;
         _turnoBloqueadoOtroDia = null;
+        EstadoCajaSignal.EstablecerTurnoBloqueado(false);
         await IniciarCierreAsync();
     }
 
@@ -2941,7 +2952,11 @@ else
         });
     }
 
-    public void Dispose() => CierreTurnoSignal.Solicitado -= OnCierreTurnoSolicitado;
+    public void Dispose()
+    {
+        CierreTurnoSignal.Solicitado -= OnCierreTurnoSolicitado;
+        EstadoCajaSignal.EstablecerTurnoBloqueado(false);
+    }
 
     private async Task IniciarCierreAsync()
     {

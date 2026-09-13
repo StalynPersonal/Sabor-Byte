@@ -16,6 +16,7 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.
 
 builder.Services.AddSingleton<SesionCliente>();
 builder.Services.AddSingleton<CierreTurnoSignal>();
+builder.Services.AddSingleton<EstadoCajaSignal>();
 builder.Services.AddScoped(sp =>
 {
     var handler = new SesionExpiradaHandler(sp.GetRequiredService<SesionCliente>(), sp.GetRequiredService<NavigationManager>())
