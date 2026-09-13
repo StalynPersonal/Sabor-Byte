@@ -17,12 +17,13 @@ public class CotizacionesController(CotizacionAppService cotizaciones) : Control
     [HttpGet]
     public async Task<IActionResult> Listar(
         [FromQuery] Guid sucursalId, [FromQuery] string? texto, [FromQuery] EstadoCotizacion? estado,
+        [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta,
         [FromQuery] int pagina, [FromQuery] int tamanoPagina, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
 
         return Ok(await cotizaciones.ListarAsync(
-            sucursalId, texto, estado, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
+            sucursalId, texto, estado, desde, hasta, pagina == 0 ? 1 : pagina, tamanoPagina == 0 ? 20 : tamanoPagina, ct));
     }
 
     [HttpGet("{id:guid}")]
@@ -112,22 +113,6 @@ public class CotizacionesController(CotizacionAppService cotizaciones) : Control
         try
         {
             return Ok(await cotizaciones.CargarEnCarritoAsync(sucursalId, id, ct));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { mensaje = ex.Message });
-        }
-    }
-
-    [HttpPost("{id:guid}/recrear")]
-    public async Task<IActionResult> Recrear([FromQuery] Guid sucursalId, Guid id, CancellationToken ct)
-    {
-        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
-
-        try
-        {
-            var nuevoId = await cotizaciones.RecrearAsync(sucursalId, id, User.ObtenerUsuarioId(), ct);
-            return Ok(new { id = nuevoId });
         }
         catch (InvalidOperationException ex)
         {

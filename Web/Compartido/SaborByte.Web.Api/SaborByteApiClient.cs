@@ -1164,12 +1164,15 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
     // --- Cotizaciones (presupuestos para eventos/pedidos futuros) ---
 
     public async Task<ResultadoPaginadoDto<CotizacionResumenDto>> ListarCotizacionesAsync(
-        Guid sucursalId, string? texto, EstadoCotizacion? estado, int pagina, int tamanoPagina)
+        Guid sucursalId, string? texto, EstadoCotizacion? estado, int pagina, int tamanoPagina,
+        DateTime? desde = null, DateTime? hasta = null)
     {
         AdjuntarToken();
         var url = $"api/cotizaciones?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
         if (!string.IsNullOrWhiteSpace(texto)) url += $"&texto={Uri.EscapeDataString(texto)}";
         if (estado is not null) url += $"&estado={estado}";
+        if (desde is not null) url += $"&desde={desde:yyyy-MM-dd}";
+        if (hasta is not null) url += $"&hasta={hasta:yyyy-MM-dd}";
         return await http.GetFromJsonAsync<ResultadoPaginadoDto<CotizacionResumenDto>>(url) ?? new();
     }
 
@@ -1219,17 +1222,6 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
             return (false, null, await LeerMensajeErrorAsync(respuesta));
 
         return (true, await respuesta.Content.ReadFromJsonAsync<CargaCarritoCotizacionDto>(), null);
-    }
-
-    public async Task<(bool Exito, Guid? Id, string? Error)> RecrearCotizacionAsync(Guid sucursalId, Guid id)
-    {
-        AdjuntarToken();
-        var respuesta = await http.PostAsync($"api/cotizaciones/{id}/recrear?sucursalId={sucursalId}", null);
-        if (!respuesta.IsSuccessStatusCode)
-            return (false, null, await LeerMensajeErrorAsync(respuesta));
-
-        var resultado = await respuesta.Content.ReadFromJsonAsync<IdRespuestaDto>();
-        return (true, resultado?.Id, null);
     }
 
     // --- Gastos ---

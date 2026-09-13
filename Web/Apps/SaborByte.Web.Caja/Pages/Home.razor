@@ -800,11 +800,14 @@ else
             <MudTooltip Text="Actualizar">
                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="RecargarCotizacionesAsync" />
             </MudTooltip>
+            <MudDatePicker Label="Creado desde" Date="_desdeCotizaciones" DateChanged="OnFiltroFechaCotizacionCambiadoAsync" Clearable="true" Class="ml-4" Style="max-width:180px" />
+            <MudDatePicker Label="Creado hasta" Date="_hastaCotizaciones" DateChanged="OnFiltroFechaHastaCotizacionCambiadoAsync" Clearable="true" Style="max-width:180px" />
         </div>
 
         <MudTable @ref="_tablaCotizaciones" ServerData="CargarPaginaCotizacionesAsync" Hover="true" Dense="true" T="CotizacionResumenDto">
             <HeaderContent>
                 <MudTh>Cliente</MudTh>
+                <MudTh>Creado</MudTh>
                 <MudTh>Vencimiento</MudTh>
                 <MudTh>Ítems</MudTh>
                 <MudTh>Total estimado</MudTh>
@@ -813,6 +816,7 @@ else
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.ClienteNombre</MudTd>
+                <MudTd>@context.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>@(context.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
                 <MudTd>@context.CantidadItems</MudTd>
                 <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
@@ -820,6 +824,9 @@ else
                     <MudChip T="string" Size="Size.Small" Color="@ColorEstadoCotizacion(context.Estado)">@TextoEstadoCotizacion(context.Estado)</MudChip>
                 </MudTd>
                 <MudTd>
+                    <MudTooltip Text="Ver detalle">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerDetalleCotizacionAsync(context.Id)" />
+                    </MudTooltip>
                     @if (context.Estado == EstadoCotizacion.Pendiente)
                     {
                         <MudTooltip Text="Marcar aceptada">
@@ -834,9 +841,6 @@ else
                                            OnClick="() => ConvertirCotizacionAVentaAsync(context.Id)" />
                         </MudTooltip>
                     }
-                    <MudTooltip Text="Recrear con precios y fecha actuales">
-                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="() => RecrearCotizacionAsync(context.Id)" />
-                    </MudTooltip>
                 </MudTd>
             </RowTemplate>
             <PagerContent>
@@ -1177,6 +1181,76 @@ else
             </MudButton>
         </DialogActions>
     </MudDialog>
+
+    <MudDialog @bind-Visible="_viendoDetalleCotizacion" Options="_opcionesDialogoGrande">
+        <TitleContent>Detalle de cotización</TitleContent>
+        <DialogContent>
+            @if (_detalleCotizacion is not null)
+            {
+                <MudText><strong>Cliente:</strong> @_detalleCotizacion.ClienteNombre</MudText>
+                <MudText><strong>Teléfono:</strong> @_detalleCotizacion.ClienteTelefono</MudText>
+                <MudText><strong>Creado:</strong> @_detalleCotizacion.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm") @(string.IsNullOrWhiteSpace(_detalleCotizacion.CreadoPorNombre) ? "" : $"por {_detalleCotizacion.CreadoPorNombre}")</MudText>
+                <MudText><strong>Vence el:</strong> @(_detalleCotizacion.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</MudText>
+                <MudText Class="mb-2"><strong>Estado:</strong> <MudChip T="string" Size="Size.Small" Color="@ColorEstadoCotizacion(_detalleCotizacion.Estado)">@TextoEstadoCotizacion(_detalleCotizacion.Estado)</MudChip></MudText>
+                @if (!string.IsNullOrWhiteSpace(_detalleCotizacion.Notas))
+                {
+                    <MudText Class="mb-2"><strong>Notas:</strong> @_detalleCotizacion.Notas</MudText>
+                }
+
+                <MudTable Items="_detalleCotizacion.Items" Dense="true" Hover="true" Class="mb-2">
+                    <HeaderContent>
+                        <MudTh>Producto</MudTh>
+                        <MudTh>Cantidad</MudTh>
+                        <MudTh>Precio</MudTh>
+                        <MudTh>Subtotal</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>@item.NombreProducto</MudTd>
+                        <MudTd>@item.Cantidad</MudTd>
+                        <MudTd>RD$ @item.Precio.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                        <MudTd>RD$ @((item.Precio * item.Cantidad * (1 + item.TasaItbis)).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</MudTd>
+                    </RowTemplate>
+                </MudTable>
+                <MudText Typo="Typo.h6" Class="d-flex justify-end">Total estimado: RD$ @TotalDetalleCotizacion.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _viendoDetalleCotizacion = false">Cerrar</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="ImprimirDetalleCotizacionAsync">Imprimir</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RecrearCotizacionDesdeDetalleAsync">Recrear</MudButton>
+        </DialogActions>
+    </MudDialog>
+
+    @* ===== IMPRESIÓN DE LA COTIZACIÓN (solo visible al imprimir) ===== *@
+    @if (_detalleCotizacion is not null)
+    {
+        <div class="solo-imprimir @ClaseFormatoImpresion">
+            <p style="text-align:center; margin:0; font-weight:bold">COTIZACIÓN</p>
+            <hr />
+            <p style="margin:0">Cliente: @_detalleCotizacion.ClienteNombre</p>
+            <p style="margin:0">Teléfono: @_detalleCotizacion.ClienteTelefono</p>
+            <p style="margin:0">Fecha: @_detalleCotizacion.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy")</p>
+            <p style="margin:0">Vence el: @(_detalleCotizacion.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</p>
+            <hr />
+            @foreach (var item in _detalleCotizacion.Items)
+            {
+                <div style="display:flex; justify-content:space-between">
+                    <span>@item.Cantidad x @item.NombreProducto</span>
+                    <span>@((item.Precio * item.Cantidad * (1 + item.TasaItbis)).ToString("N2", System.Globalization.CultureInfo.InvariantCulture))</span>
+                </div>
+            }
+            <hr />
+            <div style="display:flex; justify-content:space-between; font-weight:bold">
+                <span>TOTAL ESTIMADO</span><span>RD$ @TotalDetalleCotizacion.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_detalleCotizacion.Notas))
+            {
+                <hr />
+                <p style="margin:0">Notas: @_detalleCotizacion.Notas</p>
+            }
+            <p style="text-align:center; margin-top:8px; font-size:0.85em">Presupuesto sujeto a cambios luego de la fecha de vencimiento.</p>
+        </div>
+    }
 
     @if (_productoParaPersonalizar is not null)
     {
@@ -1709,13 +1783,64 @@ else
     private bool _mostrandoFormularioCotizacion;
     private bool _procesandoCotizacion;
     private GuardarCotizacionRequestDto _formCotizacion = new();
+    private DateTime? _desdeCotizaciones;
+    private DateTime? _hastaCotizaciones;
+
+    private bool _viendoDetalleCotizacion;
+    private CotizacionDetalleDto? _detalleCotizacion;
+    private decimal TotalDetalleCotizacion => _detalleCotizacion?.Items.Sum(i => i.Precio * i.Cantidad * (1 + i.TasaItbis)) ?? 0;
 
     private Task RecargarCotizacionesAsync() => _tablaCotizaciones?.ReloadServerData() ?? Task.CompletedTask;
 
+    private async Task OnFiltroFechaCotizacionCambiadoAsync(DateTime? valor)
+    {
+        _desdeCotizaciones = valor;
+        await RecargarCotizacionesAsync();
+    }
+
+    private async Task OnFiltroFechaHastaCotizacionCambiadoAsync(DateTime? valor)
+    {
+        _hastaCotizaciones = valor;
+        await RecargarCotizacionesAsync();
+    }
+
     private async Task<TableData<CotizacionResumenDto>> CargarPaginaCotizacionesAsync(TableState estado, CancellationToken ct)
     {
-        var resultado = await ApiClient.ListarCotizacionesAsync(SucursalId, null, null, estado.Page + 1, estado.PageSize);
+        var resultado = await ApiClient.ListarCotizacionesAsync(SucursalId, null, null, estado.Page + 1, estado.PageSize, _desdeCotizaciones, _hastaCotizaciones);
         return new TableData<CotizacionResumenDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private async Task VerDetalleCotizacionAsync(Guid id)
+    {
+        _detalleCotizacion = await ApiClient.ObtenerCotizacionAsync(SucursalId, id);
+        if (_detalleCotizacion is null) return;
+
+        _viendoDetalleCotizacion = true;
+    }
+
+    private Task ImprimirDetalleCotizacionAsync() => JS.InvokeVoidAsync("print").AsTask();
+
+    // "Recrear": abre el formulario de Nueva cotización pre-cargado con los mismos datos
+    // (cliente, notas, productos y cantidades) pero sin guardar nada todavía — el usuario
+    // revisa/ajusta y decide si la crea. Los precios se calculan con el valor ACTUAL del
+    // producto recién al guardar (backend), no con los congelados de la cotización original,
+    // y la fecha de vencimiento se reinicia a hoy + 15 días.
+    private void RecrearCotizacionDesdeDetalleAsync()
+    {
+        if (_detalleCotizacion is null) return;
+
+        _formCotizacion = new GuardarCotizacionRequestDto
+        {
+            ClienteId = _detalleCotizacion.ClienteId,
+            ClienteNombre = _detalleCotizacion.ClienteNombre,
+            ClienteTelefono = _detalleCotizacion.ClienteTelefono,
+            FechaVencimiento = DateTime.Today.AddDays(15),
+            Notas = _detalleCotizacion.Notas,
+            Items = _detalleCotizacion.Items.Select(i => new ItemCotizacionRequestDto { ProductoId = i.ProductoId, Cantidad = i.Cantidad }).ToList()
+        };
+
+        _viendoDetalleCotizacion = false;
+        _mostrandoFormularioCotizacion = true;
     }
 
     private static Color ColorEstadoCotizacion(EstadoCotizacion estado) => estado switch
@@ -1797,19 +1922,6 @@ else
         }
 
         Snackbar.Add("Estado actualizado.", Severity.Success);
-        await RecargarCotizacionesAsync();
-    }
-
-    private async Task RecrearCotizacionAsync(Guid id)
-    {
-        var (exito, _, error) = await ApiClient.RecrearCotizacionAsync(SucursalId, id);
-        if (!exito)
-        {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
-            return;
-        }
-
-        Snackbar.Add("Se creó una nueva cotización con precios y fecha actuales.", Severity.Success);
         await RecargarCotizacionesAsync();
     }
 

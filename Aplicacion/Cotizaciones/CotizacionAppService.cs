@@ -13,7 +13,8 @@ namespace SaborByte.Aplicacion.Cotizaciones;
 public class CotizacionAppService(IAppDbContext db)
 {
     public async Task<ResultadoPaginado<CotizacionResumenDto>> ListarAsync(
-        Guid sucursalId, string? texto, EstadoCotizacion? estado, int pagina, int tamanoPagina, CancellationToken ct = default)
+        Guid sucursalId, string? texto, EstadoCotizacion? estado, DateTime? desde, DateTime? hasta,
+        int pagina, int tamanoPagina, CancellationToken ct = default)
     {
         var consulta =
             from c in db.Cotizaciones
@@ -26,6 +27,12 @@ public class CotizacionAppService(IAppDbContext db)
 
         if (estado is not null)
             consulta = consulta.Where(x => x.Cotizacion.Estado == estado);
+
+        if (desde is not null)
+            consulta = consulta.Where(x => x.Cotizacion.CreadoEn >= desde.Value.Date);
+
+        if (hasta is not null)
+            consulta = consulta.Where(x => x.Cotizacion.CreadoEn < hasta.Value.Date.AddDays(1));
 
         var totalRegistros = await consulta.CountAsync(ct);
 
@@ -212,29 +219,5 @@ public class CotizacionAppService(IAppDbContext db)
                 Cantidad = i.Cantidad
             }).ToList()
         };
-    }
-
-    // "Recrear": arma una cotización nueva a partir de una existente, con los precios
-    // ACTUALES del producto (no los congelados de la vieja) y fecha de hoy — para cuando
-    // pasó tiempo desde la cotización original y los precios ya cambiaron. La original
-    // queda intacta, sin tocarse.
-    public async Task<Guid> RecrearAsync(Guid sucursalId, Guid id, Guid usuarioId, CancellationToken ct = default)
-    {
-        var original = await db.Cotizaciones
-            .Include(c => c.Items)
-            .FirstOrDefaultAsync(c => c.Id == id && c.SucursalId == sucursalId, ct)
-            ?? throw new InvalidOperationException("La cotización no existe.");
-
-        var request = new GuardarCotizacionRequestDto
-        {
-            ClienteId = original.ClienteId,
-            ClienteNombre = original.ClienteNombre,
-            ClienteTelefono = original.ClienteTelefono,
-            FechaVencimiento = DateTime.Today.AddDays(15),
-            Notas = original.Notas,
-            Items = original.Items.Select(i => new ItemCotizacionRequestDto { ProductoId = i.ProductoId, Cantidad = i.Cantidad }).ToList()
-        };
-
-        return await CrearAsync(sucursalId, usuarioId, request, ct);
     }
 }
