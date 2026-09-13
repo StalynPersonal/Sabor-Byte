@@ -1,9 +1,22 @@
 namespace SaborByte.Aplicacion.Identidad.Dtos;
 
+// Identifica desde cuál de las 4 apps llega el login — necesario para poder filtrar, por
+// ejemplo, las sucursales donde el módulo Mesero/Cocina esté deshabilitado (ver
+// AutenticacionAppService.LoginAsync). Caja y Central no tienen bandera de módulo propia,
+// así que no se filtran.
+public enum AppCliente
+{
+    Central,
+    Caja,
+    Cocina,
+    Mesero
+}
+
 public class LoginRequestDto
 {
     public required string NombreUsuario { get; set; }
     public required string Password { get; set; }
+    public AppCliente App { get; set; }
 }
 
 public class SucursalPermitidaDto

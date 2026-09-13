@@ -16,11 +16,19 @@ public class AuthController(AutenticacionAppService autenticacion, UsuarioAppSer
     public async Task<ActionResult<LoginResponseDto>> Login(LoginRequestDto request, CancellationToken ct)
     {
         var ipOrigen = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var resultado = await autenticacion.LoginAsync(request, ipOrigen, ct);
-        if (resultado is null)
-            return Unauthorized(new { mensaje = "Usuario o contraseña incorrectos." });
 
-        return Ok(resultado);
+        try
+        {
+            var resultado = await autenticacion.LoginAsync(request, ipOrigen, ct);
+            if (resultado is null)
+                return Unauthorized(new { mensaje = "Usuario o contraseña incorrectos." });
+
+            return Ok(resultado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
     }
 
     [HttpPost("sesion/sucursal")]

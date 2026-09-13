@@ -13,20 +13,20 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
             : new AuthenticationHeaderValue("Bearer", sesion.Token);
     }
 
-    public async Task<LoginResponseDto?> LoginAsync(string nombreUsuario, string password)
+    public async Task<(LoginResponseDto? Resultado, string? Error)> LoginAsync(string nombreUsuario, string password, AppCliente app)
     {
         var respuesta = await http.PostAsJsonAsync("api/auth/login",
-            new LoginRequestDto { NombreUsuario = nombreUsuario, Password = password });
+            new LoginRequestDto { NombreUsuario = nombreUsuario, Password = password, App = app });
 
         if (!respuesta.IsSuccessStatusCode)
-            return null;
+            return (null, await LeerMensajeErrorAsync(respuesta));
 
         var resultado = await respuesta.Content.ReadFromJsonAsync<LoginResponseDto>();
         if (resultado is not null)
             sesion.EstablecerSesion(resultado.Token, resultado.UsuarioId, resultado.Nombre, resultado.Roles,
                 resultado.SucursalesPermitidas.Select(s => new SucursalPermitida(s.Id, s.Nombre, s.EmpresaNombre)).ToList());
 
-        return resultado;
+        return (resultado, null);
     }
 
     public async Task<(bool Exito, string? Error)> SeleccionarSucursalActivaAsync(Guid sucursalId)

@@ -1,9 +1,18 @@
 namespace SaborByte.Web.Api.Dtos;
 
+public enum AppCliente
+{
+    Central,
+    Caja,
+    Cocina,
+    Mesero
+}
+
 public class LoginRequestDto
 {
     public string NombreUsuario { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+    public AppCliente App { get; set; }
 }
 
 public class SucursalPermitidaDto

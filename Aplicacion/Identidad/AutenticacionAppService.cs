@@ -22,6 +22,27 @@ public class AutenticacionAppService(
 
         var roles = usuario.Roles.Select(r => r.Rol!.Nombre).ToList();
         var sucursalesAsignadas = usuario.SucursalesAsignadas.ToList();
+
+        // Mesero/Cocina son módulos opcionales por sucursal (ver Sucursal.ModuloMeseroActivo/
+        // ModuloCocinaActivo, configurables en Central → Sucursales). Si el usuario está
+        // asignado a sucursales donde ese módulo está apagado, esas sucursales no deben
+        // quedar accesibles desde esa app — se filtran ANTES de generar el token, para que
+        // TieneAccesoASucursal (que solo lee los claims del JWT) las rechace en cualquier
+        // request posterior, no solo en el login. Caja y Central no tienen bandera propia.
+        sucursalesAsignadas = request.App switch
+        {
+            AppCliente.Mesero => sucursalesAsignadas.Where(s => s.Sucursal?.ModuloMeseroActivo == true).ToList(),
+            AppCliente.Cocina => sucursalesAsignadas.Where(s => s.Sucursal?.ModuloCocinaActivo == true).ToList(),
+            _ => sucursalesAsignadas
+        };
+
+        if (sucursalesAsignadas.Count == 0)
+        {
+            var nombreModulo = request.App == AppCliente.Mesero ? "Mesero" : "Cocina";
+            throw new InvalidOperationException(
+                $"Ninguna de tus sucursales asignadas tiene habilitado el módulo de {nombreModulo}.");
+        }
+
         var sucursalIds = sucursalesAsignadas.Select(s => s.SucursalId).ToList();
 
         // Registro de presencia (ver SesionActiva): no hay estado de sesión en el JWT en sí,
