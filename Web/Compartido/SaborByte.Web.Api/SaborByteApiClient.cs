@@ -1161,6 +1161,77 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
+    // --- Cotizaciones (presupuestos para eventos/pedidos futuros) ---
+
+    public async Task<ResultadoPaginadoDto<CotizacionResumenDto>> ListarCotizacionesAsync(
+        Guid sucursalId, string? texto, EstadoCotizacion? estado, int pagina, int tamanoPagina)
+    {
+        AdjuntarToken();
+        var url = $"api/cotizaciones?sucursalId={sucursalId}&pagina={pagina}&tamanoPagina={tamanoPagina}";
+        if (!string.IsNullOrWhiteSpace(texto)) url += $"&texto={Uri.EscapeDataString(texto)}";
+        if (estado is not null) url += $"&estado={estado}";
+        return await http.GetFromJsonAsync<ResultadoPaginadoDto<CotizacionResumenDto>>(url) ?? new();
+    }
+
+    public async Task<CotizacionDetalleDto?> ObtenerCotizacionAsync(Guid sucursalId, Guid id)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<CotizacionDetalleDto>($"api/cotizaciones/{id}?sucursalId={sucursalId}");
+    }
+
+    public async Task<(bool Exito, Guid? Id, string? Error)> CrearCotizacionAsync(Guid sucursalId, GuardarCotizacionRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync($"api/cotizaciones?sucursalId={sucursalId}", request);
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        var resultado = await respuesta.Content.ReadFromJsonAsync<IdRespuestaDto>();
+        return (true, resultado?.Id, null);
+    }
+
+    public async Task<(bool Exito, string? Error)> ActualizarCotizacionAsync(Guid sucursalId, Guid id, GuardarCotizacionRequestDto request)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PutAsJsonAsync($"api/cotizaciones/{id}?sucursalId={sucursalId}", request);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> CambiarEstadoCotizacionAsync(Guid sucursalId, Guid id, EstadoCotizacion nuevoEstado)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsync($"api/cotizaciones/{id}/estado?sucursalId={sucursalId}&nuevoEstado={nuevoEstado}", null);
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, string? Error)> EliminarCotizacionAsync(Guid sucursalId, Guid id)
+    {
+        AdjuntarToken();
+        var respuesta = await http.DeleteAsync($"api/cotizaciones/{id}?sucursalId={sucursalId}");
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<(bool Exito, CargaCarritoCotizacionDto? Datos, string? Error)> CargarCotizacionEnCarritoAsync(Guid sucursalId, Guid id)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsync($"api/cotizaciones/{id}/cargar-carrito?sucursalId={sucursalId}", null);
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        return (true, await respuesta.Content.ReadFromJsonAsync<CargaCarritoCotizacionDto>(), null);
+    }
+
+    public async Task<(bool Exito, Guid? Id, string? Error)> RecrearCotizacionAsync(Guid sucursalId, Guid id)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsync($"api/cotizaciones/{id}/recrear?sucursalId={sucursalId}", null);
+        if (!respuesta.IsSuccessStatusCode)
+            return (false, null, await LeerMensajeErrorAsync(respuesta));
+
+        var resultado = await respuesta.Content.ReadFromJsonAsync<IdRespuestaDto>();
+        return (true, resultado?.Id, null);
+    }
+
     // --- Gastos ---
 
     public async Task<List<CategoriaGastoDto>> ListarCategoriasGastoAsync(bool incluirInactivas = false)

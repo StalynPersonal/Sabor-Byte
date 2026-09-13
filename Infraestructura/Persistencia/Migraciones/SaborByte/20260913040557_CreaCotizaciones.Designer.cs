@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SaborByte.Infraestructura.Persistencia;
 
 #nullable disable
 
-namespace SaborByte.Infraestructura.Persistencia.Migraciones
+namespace SaborByte.Infraestructura.Persistencia.Migraciones.SaborByte
 {
     [DbContext(typeof(SaborByteDbContext))]
-    partial class SaborByteDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913040557_CreaCotizaciones")]
+    partial class CreaCotizaciones
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -721,9 +724,6 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<decimal>("Cantidad")
                         .HasColumnType("decimal(18,3)");
-
-                    b.Property<Guid>("CategoriaId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("CotizacionId")
                         .HasColumnType("uniqueidentifier");

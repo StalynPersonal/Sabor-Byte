@@ -3,6 +3,7 @@ using SaborByte.Aplicacion.Interfaces;
 using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Clientes;
 using SaborByte.Dominio.Comun;
+using SaborByte.Dominio.Cotizaciones;
 using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Deliveries;
 using SaborByte.Dominio.Facturacion;
@@ -75,6 +76,8 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
 
     public DbSet<VentaSuspendida> VentasSuspendidas => Set<VentaSuspendida>();
     public DbSet<VentaSuspendidaItem> VentaSuspendidaItems => Set<VentaSuspendidaItem>();
+    public DbSet<Cotizacion> Cotizaciones => Set<Cotizacion>();
+    public DbSet<CotizacionItem> CotizacionItems => Set<CotizacionItem>();
 
     public DbSet<CategoriaGasto> CategoriasGasto => Set<CategoriaGasto>();
     public DbSet<Gasto> Gastos => Set<Gasto>();
@@ -535,6 +538,27 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
         {
             b.ToTable("VentaSuspendidaItemIngredientes", "ventas");
             b.Property(x => x.NombreIngrediente).HasMaxLength(150).IsRequired();
+        });
+
+        modelBuilder.Entity<Cotizacion>(b =>
+        {
+            b.ToTable("Cotizaciones", "ventas");
+            b.Property(x => x.ClienteNombre).HasMaxLength(200).IsRequired();
+            b.Property(x => x.ClienteTelefono).HasMaxLength(30);
+            b.Property(x => x.DescripcionEvento).HasMaxLength(200);
+            b.Property(x => x.Notas).HasMaxLength(1000);
+            b.Property(x => x.PorcentajePropina).HasColumnType("decimal(5,2)");
+            b.Property(x => x.MontoDescuento).HasColumnType("decimal(18,2)");
+            b.HasMany(x => x.Items).WithOne(i => i.Cotizacion).HasForeignKey(i => i.CotizacionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CotizacionItem>(b =>
+        {
+            b.ToTable("CotizacionItems", "ventas");
+            b.Property(x => x.NombreProducto).HasMaxLength(200).IsRequired();
+            b.Property(x => x.Precio).HasColumnType("decimal(18,4)");
+            b.Property(x => x.TasaItbis).HasColumnType("decimal(5,4)");
+            b.Property(x => x.Cantidad).HasColumnType("decimal(18,3)");
         });
 
         modelBuilder.Entity<CategoriaGasto>(b =>

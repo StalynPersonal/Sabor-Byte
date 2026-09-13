@@ -1,0 +1,364 @@
+@page "/cotizaciones"
+@using SaborByte.Web.Api
+@using SaborByte.Web.Api.Dtos
+@inject SaborByteApiClient ApiClient
+@inject SesionCliente Sesion
+@inject NavigationManager Navegacion
+@inject ISnackbar Snackbar
+
+<PageTitle>SaborByte</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <MudText>Redirigiendo al inicio de sesión...</MudText>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">Cotizaciones</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevaCotizacion">
+            Nueva cotización
+        </MudButton>
+    </div>
+
+    <MudPaper Class="pa-3 mb-3">
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Buscar por cliente o evento" @bind-Value="_textoBusqueda"
+                               Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarAsync"
+                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="EstadoCotizacion?" Label="Estado" Value="_filtroEstado" ValueChanged="OnFiltroEstadoCambiadoAsync" Clearable="true">
+                    <MudSelectItem Value="@((EstadoCotizacion?)null)">Todos</MudSelectItem>
+                    <MudSelectItem Value="@((EstadoCotizacion?)EstadoCotizacion.Pendiente)">Pendiente</MudSelectItem>
+                    <MudSelectItem Value="@((EstadoCotizacion?)EstadoCotizacion.Aceptada)">Aceptada</MudSelectItem>
+                    <MudSelectItem Value="@((EstadoCotizacion?)EstadoCotizacion.Rechazada)">Rechazada</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="CotizacionResumenDto">
+        <HeaderContent>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Evento</MudTh>
+            <MudTh>Fecha evento</MudTh>
+            <MudTh>Vencimiento</MudTh>
+            <MudTh>Ítems</MudTh>
+            <MudTh>Total estimado</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ClienteNombre</MudTd>
+            <MudTd>@(context.DescripcionEvento ?? "—")</MudTd>
+            <MudTd>@(context.FechaEvento?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
+            <MudTd>@(context.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
+            <MudTd>@context.CantidadItems</MudTd>
+            <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@ColorEstado(context.Estado)">@TextoEstado(context.Estado)</MudChip>
+                @if (context.YaCargadaEnCarrito)
+                {
+                    <MudTooltip Text="Ya se cargó al menos una vez en un carrito de Caja">
+                        <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Small" Class="ml-1" />
+                    </MudTooltip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarAsync(context.Id)" />
+                </MudTooltip>
+                @if (context.Estado == EstadoCotizacion.Pendiente)
+                {
+                    <MudTooltip Text="Marcar aceptada">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success"
+                                       OnClick="() => CambiarEstadoAsync(context.Id, EstadoCotizacion.Aceptada)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Marcar rechazada">
+                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Error"
+                                       OnClick="() => CambiarEstadoAsync(context.Id, EstadoCotizacion.Rechazada)" />
+                    </MudTooltip>
+                }
+                <MudTooltip Text="Recrear con precios y fecha actuales">
+                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="() => RecrearAsync(context.Id)" />
+                </MudTooltip>
+                <MudTooltip Text="Eliminar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => EliminarAsync(context.Id)" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_editando" Options="_opcionesDialogoGrande">
+    <TitleContent>@(_cotizacionId is null ? "Nueva cotización" : "Editar cotización")</TitleContent>
+    <DialogContent>
+        <div class="d-flex gap-1 align-end mb-2">
+            <MudAutocomplete T="ClienteDto" Label="Cliente (si ya está registrado)" Value="_clienteSeleccionado"
+                              ValueChanged="OnClienteSeleccionado" SearchFunc="BuscarClientesAsync"
+                              ToStringFunc="@(c => c is null ? string.Empty : $"{c.NombreORazonSocial} ({c.RncOCedula})")"
+                              Clearable="true" Style="flex:1" />
+        </div>
+        <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_form.ClienteNombre" Required="true" Class="mb-2" />
+        <MudTextField T="string" Label="Teléfono" @bind-Value="_form.ClienteTelefono" Class="mb-2" />
+
+        <MudGrid Class="mb-2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Descripción del evento" @bind-Value="_form.DescripcionEvento" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudDatePicker Label="Fecha del evento" Date="_form.FechaEvento" DateChanged="d => _form.FechaEvento = d" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudDatePicker Label="Vence el" Date="_form.FechaVencimiento" DateChanged="d => _form.FechaVencimiento = d" />
+            </MudItem>
+        </MudGrid>
+
+        <MudTextField T="string" Label="Notas / condiciones" @bind-Value="_form.Notas" Lines="2" Class="mb-3" />
+
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Productos</MudText>
+        @foreach (var item in _form.Items)
+        {
+            <div class="d-flex align-center gap-2 mb-2">
+                <MudAutocomplete T="ProductoDetalleDto" Label="Producto" Value="ObtenerProductoPorId(item.ProductoId)"
+                                  ValueChanged="p => item.ProductoId = p?.Id ?? Guid.Empty"
+                                  SearchFunc="BuscarProductosAsync"
+                                  ToStringFunc="@(p => p is null ? string.Empty : $"{p.Codigo} — {p.Nombre}")"
+                                  Style="flex:2" />
+                <MudNumericField T="decimal" Label="Cantidad" @bind-Value="item.Cantidad" Min="1" Style="flex:1" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => _form.Items.Remove(item)" />
+            </div>
+        }
+        <MudButton Size="Size.Small" OnClick="() => _form.Items.Add(new ItemCotizacionRequestDto { Cantidad = 1 })">
+            + Agregar producto
+        </MudButton>
+
+        <MudDivider Class="my-3" />
+        <MudNumericField T="decimal" Label="Descuento (monto)" @bind-Value="_form.MontoDescuento" Min="0" Class="mb-2" />
+        <MudSelect T="decimal" Label="Propina" @bind-Value="_form.PorcentajePropina">
+            <MudSelectItem Value="0m">Sin propina</MudSelectItem>
+            <MudSelectItem Value="10m">10%</MudSelectItem>
+            <MudSelectItem Value="15m">15%</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private readonly DialogOptions _opcionesDialogoGrande = new() { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private MudTable<CotizacionResumenDto>? _tabla;
+    private string _textoBusqueda = string.Empty;
+    private EstadoCotizacion? _filtroEstado;
+
+    private List<ProductoDetalleDto> _productos = [];
+
+    private bool _editando;
+    private bool _procesando;
+    private Guid? _cotizacionId;
+    private GuardarCotizacionRequestDto _form = new();
+    private ClienteDto? _clienteSeleccionado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            Navegacion.NavigateTo("/login");
+            return;
+        }
+
+        if (Sesion.RequiereSeleccionSucursal)
+        {
+            Navegacion.NavigateTo("/seleccionar-sucursal");
+            return;
+        }
+
+        var resultado = await ApiClient.ListarProductosAsync(1, 500, incluirInactivos: false, sucursalId: Sesion.SucursalActivaId);
+        _productos = resultado.Items;
+    }
+
+    private Task RecargarAsync() => _tabla?.ReloadServerData() ?? Task.CompletedTask;
+
+    private async Task OnFiltroEstadoCambiadoAsync(EstadoCotizacion? valor)
+    {
+        _filtroEstado = valor;
+        await RecargarAsync();
+    }
+
+    private async Task<TableData<CotizacionResumenDto>> CargarPaginaAsync(TableState estado, CancellationToken ct)
+    {
+        var sucursalId = Sesion.SucursalActivaId;
+        if (sucursalId == Guid.Empty)
+            return new TableData<CotizacionResumenDto>();
+
+        var resultado = await ApiClient.ListarCotizacionesAsync(sucursalId, _textoBusqueda, _filtroEstado, estado.Page + 1, estado.PageSize);
+        return new TableData<CotizacionResumenDto> { Items = resultado.Items, TotalItems = resultado.TotalRegistros };
+    }
+
+    private static Color ColorEstado(EstadoCotizacion estado) => estado switch
+    {
+        EstadoCotizacion.Aceptada => Color.Success,
+        EstadoCotizacion.Rechazada => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string TextoEstado(EstadoCotizacion estado) => estado switch
+    {
+        EstadoCotizacion.Aceptada => "Aceptada",
+        EstadoCotizacion.Rechazada => "Rechazada",
+        _ => "Pendiente"
+    };
+
+    private ProductoDetalleDto? ObtenerProductoPorId(Guid id) =>
+        id == Guid.Empty ? null : _productos.FirstOrDefault(p => p.Id == id);
+
+    private Task<IEnumerable<ProductoDetalleDto>> BuscarProductosAsync(string texto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+            return Task.FromResult(_productos.AsEnumerable());
+
+        var resultado = _productos.Where(p =>
+            p.Nombre.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+            (p.Codigo?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        return Task.FromResult(resultado);
+    }
+
+    private async Task<IEnumerable<ClienteDto>> BuscarClientesAsync(string texto, CancellationToken ct) =>
+        await ApiClient.BuscarClientesAsync(Sesion.SucursalActivaId, texto);
+
+    private void OnClienteSeleccionado(ClienteDto? cliente)
+    {
+        _clienteSeleccionado = cliente;
+        if (cliente is null) return;
+
+        _form.ClienteId = cliente.Id;
+        _form.ClienteNombre = cliente.NombreORazonSocial;
+        _form.ClienteTelefono = cliente.Telefono;
+    }
+
+    private void NuevaCotizacion()
+    {
+        _cotizacionId = null;
+        _clienteSeleccionado = null;
+        _form = new GuardarCotizacionRequestDto { Items = [new ItemCotizacionRequestDto { Cantidad = 1 }] };
+        _editando = true;
+    }
+
+    private async Task EditarAsync(Guid id)
+    {
+        var detalle = await ApiClient.ObtenerCotizacionAsync(Sesion.SucursalActivaId, id);
+        if (detalle is null) return;
+
+        _cotizacionId = id;
+        _clienteSeleccionado = null;
+        _form = new GuardarCotizacionRequestDto
+        {
+            ClienteId = detalle.ClienteId,
+            ClienteNombre = detalle.ClienteNombre,
+            ClienteTelefono = detalle.ClienteTelefono,
+            DescripcionEvento = detalle.DescripcionEvento,
+            FechaEvento = detalle.FechaEvento,
+            FechaVencimiento = detalle.FechaVencimiento,
+            Notas = detalle.Notas,
+            PorcentajePropina = detalle.PorcentajePropina,
+            MontoDescuento = detalle.MontoDescuento,
+            Items = detalle.Items.Select(i => new ItemCotizacionRequestDto { ProductoId = i.ProductoId, Cantidad = i.Cantidad }).ToList()
+        };
+        _editando = true;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (_procesando) return;
+
+        if (_form.Items.Count == 0 || _form.Items.Any(i => i.ProductoId == Guid.Empty))
+        {
+            Snackbar.Add("Agrega al menos un producto válido.", Severity.Error);
+            return;
+        }
+
+        _procesando = true;
+        try
+        {
+            var sucursalId = Sesion.SucursalActivaId;
+
+            bool exito;
+            string? error;
+            if (_cotizacionId is null)
+                (exito, _, error) = await ApiClient.CrearCotizacionAsync(sucursalId, _form);
+            else
+                (exito, error) = await ApiClient.ActualizarCotizacionAsync(sucursalId, _cotizacionId.Value, _form);
+
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_cotizacionId is null ? "Cotización creada." : "Cotización actualizada.", Severity.Success);
+            _editando = false;
+            await RecargarAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private async Task CambiarEstadoAsync(Guid id, EstadoCotizacion nuevoEstado)
+    {
+        var (exito, error) = await ApiClient.CambiarEstadoCotizacionAsync(Sesion.SucursalActivaId, id, nuevoEstado);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Estado actualizado.", Severity.Success);
+        await RecargarAsync();
+    }
+
+    private async Task RecrearAsync(Guid id)
+    {
+        var (exito, _, error) = await ApiClient.RecrearCotizacionAsync(Sesion.SucursalActivaId, id);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Se creó una nueva cotización con precios y fecha actuales.", Severity.Success);
+        await RecargarAsync();
+    }
+
+    private async Task EliminarAsync(Guid id)
+    {
+        var (exito, error) = await ApiClient.EliminarCotizacionAsync(Sesion.SucursalActivaId, id);
+        if (!exito)
+        {
+            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Cotización eliminada.", Severity.Success);
+        await RecargarAsync();
+    }
+}

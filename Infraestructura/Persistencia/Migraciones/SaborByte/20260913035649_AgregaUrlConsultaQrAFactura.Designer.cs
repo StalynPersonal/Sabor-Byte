@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SaborByte.Infraestructura.Persistencia;
 
 #nullable disable
 
-namespace SaborByte.Infraestructura.Persistencia.Migraciones
+namespace SaborByte.Infraestructura.Persistencia.Migraciones.SaborByte
 {
     [DbContext(typeof(SaborByteDbContext))]
-    partial class SaborByteDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913035649_AgregaUrlConsultaQrAFactura")]
+    partial class AgregaUrlConsultaQrAFactura
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -653,100 +656,6 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.HasKey("Id");
 
                     b.ToTable("LogsAuditoria", "comun");
-                });
-
-            modelBuilder.Entity("SaborByte.Dominio.Cotizaciones.Cotizacion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("CargadaEnCarritoEn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ClienteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ClienteNombre")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ClienteTelefono")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTime>("CreadoEn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CreadoPorUsuarioId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("DescripcionEvento")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("Estado")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("FechaEvento")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaVencimiento")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("MontoDescuento")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Notas")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<decimal>("PorcentajePropina")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Cotizaciones", "ventas");
-                });
-
-            modelBuilder.Entity("SaborByte.Dominio.Cotizaciones.CotizacionItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Cantidad")
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<Guid>("CategoriaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CotizacionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("NombreProducto")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<decimal>("Precio")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<Guid>("ProductoId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("TasaItbis")
-                        .HasColumnType("decimal(5,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CotizacionId");
-
-                    b.ToTable("CotizacionItems", "ventas");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.CxcCxp.CuentaPorCobrar", b =>
@@ -2249,17 +2158,6 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Navigation("Producto");
                 });
 
-            modelBuilder.Entity("SaborByte.Dominio.Cotizaciones.CotizacionItem", b =>
-                {
-                    b.HasOne("SaborByte.Dominio.Cotizaciones.Cotizacion", "Cotizacion")
-                        .WithMany("Items")
-                        .HasForeignKey("CotizacionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cotizacion");
-                });
-
             modelBuilder.Entity("SaborByte.Dominio.CxcCxp.PagoCxC", b =>
                 {
                     b.HasOne("SaborByte.Dominio.CxcCxp.CuentaPorCobrar", "Cuenta")
@@ -2539,11 +2437,6 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
                     b.Navigation("Receta");
 
                     b.Navigation("StockPorSucursal");
-                });
-
-            modelBuilder.Entity("SaborByte.Dominio.Cotizaciones.Cotizacion", b =>
-                {
-                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("SaborByte.Dominio.CxcCxp.CuentaPorCobrar", b =>

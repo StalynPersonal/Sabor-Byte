@@ -3,6 +3,7 @@ using SaborByte.Dominio.Caja;
 using SaborByte.Dominio.Catalogo;
 using SaborByte.Dominio.Clientes;
 using SaborByte.Dominio.Comun;
+using SaborByte.Dominio.Cotizaciones;
 using SaborByte.Dominio.CxcCxp;
 using SaborByte.Dominio.Deliveries;
 using SaborByte.Dominio.Facturacion;
@@ -76,6 +77,8 @@ public interface IAppDbContext
 
     DbSet<VentaSuspendida> VentasSuspendidas { get; }
     DbSet<VentaSuspendidaItem> VentaSuspendidaItems { get; }
+    DbSet<Cotizacion> Cotizaciones { get; }
+    DbSet<CotizacionItem> CotizacionItems { get; }
 
     DbSet<CategoriaGasto> CategoriasGasto { get; }
     DbSet<Gasto> Gastos { get; }
