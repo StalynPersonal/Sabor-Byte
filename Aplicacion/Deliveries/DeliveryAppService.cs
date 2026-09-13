@@ -177,6 +177,8 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
             from fd in asignaciones.DefaultIfEmpty()
             join d in db.Deliveries on fd.DeliveryId equals d.Id into deliveries
             from d in deliveries.DefaultIfEmpty()
+            join c in db.Clientes on f.ClienteId equals c.Id into clientes
+            from c in clientes.DefaultIfEmpty()
             orderby f.FechaEmision descending
             select new FacturaAsignableDto
             {
@@ -186,7 +188,9 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
                 FechaEmision = f.FechaEmision,
                 Total = f.Total,
                 YaAsignada = fd != null,
-                DeliveryNombreActual = d != null ? d.Nombre : null
+                DeliveryNombreActual = d != null ? d.Nombre : null,
+                ClienteNombre = f.ClienteNombre,
+                ClienteTelefono = c != null ? c.Telefono : null
             };
 
         return await consulta.Take(20).ToListAsync(ct);
@@ -293,6 +297,8 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
             join u in db.Usuarios on fd.AsignadoPorUsuarioId equals u.Id
             join uq in db.Usuarios on fd.QuitadoPorUsuarioId equals uq.Id into quitadores
             from uq in quitadores.DefaultIfEmpty()
+            join c in db.Clientes on f.ClienteId equals c.Id into clientes
+            from c in clientes.DefaultIfEmpty()
             where fd.DeliveryId == deliveryId &&
                   (desde == null || fd.FechaAsignacion >= desde) &&
                   (hasta == null || fd.FechaAsignacion <= hasta)
@@ -307,6 +313,8 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
                 MontoDelivery = fd.MontoDelivery,
                 FechaAsignacion = fd.FechaAsignacion,
                 AsignadoPorNombre = u.Nombre,
+                ClienteNombre = f.ClienteNombre,
+                ClienteTelefono = c != null ? c.Telefono : null,
                 Quitada = fd.Quitada,
                 FechaQuitada = fd.FechaQuitada,
                 QuitadoPorNombre = uq != null ? uq.Nombre : null,

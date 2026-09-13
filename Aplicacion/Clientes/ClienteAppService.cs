@@ -40,7 +40,8 @@ public class ClienteAppService(IAppDbContext db)
                 Email = c.Email,
                 Direccion = c.Direccion,
                 TipoCliente = c.TipoCliente,
-                Activo = c.Activo
+                Activo = c.Activo,
+                EsGenerico = c.EsGenerico
             })
             .ToListAsync(ct);
 
@@ -70,7 +71,8 @@ public class ClienteAppService(IAppDbContext db)
                 Email = c.Email,
                 Direccion = c.Direccion,
                 TipoCliente = c.TipoCliente,
-                Activo = c.Activo
+                Activo = c.Activo,
+                EsGenerico = c.EsGenerico
             })
             .ToListAsync(ct);
     }
@@ -90,13 +92,14 @@ public class ClienteAppService(IAppDbContext db)
                 Email = c.Email,
                 Direccion = c.Direccion,
                 TipoCliente = c.TipoCliente,
-                Activo = c.Activo
+                Activo = c.Activo,
+                EsGenerico = c.EsGenerico
             })
             .FirstOrDefaultAsync(ct);
 
     public async Task<Guid> CrearAsync(Guid sucursalId, Guid usuarioId, GuardarClienteRequestDto request, CancellationToken ct = default)
     {
-        await ValidarAsync(sucursalId, request, clienteId: null, ct);
+        await ValidarAsync(sucursalId, request, clienteId: null, esGenerico: false, ct);
 
         var cliente = new Cliente
         {
@@ -120,7 +123,7 @@ public class ClienteAppService(IAppDbContext db)
         var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Id == clienteId && c.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El cliente no existe.");
 
-        await ValidarAsync(sucursalId, request, clienteId, ct);
+        await ValidarAsync(sucursalId, request, clienteId, cliente.EsGenerico, ct);
 
         cliente.NombreORazonSocial = request.NombreORazonSocial.Trim();
         cliente.RncOCedula = NormalizarRnc(request.RncOCedula);
@@ -144,10 +147,17 @@ public class ClienteAppService(IAppDbContext db)
     private static string? NormalizarRnc(string? rncOCedula) =>
         string.IsNullOrWhiteSpace(rncOCedula) ? null : rncOCedula.Trim();
 
-    private async Task ValidarAsync(Guid sucursalId, GuardarClienteRequestDto request, Guid? clienteId, CancellationToken ct)
+    private async Task ValidarAsync(Guid sucursalId, GuardarClienteRequestDto request, Guid? clienteId, bool esGenerico, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.NombreORazonSocial))
             throw new InvalidOperationException("El nombre o razón social del cliente es obligatorio.");
+
+        // El "Cliente Contado" genérico de cada sucursal no identifica a nadie real — no
+        // tiene sentido pedirle teléfono. Para cualquier cliente real (nuevo o editado), sí
+        // es obligatorio: es el dato que permite avisarle por WhatsApp cuando se le asigna
+        // un delivery (ver DeliveryAppService).
+        if (!esGenerico && string.IsNullOrWhiteSpace(request.Telefono))
+            throw new InvalidOperationException("El teléfono del cliente es obligatorio.");
 
         var rnc = NormalizarRnc(request.RncOCedula);
 

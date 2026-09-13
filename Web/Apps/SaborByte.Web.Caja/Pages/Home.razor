@@ -594,6 +594,13 @@ else
                                 <MudTooltip Text="Reimprimir recibo informativo">
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small" OnClick="() => ImprimirReciboDeliveryAsync(context)" />
                                 </MudTooltip>
+                                @if (_notificacionWhatsAppActiva && !context.Quitada)
+                                {
+                                    <MudTooltip Text="@(string.IsNullOrWhiteSpace(context.ClienteTelefono) ? "Este cliente no tiene teléfono registrado" : "Avisar por WhatsApp")">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Chat" Size="Size.Small" Color="Color.Success"
+                                                       Disabled="@string.IsNullOrWhiteSpace(context.ClienteTelefono)" OnClick="() => AvisarPorWhatsAppDeliveryAsync(context)" />
+                                    </MudTooltip>
+                                }
                                 @if (!context.Quitada && PuedeGestionarAbonosDelivery)
                                 {
                                     <MudTooltip Text="Quitar asignación">
@@ -1694,6 +1701,28 @@ else
     private FacturaDeliveryDto? _reciboDeliveryAImprimir;
 
     private bool PuedeGestionarAbonosDelivery => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
+    private bool _notificacionWhatsAppActiva => _sucursalActual?.NotificacionWhatsAppDeliveryActivo ?? false;
+
+    // wa.me abre WhatsApp Web/app con el número y el mensaje ya escritos — no envía nada
+    // por sí solo. Nombre de ventana fijo para reutilizar la misma pestaña en avisos
+    // sucesivos en vez de acumular una por cada uno.
+    private async Task AvisarPorWhatsAppDeliveryAsync(FacturaDeliveryDto factura)
+    {
+        if (string.IsNullOrWhiteSpace(factura.ClienteTelefono)) return;
+
+        var mensaje = $"Hola {factura.ClienteNombre}, tu pedido de {_empresa?.Nombre} va en camino con " +
+                      $"{_deliverySeleccionado?.Nombre}. ¡Gracias por tu compra!";
+        var url = $"https://wa.me/{NormalizarTelefonoWhatsApp(factura.ClienteTelefono)}?text={Uri.EscapeDataString(mensaje)}";
+        await JS.InvokeVoidAsync("open", url, "whatsapp-envio");
+    }
+
+    // Asume República Dominicana: un teléfono de 10 dígitos sin código de país se le
+    // antepone "1" — si ya viene con el prefijo (11 dígitos) se deja igual.
+    private static string NormalizarTelefonoWhatsApp(string telefono)
+    {
+        var digitos = new string(telefono.Where(char.IsDigit).ToArray());
+        return digitos.Length == 10 ? "1" + digitos : digitos;
+    }
 
     private static Color ColorAntiguedadDelivery(int dias) => dias switch
     {

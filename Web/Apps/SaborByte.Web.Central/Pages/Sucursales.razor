@@ -74,6 +74,7 @@ else
         <MudCheckBox T="bool" @bind-Value="_formCrear.ModuloMeseroActivo" Label="Módulo de Mesero" />
         <MudCheckBox T="bool" @bind-Value="_formCrear.ModuloCocinaActivo" Label="Módulo de Cocina (KDS)" />
         <MudCheckBox T="bool" @bind-Value="_formCrear.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" />
+        <MudCheckBox T="bool" @bind-Value="_formCrear.NotificacionWhatsAppDeliveryActivo" Label="Avisar por WhatsApp al asignar delivery" />
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _creando = false">Cancelar</MudButton>
@@ -105,7 +106,8 @@ else
             <MudText Typo="Typo.subtitle2" Class="mb-2">Módulos opcionales</MudText>
             <MudCheckBox T="bool" @bind-Value="_formEditar.ModuloMeseroActivo" Label="Módulo de Mesero" />
             <MudCheckBox T="bool" @bind-Value="_formEditar.ModuloCocinaActivo" Label="Módulo de Cocina (KDS)" />
-            <MudCheckBox T="bool" @bind-Value="_formEditar.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" Class="mb-4" />
+            <MudCheckBox T="bool" @bind-Value="_formEditar.EcfActivo" Label="Facturación electrónica (e-CF / DGII)" />
+            <MudCheckBox T="bool" @bind-Value="_formEditar.NotificacionWhatsAppDeliveryActivo" Label="Avisar por WhatsApp al asignar delivery" Class="mb-4" />
         }
     </DialogContent>
     <DialogActions>
@@ -196,7 +198,8 @@ else
             Activa = sucursal.Activa,
             ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
             ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
-            EcfActivo = sucursal.EcfActivo
+            EcfActivo = sucursal.EcfActivo,
+            NotificacionWhatsAppDeliveryActivo = sucursal.NotificacionWhatsAppDeliveryActivo
         };
 
         _editando = true;
@@ -217,7 +220,8 @@ else
             Activa = !sucursal.Activa,
             ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
             ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
-            EcfActivo = sucursal.EcfActivo
+            EcfActivo = sucursal.EcfActivo,
+            NotificacionWhatsAppDeliveryActivo = sucursal.NotificacionWhatsAppDeliveryActivo
         };
 
         var (exito, error) = await ApiClient.ActualizarSucursalAsync(resumen.Id, request);

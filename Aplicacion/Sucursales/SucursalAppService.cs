@@ -47,6 +47,7 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria, I
             ModuloMeseroActivo = request.ModuloMeseroActivo,
             ModuloCocinaActivo = request.ModuloCocinaActivo,
             EcfActivo = request.EcfActivo,
+            NotificacionWhatsAppDeliveryActivo = request.NotificacionWhatsAppDeliveryActivo,
             CreadoPorUsuarioId = usuarioCreadorId
         };
 
@@ -89,6 +90,7 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria, I
             ModuloMeseroActivo = sucursal.ModuloMeseroActivo,
             ModuloCocinaActivo = sucursal.ModuloCocinaActivo,
             EcfActivo = sucursal.EcfActivo,
+            NotificacionWhatsAppDeliveryActivo = sucursal.NotificacionWhatsAppDeliveryActivo,
             SmtpActivo = sucursal.SmtpActivo,
             SmtpHost = sucursal.SmtpHost,
             SmtpPuerto = sucursal.SmtpPuerto,
@@ -118,6 +120,7 @@ public class SucursalAppService(IAppDbContext db, IAuditoriaService auditoria, I
         sucursal.ModuloMeseroActivo = request.ModuloMeseroActivo;
         sucursal.ModuloCocinaActivo = request.ModuloCocinaActivo;
         sucursal.EcfActivo = request.EcfActivo;
+        sucursal.NotificacionWhatsAppDeliveryActivo = request.NotificacionWhatsAppDeliveryActivo;
         sucursal.ActualizadoEn = DateTime.UtcNow;
         sucursal.ActualizadoPorUsuarioId = usuarioId;
 

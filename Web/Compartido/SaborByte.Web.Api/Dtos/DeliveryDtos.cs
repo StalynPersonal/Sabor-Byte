@@ -28,6 +28,8 @@ public class FacturaAsignableDto
     public decimal Total { get; set; }
     public bool YaAsignada { get; set; }
     public string? DeliveryNombreActual { get; set; }
+    public string ClienteNombre { get; set; } = string.Empty;
+    public string? ClienteTelefono { get; set; }
 }
 
 public class AsignarFacturaRequestDto
@@ -47,6 +49,8 @@ public class FacturaDeliveryDto
     public decimal MontoDelivery { get; set; }
     public DateTime FechaAsignacion { get; set; }
     public string AsignadoPorNombre { get; set; } = string.Empty;
+    public string ClienteNombre { get; set; } = string.Empty;
+    public string? ClienteTelefono { get; set; }
     public bool Quitada { get; set; }
     public DateTime? FechaQuitada { get; set; }
     public string? QuitadoPorNombre { get; set; }

@@ -12,6 +12,7 @@ public class ClienteDto
     public string? Direccion { get; set; }
     public TipoCliente TipoCliente { get; set; }
     public bool Activo { get; set; }
+    public bool EsGenerico { get; set; }
 }
 
 public class GuardarClienteRequestDto

@@ -173,6 +173,13 @@ else
                         <MudTooltip Text="Reimprimir recibo informativo">
                             <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small" OnClick="() => ImprimirReciboAsync(context)" />
                         </MudTooltip>
+                        @if (_notificacionWhatsAppActiva && !context.Quitada)
+                        {
+                            <MudTooltip Text="@(string.IsNullOrWhiteSpace(context.ClienteTelefono) ? "Este cliente no tiene teléfono registrado" : "Avisar por WhatsApp")">
+                                <MudIconButton Icon="@Icons.Material.Filled.Chat" Size="Size.Small" Color="Color.Success"
+                                               Disabled="@string.IsNullOrWhiteSpace(context.ClienteTelefono)" OnClick="() => AvisarPorWhatsAppAsync(context)" />
+                            </MudTooltip>
+                        }
                         @if (!context.Quitada && PuedeGestionarAbonos)
                         {
                             <MudTooltip Text="Quitar asignación">
@@ -491,6 +498,11 @@ else
 
     private bool PuedeGestionarAbonos => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
 
+    // Configurable en Central → Sucursales — si está apagado, el botón de WhatsApp ni se
+    // muestra (ver OnInitializedAsync).
+    private bool _notificacionWhatsAppActiva;
+    private string _empresaNombre = string.Empty;
+
     private static Color ColorAntiguedad(int dias) => dias switch
     {
         <= 3 => Color.Success,
@@ -518,6 +530,35 @@ else
         var cajas = await ApiClient.ListarCajasAsync(SucursalId);
         if (cajas.Count > 0)
             _formatoImpresion = cajas[0].FormatoImpresion;
+
+        var sucursal = await ApiClient.ObtenerSucursalAsync(SucursalId);
+        _notificacionWhatsAppActiva = sucursal?.NotificacionWhatsAppDeliveryActivo ?? false;
+
+        var empresa = await ApiClient.ObtenerEmpresaAsync();
+        _empresaNombre = empresa?.Nombre ?? "";
+    }
+
+    // wa.me abre WhatsApp Web/app con el número y el mensaje ya escritos — no envía nada
+    // por sí solo, alguien tiene que darle "Enviar" ahí. Se usa un nombre de ventana fijo
+    // para que clics sucesivos reutilicen la misma pestaña en vez de acumular una por cada
+    // aviso.
+    private async Task AvisarPorWhatsAppAsync(FacturaDeliveryDto factura)
+    {
+        if (string.IsNullOrWhiteSpace(factura.ClienteTelefono)) return;
+
+        var mensaje = $"Hola {factura.ClienteNombre}, tu pedido de {_empresaNombre} va en camino con " +
+                      $"{_deliverySeleccionado?.Nombre}. ¡Gracias por tu compra!";
+        var url = $"https://wa.me/{NormalizarTelefonoWhatsApp(factura.ClienteTelefono)}?text={Uri.EscapeDataString(mensaje)}";
+        await JS.InvokeVoidAsync("open", url, "whatsapp-envio");
+    }
+
+    // Asume República Dominicana: un teléfono de 10 dígitos sin código de país se le
+    // antepone "1" (código de país de RD/Norteamérica) — si ya viene con el prefijo
+    // (11 dígitos) se deja igual.
+    private static string NormalizarTelefonoWhatsApp(string telefono)
+    {
+        var digitos = new string(telefono.Where(char.IsDigit).ToArray());
+        return digitos.Length == 10 ? "1" + digitos : digitos;
     }
 
     private Task RecargarListaAsync() => _tablaDeliveries?.ReloadServerData() ?? Task.CompletedTask;

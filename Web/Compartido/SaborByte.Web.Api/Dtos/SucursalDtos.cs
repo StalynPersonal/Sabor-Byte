@@ -31,6 +31,7 @@ public class CrearSucursalRequestDto
     public bool ModuloMeseroActivo { get; set; }
     public bool ModuloCocinaActivo { get; set; }
     public bool EcfActivo { get; set; }
+    public bool NotificacionWhatsAppDeliveryActivo { get; set; }
 }
 
 public class SucursalDto
@@ -44,6 +45,7 @@ public class SucursalDto
     public bool ModuloMeseroActivo { get; set; }
     public bool ModuloCocinaActivo { get; set; }
     public bool EcfActivo { get; set; }
+    public bool NotificacionWhatsAppDeliveryActivo { get; set; }
     public bool SmtpActivo { get; set; }
     public string? SmtpHost { get; set; }
     public int? SmtpPuerto { get; set; }
@@ -62,6 +64,7 @@ public class ActualizarSucursalRequestDto
     public bool ModuloMeseroActivo { get; set; }
     public bool ModuloCocinaActivo { get; set; }
     public bool EcfActivo { get; set; }
+    public bool NotificacionWhatsAppDeliveryActivo { get; set; }
 }
 
 public class ActualizarSmtpRequestDto

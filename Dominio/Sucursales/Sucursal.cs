@@ -30,6 +30,11 @@ public class Sucursal
     public bool ModuloCocinaActivo { get; set; }
     public bool EcfActivo { get; set; }
 
+    // Habilita el botón "Avisar por WhatsApp" al asignar una factura a un delivery — abre
+    // wa.me con el teléfono del cliente y un mensaje prellenado, no envía nada por sí solo
+    // (no requiere ninguna API ni costo, ver DeliveryAppService/Deliveries.razor).
+    public bool NotificacionWhatsAppDeliveryActivo { get; set; }
+
     // Configuración de correo saliente, opcional por sucursal (ver sección "Configuración"
     // del plan). Si SmtpActivo = false, IEmailSender no envía nada silenciosamente.
     public bool SmtpActivo { get; set; }

@@ -67,7 +67,7 @@ else
                        Required="@(_form.TipoCliente == TipoCliente.Fiscal)"
                        HelperText="@(_form.TipoCliente == TipoCliente.Fiscal ? "Obligatorio para clientes Fiscal" : null)"
                        Class="mb-2" />
-        <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
+        <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Required="@(!_esGenericoActual)" Class="mb-2" />
         <MudTextField T="string" Label="Email" @bind-Value="_form.Email" Class="mb-2" />
         <MudTextField T="string" Label="Dirección" @bind-Value="_form.Direccion" Class="mb-2" />
     </DialogContent>
@@ -95,6 +95,7 @@ else
     private bool _procesando;
     private Guid? _clienteId;
     private GuardarClienteRequestDto _form = new();
+    private bool _esGenericoActual;
 
     protected override void OnInitialized()
     {
@@ -134,6 +135,7 @@ else
     private void NuevoCliente()
     {
         _clienteId = null;
+        _esGenericoActual = false;
         _form = new GuardarClienteRequestDto();
         _editando = true;
     }
@@ -141,6 +143,7 @@ else
     private void EditarCliente(ClienteDto cliente)
     {
         _clienteId = cliente.Id;
+        _esGenericoActual = cliente.EsGenerico;
         _form = new GuardarClienteRequestDto
         {
             NombreORazonSocial = cliente.NombreORazonSocial,
