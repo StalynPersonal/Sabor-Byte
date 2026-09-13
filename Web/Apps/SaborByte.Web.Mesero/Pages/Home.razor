@@ -10,17 +10,55 @@
 
 <PageTitle>SaborByte</PageTitle>
 
+<style>
+    /* El panel de productos/comandas debe ocupar toda la altura disponible, igual que
+       el Pedido — MudTabs y el contenido de cada pestaña heredan ese alto. */
+    .tabs-altura-completa,
+    .tabs-altura-completa .mud-tabs-panels,
+    .tabs-altura-completa .mud-tab-panel {
+        height: 100%;
+    }
+
+    @@media (max-width: 959.98px) {
+        .panel-pedido {
+            position: static !important;
+            height: auto !important;
+            margin-top: 16px;
+        }
+
+        .lista-pedido {
+            max-height: 40vh !important;
+        }
+
+        .panel-productos {
+            position: static !important;
+            height: auto !important;
+        }
+
+        .tabs-altura-completa,
+        .tabs-altura-completa .mud-tabs-panels,
+        .tabs-altura-completa .mud-tab-panel {
+            height: auto;
+        }
+
+        .area-productos {
+            max-height: none !important;
+        }
+    }
+</style>
+
 @if (!Sesion.EstaAutenticado)
 {
     <MudText>Redirigiendo al inicio de sesión...</MudText>
 }
 else
 {
-    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
+    <MudGrid>
+    <MudItem xs="12" md="8" Class="panel-productos" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 80px);">
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4 tabs-altura-completa">
         <MudTabPanel Text="Nuevo pedido">
-            <MudGrid>
-                <MudItem xs="9">
-                    <MudGrid Class="mb-4">
+                <div style="display:flex; flex-direction:column; height:100%;">
+                    <MudGrid Class="mb-4" Style="flex:0 0 auto;">
                         <MudItem xs="8">
                             <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
                                            @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
@@ -37,7 +75,7 @@ else
                         </MudItem>
                     </MudGrid>
 
-                    <div style="max-height: calc(100vh - 260px); overflow-y: auto; padding-right: 4px;">
+                    <div class="area-productos" style="flex:1 1 auto; min-height:0; overflow-y: auto; padding-right: 4px;">
                     <MudGrid>
                         @foreach (var producto in _productos)
                         {
@@ -83,57 +121,11 @@ else
                         }
                     </MudGrid>
                     </div>
-                </MudItem>
-
-                <MudItem xs="3" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 260px); overflow-y: auto;">
-                    <MudPaper Class="pa-4" Style="min-height: 100%;">
-                        <MudText Typo="Typo.h6" Class="mb-2">Pedido</MudText>
-
-                        <MudSelect T="Guid?" Label="Mesa" @bind-Value="_mesaId" Class="mb-3" Required="true">
-                            @foreach (var mesa in _mesas.Where(m => m.Activo))
-                            {
-                                <MudSelectItem Value="@((Guid?)mesa.Id)">
-                                    Mesa @mesa.Numero @(string.IsNullOrEmpty(mesa.Salon) ? "" : $"— {mesa.Salon}") @(mesa.Estado == EstadoMesa.Ocupada ? "(ocupada)" : "")
-                                </MudSelectItem>
-                            }
-                        </MudSelect>
-
-                        @foreach (var linea in _pedido)
-                        {
-                            <div class="d-flex justify-space-between align-center mb-1 gap-1">
-                                <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small"
-                                               OnClick="() => QuitarUnidad(linea)" />
-                                <div style="min-width:130px">
-                                    <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
-                                    @if (linea.NombresExcluidos.Count > 0)
-                                    {
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Sin: @string.Join(", ", linea.NombresExcluidos)</MudText>
-                                    }
-                                </div>
-                                <MudTextField T="string" Label="Notas" @bind-Value="linea.Notas" Margin="Margin.Dense" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                               OnClick="() => _pedido.Remove(linea)" />
-                            </div>
-                        }
-
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
-                                   Disabled="@(_pedido.Count == 0 || _mesaId is null || _procesandoEnvio)" OnClick="EnviarACocinaAsync" Class="mt-2">
-                            @if (_procesandoEnvio)
-                            {
-                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                                <MudText Class="ms-2">Enviando...</MudText>
-                            }
-                            else
-                            {
-                                <MudText>Enviar a cocina</MudText>
-                            }
-                        </MudButton>
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
+                </div>
         </MudTabPanel>
 
         <MudTabPanel Text="Mis comandas">
+            <div style="height:100%; overflow-y:auto;">
             @if (_comandas.Count == 0)
             {
                 <MudText Typo="Typo.body2">No hay comandas abiertas.</MudText>
@@ -190,8 +182,61 @@ else
                     }
                 </MudGrid>
             }
+            </div>
         </MudTabPanel>
     </MudTabs>
+    </MudItem>
+
+    <MudItem xs="12" md="4" Class="panel-pedido" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 80px);">
+        <MudPaper Class="pa-4 panel-pedido-inner" Style="height: 100%; display: grid; grid-template-rows: auto auto 1fr auto; overflow-y: auto;">
+            <MudText Typo="Typo.h6" Class="mb-2">Pedido</MudText>
+
+            <MudSelect T="Guid?" Label="Mesa" @bind-Value="_mesaId" Class="mb-3" Required="true">
+                @foreach (var mesa in _mesas.Where(m => m.Activo))
+                {
+                    <MudSelectItem Value="@((Guid?)mesa.Id)">
+                        Mesa @mesa.Numero @(string.IsNullOrEmpty(mesa.Salon) ? "" : $"— {mesa.Salon}") @(mesa.Estado == EstadoMesa.Ocupada ? "(ocupada)" : "")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+
+            <div class="lista-pedido" style="min-height: 60px; overflow-y: auto;">
+                @foreach (var linea in _pedido)
+                {
+                    <div class="mb-2">
+                        <div class="d-flex justify-space-between align-center gap-1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small"
+                                           OnClick="() => QuitarUnidad(linea)" />
+                            <div style="flex:1; min-width:0;">
+                                <MudText Typo="Typo.body2">@linea.Cantidad x @linea.Nombre</MudText>
+                                @if (linea.NombresExcluidos.Count > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Sin: @string.Join(", ", linea.NombresExcluidos)</MudText>
+                                }
+                            </div>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="() => _pedido.Remove(linea)" />
+                        </div>
+                        <MudTextField T="string" Label="Notas" @bind-Value="linea.Notas" Margin="Margin.Dense" FullWidth="true" />
+                    </div>
+                }
+            </div>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                       Disabled="@(_pedido.Count == 0 || _mesaId is null || _procesandoEnvio)" OnClick="EnviarACocinaAsync" Class="mt-2">
+                @if (_procesandoEnvio)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Enviando...</MudText>
+                }
+                else
+                {
+                    <MudText>Enviar a cocina</MudText>
+                }
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+    </MudGrid>
 
     @if (_mostrarDialogoCancelarComanda)
     {

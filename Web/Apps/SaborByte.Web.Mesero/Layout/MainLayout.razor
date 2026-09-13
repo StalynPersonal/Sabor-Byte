@@ -107,8 +107,7 @@
 
     public void Dispose() => Navegacion.LocationChanged -= VerificarSucursalSeleccionada;
 
-    // Verde, para distinguir esta app de un vistazo entre las 4 ventanas abiertas
-    // (Central es rojo, Caja es azul, Cocina es oscuro con acento naranja).
+    // Mismo verde en las 4 apps — se distinguen por el nombre en el login/AppBar, no por color.
     private readonly MudTheme _tema = new()
     {
         PaletteLight = new PaletteLight

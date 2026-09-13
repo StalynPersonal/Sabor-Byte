@@ -175,6 +175,6 @@ code {
 }
 /* Color del panel de marca en el login (ver login.css) — rojo, igual que el tema de la app. */
 :root {
-    --login-gradient-inicio: #943A3E;
-    --login-gradient-fin: #B5474C;
+    --login-gradient-inicio: #2F6E4B;
+    --login-gradient-fin: #3D8B5F;
 }

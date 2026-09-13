@@ -76,6 +76,15 @@
     color: #f4811f;
 }
 
+/* Con las 4 apps compartiendo el mismo color de marca, este nombre es lo único que
+   distingue una app de otra en la pantalla de login. */
+.panel-marca__app {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 1.5rem 0 0.25rem 0;
+    line-height: 1.3;
+}
+
 .panel-marca__subtitulo {
     font-size: 1.05rem;
     opacity: 0.85;

@@ -26,13 +26,13 @@ else
                     Plantilla CSV
                 </MudButton>
             </MudTooltip>
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="AbrirImportacionCsv">
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="AbrirImportacionCsv">
                 Cargar CSV
             </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="NuevoCombo">
+            <MudButton Variant="Variant.Text" OnClick="NuevoCombo">
                 Nuevo combo
             </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoProducto">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick='() => Navegacion.NavigateTo("/productos/nuevo")'>
                 Nuevo producto
             </MudButton>
         </div>
@@ -124,153 +124,6 @@ else
         </PagerContent>
     </MudTable>
 }
-
-<MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
-    <TitleContent>@(_productoId is null ? "Nuevo producto" : "Editar producto")</TitleContent>
-    <DialogContent>
-        <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Class="mb-2" />
-        <MudTextField T="string" Label="Descripción" @bind-Value="_form.Descripcion" Class="mb-2" />
-        <MudTextField T="string" Label="Código (único)" @bind-Value="_form.Codigo" Class="mb-2" Required="true" />
-
-        <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Imagen</MudText>
-        <div class="d-flex align-center gap-3 mb-2">
-            @if (!string.IsNullOrEmpty(_form.ImagenUrl))
-            {
-                <MudImage Src="@_form.ImagenUrl" Width="72" Height="72" ObjectFit="ObjectFit.Cover" Class="rounded" />
-            }
-            <MudFileUpload T="IBrowserFile" FilesChanged="OnImagenSeleccionadaAsync" Accept=".jpg,.jpeg,.png,.webp,.gif">
-                <CustomContent Context="subidor">
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Image" OnClick="@(() => subidor.OpenFilePickerAsync())">
-                        @(string.IsNullOrEmpty(_form.ImagenUrl) ? "Seleccionar imagen" : "Cambiar imagen")
-                    </MudButton>
-                </CustomContent>
-            </MudFileUpload>
-            @if (!string.IsNullOrEmpty(_form.ImagenUrl))
-            {
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="() => _form.ImagenUrl = null" />
-            }
-        </div>
-        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2" Style="display:block">
-            Usa una foto donde el producto llene la mayor parte del encuadre, con poco fondo/espacio en
-            blanco alrededor — la proporción exacta importa menos que eso. Mínimo 600 px en el lado más
-            corto para que no se vea pixelada.
-        </MudText>
-
-        <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Códigos de barra</MudText>
-        <div class="d-flex gap-2 align-center mb-2">
-            <MudTextField T="string" Label="Agregar código de barra" @bind-Value="_nuevoCodigoBarra" Immediate="true"
-                           @onkeydown="OnKeyDownCodigoBarra" Style="flex:1" />
-            <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="AgregarCodigoBarra">Agregar</MudButton>
-        </div>
-        <div class="d-flex flex-wrap gap-1 mb-3">
-            @foreach (var codigo in _form.CodigosBarra)
-            {
-                <MudChip T="string" Size="Size.Small" OnClose="() => _form.CodigosBarra.Remove(codigo)">@codigo</MudChip>
-            }
-        </div>
-
-        <MudSelect T="TipoProducto" Label="Tipo" @bind-Value="_form.TipoProducto" Class="mb-2" Disabled="_editandoEsCombo">
-            <MudSelectItem Value="TipoProducto.Vendible">Vendible</MudSelectItem>
-            <MudSelectItem Value="TipoProducto.Insumo">Insumo</MudSelectItem>
-        </MudSelect>
-        @if (_editandoEsCombo)
-        {
-            <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">Un combo no puede cambiar de tipo.</MudAlert>
-        }
-        else if (_productoId is not null)
-        {
-            <MudAlert Severity="Severity.Warning" Class="mb-2" Dense="true">
-                Si cambias el tipo: pasar a Insumo borra la receta actual; pasar a Vendible
-                requiere configurar receta o marcarlo Inventariable. El sistema no deja
-                cambiarlo si otro producto depende de este (como insumo de una receta o
-                componente de un combo).
-            </MudAlert>
-        }
-
-        <div class="d-flex gap-2 align-center mb-2">
-            <MudSelect T="Guid" Label="Categoría" @bind-Value="_form.CategoriaId" Style="flex:1">
-                @foreach (var categoria in _categorias)
-                {
-                    <MudSelectItem Value="@categoria.Id">@categoria.Nombre</MudSelectItem>
-                }
-            </MudSelect>
-            <MudTooltip Text="Nueva categoría">
-                <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="AbrirNuevaCategoria" />
-            </MudTooltip>
-        </div>
-
-        <MudNumericField T="decimal" Label="Precio de venta (con ITBIS incluido)" @bind-Value="_precioConItbis" Min="0" Class="mb-2" />
-        <MudNumericField T="decimal?" Label="Costo unitario (opcional)" @bind-Value="_form.CostoUnitario" Min="0" Class="mb-2" />
-
-        <div class="d-flex gap-2 align-center mb-2">
-            <MudSelect T="Guid" Label="Unidad de medida" @bind-Value="_form.UnidadMedidaId" Style="flex:1">
-                @foreach (var unidad in _unidadesMedida)
-                {
-                    <MudSelectItem Value="@unidad.Id">@unidad.Nombre</MudSelectItem>
-                }
-            </MudSelect>
-            <MudTooltip Text="Nueva unidad de medida">
-                <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="AbrirNuevaUnidadMedida" />
-            </MudTooltip>
-        </div>
-
-        <MudSelect T="decimal" Label="Tasa de ITBIS" @bind-Value="_form.TasaItbis" Class="mb-2">
-            <MudSelectItem Value="0.18m">18% (general)</MudSelectItem>
-            <MudSelectItem Value="0.16m">16%</MudSelectItem>
-            <MudSelectItem Value="0m">0% (tasa cero)</MudSelectItem>
-        </MudSelect>
-
-        @if (_form.TipoProducto == TipoProducto.Insumo)
-        {
-            <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
-                El stock y sus umbrales mínimo/máximo se configuran por sucursal desde Inventario.
-            </MudAlert>
-        }
-        else
-        {
-            <MudCheckBox T="bool" Value="_form.Inventariable" ValueChanged="OnInventariableChanged" Label="Inventariable (producto de reventa, sin preparación)" Class="mb-1" />
-            @if (_form.Inventariable)
-            {
-                <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
-                    Se vende tal cual, sin receta — lleva su propio stock, igual que un insumo
-                    (ej. agua embotellada, refresco enlatado). Se configura desde Inventario.
-                </MudAlert>
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Info" Class="mb-2" Dense="true">
-                    Se prepara combinando insumos — su stock se descuenta de la receta (ícono
-                    de cubiertos en la tabla), no lleva stock propio.
-                </MudAlert>
-            }
-        }
-
-        @if (_form.TipoProducto == TipoProducto.Insumo || _form.Inventariable)
-        {
-            <MudCheckBox T="bool" @bind-Value="_form.PermiteVentaConStockNegativo" Label="Permitir venta con stock negativo" Class="mb-1" />
-            @if (_form.PermiteVentaConStockNegativo)
-            {
-                <MudAlert Severity="Severity.Warning" Class="mb-2" Dense="true">
-                    Se podrá seguir vendiendo aunque el stock llegue a 0 o quede negativo. Por
-                    defecto esto está bloqueado para no vender algo que físicamente no existe.
-                </MudAlert>
-            }
-        }
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarAsync" Disabled="_procesando">
-            @if (_procesando)
-            {
-                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-            }
-            else
-            {
-                <MudText>Guardar</MudText>
-            }
-        </MudButton>
-    </DialogActions>
-</MudDialog>
 
 <MudDialog @bind-Visible="_editandoReceta" Options="_opcionesDialogoGrande">
     <TitleContent>Receta — @_form.Nombre</TitleContent>
@@ -392,26 +245,6 @@ else
     <DialogActions>
         <MudButton OnClick="() => _creandoCategoria = false">Cancelar</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarCategoriaAsync" Disabled="_procesando">
-            @if (_procesando)
-            {
-                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-            }
-            else
-            {
-                <MudText>Crear</MudText>
-            }
-        </MudButton>
-    </DialogActions>
-</MudDialog>
-
-<MudDialog @bind-Visible="_creandoUnidadMedida" Options="_opcionesDialogo">
-    <TitleContent>Nueva unidad de medida</TitleContent>
-    <DialogContent>
-        <MudTextField T="string" Label="Nombre" @bind-Value="_formUnidadMedida.Nombre" Required="true" RequiredError="El nombre es obligatorio." Class="mb-2" />
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="() => _creandoUnidadMedida = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarUnidadMedidaAsync" Disabled="_procesando">
             @if (_procesando)
             {
                 <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -627,22 +460,13 @@ else
     private bool _creandoCategoria;
     private GuardarCategoriaRequestDto _formCategoria = new();
 
-    private bool _creandoUnidadMedida;
-    private GuardarUnidadMedidaRequestDto _formUnidadMedida = new();
-
     private bool _viendoDetalle;
     private ProductoDetalleDto? _detalle;
 
-    private bool _editando;
+    // Usados solo por el diálogo de Receta — el alta/edición de producto en sí vive en
+    // ProductoFormulario.razor (página aparte, con su propio _form).
     private Guid? _productoId;
     private GuardarProductoRequestDto _form = new();
-    // El formulario le pide al usuario el precio CON ITBIS incluido (lo que el cliente
-    // paga) — _form.Precio (neto, lo que se guarda) se calcula a partir de esto recién al
-    // guardar, dividiendo por (1 + TasaItbis). El resto del sistema (venta, comanda,
-    // carrito, promociones) sigue usando Producto.Precio como neto, sin cambios.
-    private decimal _precioConItbis;
-    private string _nuevoCodigoBarra = string.Empty;
-    private bool _editandoEsCombo;
 
     private bool _editandoReceta;
 
@@ -742,46 +566,6 @@ else
         return Task.FromResult(resultado);
     }
 
-    private void AbrirNuevaUnidadMedida()
-    {
-        _formUnidadMedida = new GuardarUnidadMedidaRequestDto();
-        _creandoUnidadMedida = true;
-    }
-
-    private async Task GuardarUnidadMedidaAsync()
-    {
-        if (_procesando) return;
-
-        if (string.IsNullOrWhiteSpace(_formUnidadMedida.Nombre))
-        {
-            Snackbar.Add("El nombre es obligatorio.", Severity.Error);
-            return;
-        }
-
-        _procesando = true;
-        try
-        {
-            var (exito, error) = await ApiClient.CrearUnidadMedidaAsync(_formUnidadMedida);
-            if (!exito)
-            {
-                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-                return;
-            }
-
-            Snackbar.Add("Unidad de medida creada.", Severity.Success);
-            _unidadesMedida = await ApiClient.ListarUnidadesMedidaAsync();
-            var nueva = _unidadesMedida.FirstOrDefault(u => u.Nombre == _formUnidadMedida.Nombre);
-            if (nueva is not null && _editando)
-                _form.UnidadMedidaId = nueva.Id;
-
-            _creandoUnidadMedida = false;
-        }
-        finally
-        {
-            _procesando = false;
-        }
-    }
-
     private void AbrirNuevaCategoria()
     {
         _formCategoria = new GuardarCategoriaRequestDto();
@@ -811,11 +595,8 @@ else
             Snackbar.Add("Categoría creada.", Severity.Success);
             _categorias = await ApiClient.ListarCategoriasAsync();
             var nueva = _categorias.FirstOrDefault(c => c.Nombre == _formCategoria.Nombre);
-            if (nueva is not null)
-            {
-                if (_editando) _form.CategoriaId = nueva.Id;
-                if (_editandoCombo) _formCombo.CategoriaId = nueva.Id;
-            }
+            if (nueva is not null && _editandoCombo)
+                _formCombo.CategoriaId = nueva.Id;
 
             _creandoCategoria = false;
         }
@@ -847,41 +628,12 @@ else
         await RecargarTablaAsync();
     }
 
-    private void NuevoProducto()
-    {
-        _productoId = null;
-        _form = new GuardarProductoRequestDto
-        {
-            TipoProducto = TipoProducto.Vendible,
-            CategoriaId = _categorias.FirstOrDefault()?.Id ?? Guid.Empty,
-            UnidadMedidaId = _unidadesMedida.FirstOrDefault()?.Id ?? Guid.Empty
-        };
-        _precioConItbis = 0;
-        _editandoEsCombo = false;
-        _nuevoCodigoBarra = string.Empty;
-        _editando = true;
-    }
-
     private void NuevoCombo()
     {
         _comboIdEditando = null;
         _formCombo = new CrearComboRequestDto { CategoriaId = _categorias.FirstOrDefault()?.Id ?? Guid.Empty };
         _precioComboConItbis = 0;
         _editandoCombo = true;
-    }
-
-    private async Task OnKeyDownCodigoBarra(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-            AgregarCodigoBarra();
-        await Task.CompletedTask;
-    }
-
-    private async Task OnImagenSeleccionadaAsync(IBrowserFile? archivo)
-    {
-        var dataUrl = await ConvertirImagenABase64Async(archivo);
-        if (dataUrl is not null)
-            _form.ImagenUrl = dataUrl;
     }
 
     private async Task OnImagenComboSeleccionadaAsync(IBrowserFile? archivo)
@@ -907,29 +659,6 @@ else
         using var memoria = new MemoryStream();
         await stream.CopyToAsync(memoria);
         return $"data:{archivo.ContentType};base64,{Convert.ToBase64String(memoria.ToArray())}";
-    }
-
-    private void AgregarCodigoBarra()
-    {
-        var codigo = _nuevoCodigoBarra.Trim();
-        if (!string.IsNullOrEmpty(codigo) && !_form.CodigosBarra.Contains(codigo))
-            _form.CodigosBarra.Add(codigo);
-
-        _nuevoCodigoBarra = string.Empty;
-    }
-
-    // Inventariable y Receta son mutuamente excluyentes (el backend lo rechaza si llegan
-    // juntos) — sin esto, marcar Inventariable en un producto que ya tenía receta configurada
-    // guardaba igual el _form.Receta viejo (el diálogo de edición no lo muestra ni lo toca) y
-    // el guardado fallaba con un error que no explicaba qué había que hacer.
-    private void OnInventariableChanged(bool valor)
-    {
-        _form.Inventariable = valor;
-        if (valor && _form.Receta.Count > 0)
-        {
-            _form.Receta.Clear();
-            Snackbar.Add("Se borró la receta configurada: un producto Inventariable no puede tener receta.", Severity.Warning);
-        }
     }
 
     private async Task GuardarComboAsync()
@@ -1031,42 +760,9 @@ else
             return;
         }
 
-        _productoId = id;
-        _form = ConstruirForm(producto);
-        _precioConItbis = Math.Round(producto.Precio * (1 + producto.TasaItbis), 2);
-        _editandoEsCombo = false;
-        _nuevoCodigoBarra = string.Empty;
-        _editando = true;
-    }
-
-    private async Task GuardarAsync()
-    {
-        if (_procesando) return;
-        _procesando = true;
-        try
-        {
-            _form.Precio = Math.Round(_precioConItbis / (1 + _form.TasaItbis), 2);
-
-            var esNuevo = _productoId is null;
-            var (exito, error) = _productoId is null
-                ? await ApiClient.CrearProductoAsync(_form)
-                : await ApiClient.ActualizarProductoAsync(_productoId.Value, _form);
-
-            if (!exito)
-            {
-                Snackbar.Add(error ?? "Ocurrió un error inesperado.", Severity.Error);
-                return;
-            }
-
-            Snackbar.Add(esNuevo ? "Producto creado." : "Producto actualizado.", Severity.Success);
-            _editando = false;
-            await CargarListasParaFormulariosAsync();
-            await RecargarTablaAsync();
-        }
-        finally
-        {
-            _procesando = false;
-        }
+        // El alta/edición de un producto normal vive en su propia página (con flecha de
+        // "volver" al listado) — ver ProductoFormulario.razor.
+        Navegacion.NavigateTo($"/productos/editar/{id}");
     }
 
     private static string TextoTipo(ProductoDetalleDto p) => p.TipoProducto switch

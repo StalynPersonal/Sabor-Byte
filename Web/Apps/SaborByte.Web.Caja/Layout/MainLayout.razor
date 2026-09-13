@@ -120,21 +120,20 @@
 
     public void Dispose() => Navegacion.LocationChanged -= VerificarSucursalSeleccionada;
 
-    // Azul, para distinguir esta app de un vistazo entre las 4 ventanas abiertas
-    // (Central es rojo, Cocina es oscuro, Mesero es verde).
+    // Mismo verde en las 4 apps — se distinguen por el nombre en el login/AppBar, no por color.
     private readonly MudTheme _tema = new()
     {
         PaletteLight = new PaletteLight
         {
-            Primary = "#2E6DA4",
-            PrimaryDarken = "#245582",
-            PrimaryLighten = "#5A93C2"
+            Primary = "#3D8B5F",
+            PrimaryDarken = "#2F6E4B",
+            PrimaryLighten = "#66AB84"
         },
         PaletteDark = new PaletteDark
         {
-            Primary = "#5A93C2",
-            PrimaryDarken = "#2E6DA4",
-            PrimaryLighten = "#82B2D9"
+            Primary = "#66AB84",
+            PrimaryDarken = "#3D8B5F",
+            PrimaryLighten = "#8FC5A6"
         }
     };
 }

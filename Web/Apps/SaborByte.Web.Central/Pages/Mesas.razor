@@ -42,18 +42,18 @@ else
                     <MudGrid>
                         @foreach (var mesa in salonGrupo)
                         {
-                            <MudItem xs="6" sm="4" md="3">
+                            <MudItem xs="4" sm="3" md="2">
                                 <MudCard Class="cursor-pointer" Style="@EstiloTarjeta(mesa)" @onclick="() => EditarMesa(mesa)">
-                                    <MudCardContent>
-                                        <MudText Typo="Typo.subtitle1">Mesa @mesa.Numero</MudText>
-                                        <MudText Typo="Typo.body2">Capacidad: @mesa.Capacidad</MudText>
-                                        <MudText Typo="Typo.body2">@(mesa.Estado == EstadoMesa.Libre ? "Libre" : "Ocupada")</MudText>
+                                    <MudCardContent Class="pa-2">
+                                        <MudText Typo="Typo.body1">Mesa @mesa.Numero</MudText>
+                                        <MudText Typo="Typo.caption" Class="d-block">Capacidad: @mesa.Capacidad</MudText>
+                                        <MudText Typo="Typo.caption" Class="d-block">@(mesa.Estado == EstadoMesa.Libre ? "Libre" : "Ocupada")</MudText>
                                         @if (!mesa.Activo)
                                         {
-                                            <MudText Typo="Typo.body2" Color="Color.Error">Inactiva</MudText>
+                                            <MudText Typo="Typo.caption" Class="d-block" Color="Color.Error">Inactiva</MudText>
                                         }
                                     </MudCardContent>
-                                    <MudCardActions>
+                                    <MudCardActions Class="pa-1 pt-0">
                                         @if (mesa.Estado == EstadoMesa.Ocupada)
                                         {
                                             <MudButton Size="Size.Small" Color="Color.Warning"

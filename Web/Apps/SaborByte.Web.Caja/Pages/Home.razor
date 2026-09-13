@@ -229,7 +229,7 @@ else if (_cerrando)
 else
 {
     <MudGrid>
-    <MudItem xs="12" md="8" Class="panel-productos" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 100px); display:flex; flex-direction:column; gap:8px;">
+    <MudItem xs="12" md="8" Class="panel-productos" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 80px); display:flex; flex-direction:column; gap:8px;">
     <MudPaper Class="pa-3 d-flex flex-wrap gap-4" Outlined="true" Style="flex:0 0 auto;">
         <MudText Typo="Typo.body2"><strong>Caja:</strong> @NumeroCajaActual</MudText>
         <MudText Typo="Typo.body2">
@@ -777,8 +777,8 @@ else
     </div>
     </MudItem>
 
-    <MudItem xs="12" md="4" Class="panel-carrito" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 100px);">
-        <MudPaper Class="pa-4 panel-carrito-inner" Style="height: 100%; display: flex; flex-direction: column;">
+    <MudItem xs="12" md="4" Class="panel-carrito" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 80px); overflow: hidden;">
+        <MudPaper Class="pa-4 panel-carrito-inner" Style="height: 100%; display: flex; flex-direction: column; overflow-y: auto;">
             <MudText Typo="Typo.h6" Class="mb-2">Carrito</MudText>
 
             @if (_comandaOrigen is not null)
@@ -794,13 +794,11 @@ else
                 </MudAlert>
             }
 
-            <div class="d-flex gap-1 align-end mb-2">
-                <MudAutocomplete T="ClienteDto" Label="Cliente" Required="true" RequiredError="Debes seleccionar un cliente" Value="_clienteSeleccionado"
-                                  ValueChanged="OnClienteSeleccionado" SearchFunc="BuscarClientesAsync"
-                                  ToStringFunc="@(c => c is null ? string.Empty : $"{c.NombreORazonSocial} ({c.RncOCedula})")"
-                                  Clearable="true" Style="flex:1" />
-                <MudTooltip Text="Nuevo cliente">
-                    <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" OnClick="AbrirNuevoClienteAsync" />
+            <div class="d-flex align-center gap-1 mb-2">
+                <MudText Typo="Typo.body2">Cliente: @(_clienteSeleccionado?.NombreORazonSocial ?? "—")</MudText>
+                <MudTooltip Text="Elegir/cambiar cliente">
+                    <MudIconButton Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary"
+                                   OnClick="() => _mostrarDialogoCliente = true" />
                 </MudTooltip>
             </div>
 
@@ -842,19 +840,23 @@ else
                 <MudText Typo="Typo.body2" Color="Color.Success">Descuento por oferta: -RD$ @DescuentoPromocionesCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             }
 
-            <MudSelect T="decimal" Label="Propina" @bind-Value="_porcentajePropina" Class="my-2">
-                @foreach (var porcentaje in _porcentajesPropina)
-                {
-                    <MudSelectItem Value="@porcentaje.Valor">@(porcentaje.Valor == 0 ? "Sin propina" : $"{porcentaje.Valor}%")</MudSelectItem>
-                }
-            </MudSelect>
-
             <div class="d-flex align-center justify-space-between gap-2 my-2">
+                <div class="d-flex align-center gap-1">
+                    <MudText Typo="Typo.body2">Propina@(_porcentajePropina > 0 ? $": {_porcentajePropina}%" : "")</MudText>
+                    <MudMenu Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary">
+                        @foreach (var porcentaje in _porcentajesPropina)
+                        {
+                            <MudMenuItem OnClick="() => _porcentajePropina = porcentaje.Valor">
+                                @(porcentaje.Valor == 0 ? "Sin propina" : $"{porcentaje.Valor}%")
+                            </MudMenuItem>
+                        }
+                    </MudMenu>
+                </div>
                 <div class="d-flex align-center gap-1">
                     @if (_descuentoAutorizado)
                     {
                         <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
-                        <MudText Typo="Typo.body2" Color="Color.Success">Descuento autorizado: RD$ @_montoDescuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Success">Descuento: RD$ @_montoDescuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
                     }
                     else
                     {
@@ -866,7 +868,7 @@ else
                     }
                 </div>
                 <div class="d-flex align-center gap-1">
-                    <MudText Typo="Typo.subtitle2">Forma(s) de pago</MudText>
+                    <MudText Typo="Typo.body2">Forma(s) de pago</MudText>
                     <MudTooltip Text="Agregar otra forma de pago">
                         <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary"
                                        OnClick="() => _pagos.Add(new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId })" />
@@ -874,7 +876,6 @@ else
                 </div>
             </div>
 
-            <MudText Typo="Typo.body2">Subtotal: RD$ @TotalCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             <MudText Typo="Typo.body2" Class="mb-1">ITBIS (18%): RD$ @ItbisCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             <MudText Typo="Typo.h5" Class="font-weight-bold my-1">Total: RD$ @TotalConPropina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             @foreach (var pago in _pagos)
@@ -898,7 +899,7 @@ else
                 </div>
             }
             <MudText Typo="Typo.body2" Class="mt-1 mb-2" Color="@(FaltaPorCubrir == 0 ? Color.Success : Color.Error)">
-                @(FaltaPorCubrir == 0 ? "Pagos completos" : $"Falta por cubrir: RD$ {FaltaPorCubrir.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)}")
+                @(FaltaPorCubrir == 0 ? "Pagos completos" : $"Faltante: RD$ {FaltaPorCubrir.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)}")
             </MudText>
             @if (CambioCarrito > 0)
             {
@@ -991,6 +992,27 @@ else
                         }
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="() => _mostrarDialogoDescuento = false">Cancelar</MudButton>
+                </div>
+            </MudPaper>
+        </MudOverlay>
+    }
+
+    @if (_mostrarDialogoCliente)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999" @onclick="() => _mostrarDialogoCliente = false">
+            <MudPaper Class="pa-6" @onclick:stopPropagation="true" Style="width:400px">
+                <MudText Typo="Typo.h6" Class="mb-3">Elegir cliente</MudText>
+                <div class="d-flex gap-1 align-end mb-2">
+                    <MudAutocomplete T="ClienteDto" Label="Cliente" Required="true" RequiredError="Debes seleccionar un cliente" Value="_clienteSeleccionado"
+                                      ValueChanged="OnClienteSeleccionado" SearchFunc="BuscarClientesAsync"
+                                      ToStringFunc="@(c => c is null ? string.Empty : $"{c.NombreORazonSocial} ({c.RncOCedula})")"
+                                      Clearable="true" Style="flex:1" />
+                    <MudTooltip Text="Nuevo cliente">
+                        <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" OnClick="AbrirNuevoClienteAsync" />
+                    </MudTooltip>
+                </div>
+                <div class="d-flex justify-end mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _mostrarDialogoCliente = false">Listo</MudButton>
                 </div>
             </MudPaper>
         </MudOverlay>
@@ -1836,6 +1858,7 @@ else
     private decimal _porcentajePropina;
     private List<PorcentajePropinaDto> _porcentajesPropina = [];
     private ClienteDto? _clienteSeleccionado;
+    private bool _mostrarDialogoCliente;
 
     // Cliente genérico "Cliente Contado" de la sucursal (uno por sucursal, siempre existe) —
     // se usa como valor por defecto al facturar, sin obligar al cajero a buscarlo cada vez.
