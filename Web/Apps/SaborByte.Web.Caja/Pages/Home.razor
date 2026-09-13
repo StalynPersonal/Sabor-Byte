@@ -1137,7 +1137,7 @@ else
                     <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_formCotizacion.ClienteNombre" Required="true" />
                 </MudItem>
                 <MudItem xs="6" sm="3">
-                    <MudTextField T="string" Label="Teléfono" @bind-Value="_formCotizacion.ClienteTelefono" />
+                    <MudTextField T="string" Label="Teléfono" @bind-Value="_formCotizacion.ClienteTelefono" Required="true" />
                 </MudItem>
                 <MudItem xs="6" sm="3">
                     <MudDatePicker Label="Vence el" Date="_formCotizacion.FechaVencimiento" DateChanged="d => _formCotizacion.FechaVencimiento = d" />
@@ -1754,6 +1754,12 @@ else
     private async Task GuardarCotizacionAsync()
     {
         if (_procesandoCotizacion) return;
+
+        if (string.IsNullOrWhiteSpace(_formCotizacion.ClienteTelefono))
+        {
+            Snackbar.Add("El teléfono del cliente es obligatorio.", Severity.Error);
+            return;
+        }
 
         if (_formCotizacion.Items.Count == 0 || _formCotizacion.Items.Any(i => i.ProductoId == Guid.Empty))
         {

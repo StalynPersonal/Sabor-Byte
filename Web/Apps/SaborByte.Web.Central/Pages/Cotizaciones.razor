@@ -105,7 +105,7 @@ else
                 <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_form.ClienteNombre" Required="true" />
             </MudItem>
             <MudItem xs="6" sm="3">
-                <MudTextField T="string" Label="Teléfono" @bind-Value="_form.ClienteTelefono" />
+                <MudTextField T="string" Label="Teléfono" @bind-Value="_form.ClienteTelefono" Required="true" />
             </MudItem>
             <MudItem xs="6" sm="3">
                 <MudDatePicker Label="Vence el" Date="_form.FechaVencimiento" DateChanged="d => _form.FechaVencimiento = d" />
@@ -273,6 +273,12 @@ else
     private async Task GuardarAsync()
     {
         if (_procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_form.ClienteTelefono))
+        {
+            Snackbar.Add("El teléfono del cliente es obligatorio.", Severity.Error);
+            return;
+        }
 
         if (_form.Items.Count == 0 || _form.Items.Any(i => i.ProductoId == Guid.Empty))
         {

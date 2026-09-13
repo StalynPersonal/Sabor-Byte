@@ -122,6 +122,9 @@ public class CotizacionAppService(IAppDbContext db)
         if (string.IsNullOrWhiteSpace(request.ClienteNombre))
             throw new InvalidOperationException("El nombre del cliente es obligatorio.");
 
+        if (string.IsNullOrWhiteSpace(request.ClienteTelefono))
+            throw new InvalidOperationException("El teléfono del cliente es obligatorio.");
+
         if (request.Items.Count == 0)
             throw new InvalidOperationException("La cotización debe tener al menos un producto.");
 
