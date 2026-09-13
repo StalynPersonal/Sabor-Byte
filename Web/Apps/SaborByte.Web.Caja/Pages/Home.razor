@@ -2225,7 +2225,7 @@ else
             }
             <hr />
             <p style="margin:0">Fecha: @fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-            <p style="margin:0">No. Control: @numeroFactura</p>
+            <p style="margin:0">@(tipoDocumento == "FACTURA" ? "Factura #" : "No. Control"): @numeroFactura</p>
             @if (!string.IsNullOrEmpty(numeroNcf))
             {
                 <p style="margin:0">e-NCF: @numeroNcf</p>
@@ -2234,14 +2234,14 @@ else
             <p style="margin:0">Cliente: @clienteNombre</p>
             @if (!string.IsNullOrEmpty(clienteRnc))
             {
-                <p style="margin:0">C.I./ID: @clienteRnc</p>
+                <p style="margin:0">RNC: @clienteRnc</p>
             }
             <hr />
             <p style="text-align:center; margin:0; font-weight:bold">@tipoDocumento</p>
             <hr />
         </text>;
 
-    private RenderFragment PieRecibo(string? cajaNumero, string? cajeroNombre, string? codigoSeguridad) =>
+    private RenderFragment PieRecibo(string? cajaNumero, string? cajeroNombre, string? codigoSeguridad, string? urlConsultaQr = null) =>
         @<text>
             <hr />
             <p style="margin:0">Caja: @cajaNumero</p>
