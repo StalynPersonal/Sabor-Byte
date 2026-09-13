@@ -34,6 +34,18 @@
         }
     }
 
+    /* La pantalla principal (productos + carrito) es mucho más alta que una hoja de
+       recibo. visibility:hidden (usado en app.css para la impresión) no la saca del
+       flujo del documento, así que el navegador la seguía contando para calcular cuántas
+       páginas hacen falta (llegaba a calcular "4 hojas" para una boleta de una sola).
+       display:none sí la saca del cálculo por completo — los bloques .solo-imprimir son
+       hermanos de este MudGrid, no están adentro, así que no se ven afectados. */
+    @@media print {
+        .pantalla-principal {
+            display: none !important;
+        }
+    }
+
     /* El riel de íconos de la izquierda reemplaza la cabecera nativa de MudTabs
        (Venta / Comandas / Facturas / Deliveries / Ventas guardadas). Se ocultan tanto
        el contenedor de la barra como su wrapper interno — dejar solo el wrapper oculto
@@ -228,7 +240,7 @@ else if (_cerrando)
 }
 else
 {
-    <MudGrid>
+    <MudGrid Class="pantalla-principal">
     <MudItem xs="12" md="8" Class="panel-productos" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 80px); display:flex; flex-direction:column; gap:8px;">
     <MudPaper Class="pa-3 d-flex flex-wrap gap-4" Outlined="true" Style="flex:0 0 auto;">
         <MudText Typo="Typo.body2"><strong>Caja:</strong> @NumeroCajaActual</MudText>
@@ -1359,7 +1371,7 @@ else
         @foreach (var linea in _ultimaNota.Detalle)
         {
             <div style="display:flex; justify-content:space-between">
-                <span>@linea.Cantidad x @linea.NombreProducto</span>
+                <span>@(linea.Cantidad.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)) x @linea.NombreProducto</span>
                 <span>@linea.Monto.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
             </div>
         }
@@ -1379,7 +1391,7 @@ else
         @foreach (var linea in _facturaAReimprimir.Lineas)
         {
             <div style="display:flex; justify-content:space-between">
-                <span>@linea.Cantidad x @linea.NombreProducto</span>
+                <span>@(linea.Cantidad.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)) x @linea.NombreProducto</span>
                 <span>@linea.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
             </div>
         }

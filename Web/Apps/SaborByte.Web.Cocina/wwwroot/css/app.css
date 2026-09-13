@@ -21,6 +21,16 @@ html, body {
         visibility: hidden;
     }
 
+    /* visibility:hidden NO saca el contenido del flujo del documento — toda la app seguía
+       "ocupando" alto de página aunque invisible, y el navegador calculaba la comanda como
+       un documento de varias hojas en vez de una sola. Colapsar el body saca ese contenido
+       oculto del cálculo de paginación; .solo-imprimir sigue viéndose porque su
+       position:absolute lo ubica respecto al viewport, no al body. */
+    body {
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+
     .solo-imprimir, .solo-imprimir * {
         visibility: visible;
     }

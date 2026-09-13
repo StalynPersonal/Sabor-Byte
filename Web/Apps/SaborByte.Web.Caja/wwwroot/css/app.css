@@ -21,6 +21,17 @@ body {
     visibility: hidden;
   }
 
+  /* visibility:hidden NO saca el contenido del flujo del documento — toda la app (grillas
+     de productos, imágenes, etc.) seguía "ocupando" alto de página aunque invisible, y el
+     navegador terminaba calculando la boleta como un documento de varias hojas (aparecía
+     "4 hojas de papel" en el diálogo de impresión) en vez de una sola. Colapsar el body
+     saca ese contenido oculto del cálculo de paginación; .solo-imprimir sigue viéndose
+     porque su position:absolute lo ubica respecto al viewport, no al body. */
+  body {
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
   .solo-imprimir,
   .solo-imprimir * {
     visibility: visible;
@@ -31,7 +42,6 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-
   }
 
   /* El diálogo de confirmación "Venta registrada" (MudDialog) queda abierto en pantalla
@@ -47,17 +57,17 @@ body {
        padding vertical es igual arriba y abajo para que el documento cierre con el mismo
        margen con el que abre. */
   .solo-imprimir.formato-ticket-80mm {
-    width: 100%;
+    width: 110mm;
     font-family: "Courier New", monospace;
     font-size: 13px;
     padding: 5mm 10mm;
   }
 
   .solo-imprimir.formato-ticket-58mm {
-    width: 100%;
+    width: 88mm;
     font-family: "Courier New", monospace;
     font-size: 13px;
-    padding: 5mm 10mm;
+    padding: 5mm 5mm;
   }
 
   .solo-imprimir.formato-carta {
@@ -193,6 +203,6 @@ code {
 }
 /* Color del panel de marca en el login (ver login.css) — azul, igual que el tema de la app. */
 :root {
-  --login-gradient-inicio: #2F6E4B;
-  --login-gradient-fin: #3D8B5F;
+  --login-gradient-inicio: #2f6e4b;
+  --login-gradient-fin: #3d8b5f;
 }
