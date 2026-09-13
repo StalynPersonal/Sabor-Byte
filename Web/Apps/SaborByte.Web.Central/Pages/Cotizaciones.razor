@@ -205,6 +205,8 @@ else
         <p style="margin:0">Fecha: @_detalle.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy")</p>
         <p style="margin:0">Vence el: @(_detalle.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</p>
         <hr />
+        <p style="text-align:center; margin:0; font-weight:bold">Productos</p>
+        <hr />
         @foreach (var item in _detalle.Items)
         {
             <div style="display:flex; justify-content:space-between">
@@ -216,6 +218,7 @@ else
         <div style="display:flex; justify-content:space-between; font-weight:bold">
             <span>TOTAL ESTIMADO</span><span>RD$ @TotalDetalle.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
         </div>
+        <p style="margin:4px 0 0 0; font-size:0.85em">Los precios ya incluyen impuestos (ITBIS).</p>
         @if (!string.IsNullOrWhiteSpace(_detalle.Notas))
         {
             <hr />
@@ -469,6 +472,15 @@ else
             Notas = _detalle.Notas,
             Items = _detalle.Items.Select(i => new ItemCotizacionRequestDto { ProductoId = i.ProductoId, Cantidad = i.Cantidad }).ToList()
         };
+
+        // Si algún producto de la cotización original quedó fuera de los primeros 500
+        // activos precargados (o ya no está activo), el autocomplete no tendría de dónde
+        // mostrar su nombre — se agrega aquí para que ObtenerProductoPorId lo encuentre.
+        foreach (var item in _detalle.Items)
+        {
+            if (!_productos.Any(p => p.Id == item.ProductoId))
+                _productos.Add(new ProductoDetalleDto { Id = item.ProductoId, Nombre = item.NombreProducto });
+        }
 
         _viendoDetalle = false;
         _editando = true;

@@ -1154,10 +1154,10 @@ else
             @foreach (var item in _formCotizacion.Items)
             {
                 <div class="d-flex align-center gap-2 mb-2">
-                    <MudAutocomplete T="ProductoDetalleDto" Label="Producto" Value="null"
-                                      ValueChanged="p => item.ProductoId = p?.Id ?? Guid.Empty"
+                    <MudAutocomplete T="ProductoDetalleDto" Label="Producto" Value="_productosConocidosCotizacion.GetValueOrDefault(item.ProductoId)"
+                                      ValueChanged="p => { item.ProductoId = p?.Id ?? Guid.Empty; if (p is not null) _productosConocidosCotizacion[p.Id] = p; }"
                                       SearchFunc="BuscarProductosParaCotizarAsync"
-                                      ToStringFunc="@(p => p is null ? string.Empty : $"{p.Codigo} — {p.Nombre}")"
+                                      ToStringFunc="@(p => p is null ? string.Empty : string.IsNullOrEmpty(p.Codigo) ? p.Nombre : $"{p.Codigo} — {p.Nombre}")"
                                       Style="flex:2" />
                     <MudNumericField T="decimal" Label="Cantidad" @bind-Value="item.Cantidad" Min="1" Style="flex:1" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => _formCotizacion.Items.Remove(item)" />
@@ -1232,6 +1232,8 @@ else
             <p style="margin:0">Fecha: @_detalleCotizacion.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy")</p>
             <p style="margin:0">Vence el: @(_detalleCotizacion.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</p>
             <hr />
+            <p style="text-align:center; margin:0; font-weight:bold">Productos</p>
+            <hr />
             @foreach (var item in _detalleCotizacion.Items)
             {
                 <div style="display:flex; justify-content:space-between">
@@ -1243,6 +1245,7 @@ else
             <div style="display:flex; justify-content:space-between; font-weight:bold">
                 <span>TOTAL ESTIMADO</span><span>RD$ @TotalDetalleCotizacion.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</span>
             </div>
+            <p style="margin:4px 0 0 0; font-size:0.85em">Los precios ya incluyen impuestos (ITBIS).</p>
             @if (!string.IsNullOrWhiteSpace(_detalleCotizacion.Notas))
             {
                 <hr />
@@ -1786,6 +1789,12 @@ else
     private DateTime? _desdeCotizaciones;
     private DateTime? _hastaCotizaciones;
 
+    // BuscarProductosParaCotizarAsync busca por API en vivo (no hay una lista precargada de
+    // productos como en Central), así que el autocomplete no tiene de dónde mostrar el
+    // nombre ya elegido — se guarda aquí apenas se selecciona (o se precarga al recrear/
+    // editar) para poder mostrarlo.
+    private readonly Dictionary<Guid, ProductoDetalleDto> _productosConocidosCotizacion = [];
+
     private bool _viendoDetalleCotizacion;
     private CotizacionDetalleDto? _detalleCotizacion;
     private decimal TotalDetalleCotizacion => _detalleCotizacion?.Items.Sum(i => i.Precio * i.Cantidad * (1 + i.TasaItbis)) ?? 0;
@@ -1839,6 +1848,10 @@ else
             Items = _detalleCotizacion.Items.Select(i => new ItemCotizacionRequestDto { ProductoId = i.ProductoId, Cantidad = i.Cantidad }).ToList()
         };
 
+        _productosConocidosCotizacion.Clear();
+        foreach (var item in _detalleCotizacion.Items)
+            _productosConocidosCotizacion[item.ProductoId] = new ProductoDetalleDto { Id = item.ProductoId, Nombre = item.NombreProducto };
+
         _viendoDetalleCotizacion = false;
         _mostrandoFormularioCotizacion = true;
     }
@@ -1873,6 +1886,7 @@ else
             FechaVencimiento = DateTime.Today.AddDays(15),
             Items = [new ItemCotizacionRequestDto { Cantidad = 1 }]
         };
+        _productosConocidosCotizacion.Clear();
         _mostrandoFormularioCotizacion = true;
     }
 
