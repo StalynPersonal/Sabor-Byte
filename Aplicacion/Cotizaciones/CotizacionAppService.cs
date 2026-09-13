@@ -22,9 +22,7 @@ public class CotizacionAppService(IAppDbContext db)
             select new { Cotizacion = c, CreadoPorNombre = u.Nombre };
 
         if (!string.IsNullOrWhiteSpace(texto))
-            consulta = consulta.Where(x =>
-                x.Cotizacion.ClienteNombre.Contains(texto) ||
-                (x.Cotizacion.DescripcionEvento != null && x.Cotizacion.DescripcionEvento.Contains(texto)));
+            consulta = consulta.Where(x => x.Cotizacion.ClienteNombre.Contains(texto));
 
         if (estado is not null)
             consulta = consulta.Where(x => x.Cotizacion.Estado == estado);
@@ -39,12 +37,10 @@ public class CotizacionAppService(IAppDbContext db)
             {
                 Id = x.Cotizacion.Id,
                 ClienteNombre = x.Cotizacion.ClienteNombre,
-                DescripcionEvento = x.Cotizacion.DescripcionEvento,
-                FechaEvento = x.Cotizacion.FechaEvento,
                 FechaVencimiento = x.Cotizacion.FechaVencimiento,
                 Estado = x.Cotizacion.Estado,
                 CantidadItems = x.Cotizacion.Items.Count,
-                Total = x.Cotizacion.Items.Sum(i => i.Precio * i.Cantidad * (1 + i.TasaItbis)) * (1 + x.Cotizacion.PorcentajePropina / 100m) - x.Cotizacion.MontoDescuento,
+                Total = x.Cotizacion.Items.Sum(i => i.Precio * i.Cantidad * (1 + i.TasaItbis)),
                 CreadoEn = x.Cotizacion.CreadoEn,
                 CreadoPorNombre = x.CreadoPorNombre,
                 YaCargadaEnCarrito = x.Cotizacion.CargadaEnCarritoEn != null
@@ -73,13 +69,9 @@ public class CotizacionAppService(IAppDbContext db)
         ClienteId = cotizacion.ClienteId,
         ClienteNombre = cotizacion.ClienteNombre,
         ClienteTelefono = cotizacion.ClienteTelefono,
-        DescripcionEvento = cotizacion.DescripcionEvento,
-        FechaEvento = cotizacion.FechaEvento,
         FechaVencimiento = cotizacion.FechaVencimiento,
         Notas = cotizacion.Notas,
         Estado = cotizacion.Estado,
-        PorcentajePropina = cotizacion.PorcentajePropina,
-        MontoDescuento = cotizacion.MontoDescuento,
         CreadoEn = cotizacion.CreadoEn,
         CreadoPorNombre = creadoPorNombre,
         YaCargadaEnCarrito = cotizacion.CargadaEnCarritoEn != null,
@@ -114,12 +106,8 @@ public class CotizacionAppService(IAppDbContext db)
         existente.ClienteId = reconstruida.ClienteId;
         existente.ClienteNombre = reconstruida.ClienteNombre;
         existente.ClienteTelefono = reconstruida.ClienteTelefono;
-        existente.DescripcionEvento = reconstruida.DescripcionEvento;
-        existente.FechaEvento = reconstruida.FechaEvento;
         existente.FechaVencimiento = reconstruida.FechaVencimiento;
         existente.Notas = reconstruida.Notas;
-        existente.PorcentajePropina = reconstruida.PorcentajePropina;
-        existente.MontoDescuento = reconstruida.MontoDescuento;
 
         existente.Items.Clear();
         foreach (var item in reconstruida.Items)
@@ -148,12 +136,8 @@ public class CotizacionAppService(IAppDbContext db)
             ClienteId = request.ClienteId,
             ClienteNombre = request.ClienteNombre,
             ClienteTelefono = request.ClienteTelefono,
-            DescripcionEvento = request.DescripcionEvento,
-            FechaEvento = request.FechaEvento,
             FechaVencimiento = request.FechaVencimiento,
             Notas = request.Notas,
-            PorcentajePropina = request.PorcentajePropina,
-            MontoDescuento = request.MontoDescuento,
             CreadoPorUsuarioId = usuarioId,
             CreadoEn = creadoEn
         };
@@ -216,8 +200,6 @@ public class CotizacionAppService(IAppDbContext db)
         {
             ClienteId = cotizacion.ClienteId,
             ClienteNombre = cotizacion.ClienteNombre,
-            PorcentajePropina = cotizacion.PorcentajePropina,
-            MontoDescuento = cotizacion.MontoDescuento,
             Items = cotizacion.Items.Select(i => new CotizacionItemDto
             {
                 ProductoId = i.ProductoId,
@@ -245,12 +227,8 @@ public class CotizacionAppService(IAppDbContext db)
             ClienteId = original.ClienteId,
             ClienteNombre = original.ClienteNombre,
             ClienteTelefono = original.ClienteTelefono,
-            DescripcionEvento = original.DescripcionEvento,
-            FechaEvento = original.FechaEvento,
-            FechaVencimiento = null,
+            FechaVencimiento = DateTime.Today.AddDays(15),
             Notas = original.Notas,
-            PorcentajePropina = original.PorcentajePropina,
-            MontoDescuento = original.MontoDescuento,
             Items = original.Items.Select(i => new ItemCotizacionRequestDto { ProductoId = i.ProductoId, Cantidad = i.Cantidad }).ToList()
         };
 

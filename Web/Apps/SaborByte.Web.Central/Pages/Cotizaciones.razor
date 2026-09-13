@@ -24,7 +24,7 @@ else
     <MudPaper Class="pa-3 mb-3">
         <MudGrid>
             <MudItem xs="12" sm="6">
-                <MudTextField T="string" Label="Buscar por cliente o evento" @bind-Value="_textoBusqueda"
+                <MudTextField T="string" Label="Buscar por cliente" @bind-Value="_textoBusqueda"
                                Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="RecargarAsync"
                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
             </MudItem>
@@ -42,8 +42,6 @@ else
     <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="CotizacionResumenDto">
         <HeaderContent>
             <MudTh>Cliente</MudTh>
-            <MudTh>Evento</MudTh>
-            <MudTh>Fecha evento</MudTh>
             <MudTh>Vencimiento</MudTh>
             <MudTh>Ítems</MudTh>
             <MudTh>Total estimado</MudTh>
@@ -52,8 +50,6 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.ClienteNombre</MudTd>
-            <MudTd>@(context.DescripcionEvento ?? "—")</MudTd>
-            <MudTd>@(context.FechaEvento?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
             <MudTd>@(context.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
             <MudTd>@context.CantidadItems</MudTd>
             <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
@@ -107,17 +103,7 @@ else
         <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_form.ClienteNombre" Required="true" Class="mb-2" />
         <MudTextField T="string" Label="Teléfono" @bind-Value="_form.ClienteTelefono" Class="mb-2" />
 
-        <MudGrid Class="mb-2">
-            <MudItem xs="12" sm="6">
-                <MudTextField T="string" Label="Descripción del evento" @bind-Value="_form.DescripcionEvento" />
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <MudDatePicker Label="Fecha del evento" Date="_form.FechaEvento" DateChanged="d => _form.FechaEvento = d" />
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <MudDatePicker Label="Vence el" Date="_form.FechaVencimiento" DateChanged="d => _form.FechaVencimiento = d" />
-            </MudItem>
-        </MudGrid>
+        <MudDatePicker Label="Vence el" Date="_form.FechaVencimiento" DateChanged="d => _form.FechaVencimiento = d" Class="mb-2" Style="max-width:220px" />
 
         <MudTextField T="string" Label="Notas / condiciones" @bind-Value="_form.Notas" Lines="2" Class="mb-3" />
 
@@ -134,17 +120,9 @@ else
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => _form.Items.Remove(item)" />
             </div>
         }
-        <MudButton Size="Size.Small" OnClick="() => _form.Items.Add(new ItemCotizacionRequestDto { Cantidad = 1 })">
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="() => _form.Items.Add(new ItemCotizacionRequestDto { Cantidad = 1 })">
             + Agregar producto
         </MudButton>
-
-        <MudDivider Class="my-3" />
-        <MudNumericField T="decimal" Label="Descuento (monto)" @bind-Value="_form.MontoDescuento" Min="0" Class="mb-2" />
-        <MudSelect T="decimal" Label="Propina" @bind-Value="_form.PorcentajePropina">
-            <MudSelectItem Value="0m">Sin propina</MudSelectItem>
-            <MudSelectItem Value="10m">10%</MudSelectItem>
-            <MudSelectItem Value="15m">15%</MudSelectItem>
-        </MudSelect>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => _editando = false">Cancelar</MudButton>
@@ -258,7 +236,11 @@ else
     {
         _cotizacionId = null;
         _clienteSeleccionado = null;
-        _form = new GuardarCotizacionRequestDto { Items = [new ItemCotizacionRequestDto { Cantidad = 1 }] };
+        _form = new GuardarCotizacionRequestDto
+        {
+            FechaVencimiento = DateTime.Today.AddDays(15),
+            Items = [new ItemCotizacionRequestDto { Cantidad = 1 }]
+        };
         _editando = true;
     }
 
@@ -274,12 +256,8 @@ else
             ClienteId = detalle.ClienteId,
             ClienteNombre = detalle.ClienteNombre,
             ClienteTelefono = detalle.ClienteTelefono,
-            DescripcionEvento = detalle.DescripcionEvento,
-            FechaEvento = detalle.FechaEvento,
             FechaVencimiento = detalle.FechaVencimiento,
             Notas = detalle.Notas,
-            PorcentajePropina = detalle.PorcentajePropina,
-            MontoDescuento = detalle.MontoDescuento,
             Items = detalle.Items.Select(i => new ItemCotizacionRequestDto { ProductoId = i.ProductoId, Cantidad = i.Cantidad }).ToList()
         };
         _editando = true;

@@ -744,7 +744,7 @@ else
 
         <div class="d-flex align-center gap-2 mb-4">
             <MudTooltip Text="Guardar venta actual para después">
-                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Secondary" Variant="Variant.Filled"
+                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled"
                                Disabled="@(_carrito.Count == 0 || _procesandoAccion)" OnClick="AbrirGuardarVentaSuspendidaDialog" />
             </MudTooltip>
             <MudTooltip Text="Actualizar">
@@ -794,7 +794,7 @@ else
 
         <div class="d-flex align-center gap-2 mb-4">
             <MudTooltip Text="Nueva cotización">
-                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Secondary" Variant="Variant.Filled" OnClick="AbrirNuevaCotizacionAsync" />
+                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled" OnClick="AbrirNuevaCotizacionAsync" />
             </MudTooltip>
             <MudTooltip Text="Actualizar">
                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="RecargarCotizacionesAsync" />
@@ -804,7 +804,7 @@ else
         <MudTable @ref="_tablaCotizaciones" ServerData="CargarPaginaCotizacionesAsync" Hover="true" Dense="true" T="CotizacionResumenDto">
             <HeaderContent>
                 <MudTh>Cliente</MudTh>
-                <MudTh>Evento</MudTh>
+                <MudTh>Vencimiento</MudTh>
                 <MudTh>Ítems</MudTh>
                 <MudTh>Total estimado</MudTh>
                 <MudTh>Estado</MudTh>
@@ -812,7 +812,7 @@ else
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.ClienteNombre</MudTd>
-                <MudTd>@(context.DescripcionEvento ?? "—")</MudTd>
+                <MudTd>@(context.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</MudTd>
                 <MudTd>@context.CantidadItems</MudTd>
                 <MudTd>RD$ @context.Total.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
                 <MudTd>
@@ -1134,17 +1134,7 @@ else
             <MudTextField T="string" Label="Nombre del cliente" @bind-Value="_formCotizacion.ClienteNombre" Required="true" Class="mb-2" />
             <MudTextField T="string" Label="Teléfono" @bind-Value="_formCotizacion.ClienteTelefono" Class="mb-2" />
 
-            <MudGrid Class="mb-2">
-                <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="Descripción del evento" @bind-Value="_formCotizacion.DescripcionEvento" />
-                </MudItem>
-                <MudItem xs="6" sm="3">
-                    <MudDatePicker Label="Fecha del evento" Date="_formCotizacion.FechaEvento" DateChanged="d => _formCotizacion.FechaEvento = d" />
-                </MudItem>
-                <MudItem xs="6" sm="3">
-                    <MudDatePicker Label="Vence el" Date="_formCotizacion.FechaVencimiento" DateChanged="d => _formCotizacion.FechaVencimiento = d" />
-                </MudItem>
-            </MudGrid>
+            <MudDatePicker Label="Vence el" Date="_formCotizacion.FechaVencimiento" DateChanged="d => _formCotizacion.FechaVencimiento = d" Class="mb-2" Style="max-width:220px" />
 
             <MudTextField T="string" Label="Notas / condiciones" @bind-Value="_formCotizacion.Notas" Lines="2" Class="mb-3" />
 
@@ -1161,7 +1151,7 @@ else
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="() => _formCotizacion.Items.Remove(item)" />
                 </div>
             }
-            <MudButton Size="Size.Small" OnClick="() => _formCotizacion.Items.Add(new ItemCotizacionRequestDto { Cantidad = 1 })">
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="() => _formCotizacion.Items.Add(new ItemCotizacionRequestDto { Cantidad = 1 })">
                 + Agregar producto
             </MudButton>
         </DialogContent>
@@ -1745,7 +1735,11 @@ else
 
     private void AbrirNuevaCotizacionAsync()
     {
-        _formCotizacion = new GuardarCotizacionRequestDto { Items = [new ItemCotizacionRequestDto { Cantidad = 1 }] };
+        _formCotizacion = new GuardarCotizacionRequestDto
+        {
+            FechaVencimiento = DateTime.Today.AddDays(15),
+            Items = [new ItemCotizacionRequestDto { Cantidad = 1 }]
+        };
         _mostrandoFormularioCotizacion = true;
     }
 
@@ -1828,9 +1822,9 @@ else
         }
 
         _comandaOrigen = null;
-        _porcentajePropina = datos.PorcentajePropina;
-        _montoDescuento = datos.MontoDescuento;
-        _descuentoAutorizado = datos.MontoDescuento > 0;
+        _porcentajePropina = 0;
+        _montoDescuento = 0;
+        _descuentoAutorizado = false;
 
         _clienteSeleccionado = datos.ClienteId is null
             ? _clienteContado

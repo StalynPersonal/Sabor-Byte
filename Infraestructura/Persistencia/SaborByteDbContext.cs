@@ -545,10 +545,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.ToTable("Cotizaciones", "ventas");
             b.Property(x => x.ClienteNombre).HasMaxLength(200).IsRequired();
             b.Property(x => x.ClienteTelefono).HasMaxLength(30);
-            b.Property(x => x.DescripcionEvento).HasMaxLength(200);
             b.Property(x => x.Notas).HasMaxLength(1000);
-            b.Property(x => x.PorcentajePropina).HasColumnType("decimal(5,2)");
-            b.Property(x => x.MontoDescuento).HasColumnType("decimal(18,2)");
             b.HasMany(x => x.Items).WithOne(i => i.Cotizacion).HasForeignKey(i => i.CotizacionId).OnDelete(DeleteBehavior.Cascade);
         });
 

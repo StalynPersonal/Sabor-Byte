@@ -25,15 +25,10 @@ public class Cotizacion
     public required string ClienteNombre { get; set; }
     public string? ClienteTelefono { get; set; }
 
-    public string? DescripcionEvento { get; set; }
-    public DateTime? FechaEvento { get; set; }
     public DateTime? FechaVencimiento { get; set; }
     public string? Notas { get; set; }
 
     public EstadoCotizacion Estado { get; set; } = EstadoCotizacion.Pendiente;
-
-    public decimal PorcentajePropina { get; set; }
-    public decimal MontoDescuento { get; set; }
 
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public Guid CreadoPorUsuarioId { get; set; }
