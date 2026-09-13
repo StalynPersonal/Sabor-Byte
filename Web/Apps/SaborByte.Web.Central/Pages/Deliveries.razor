@@ -17,9 +17,14 @@ else
 {
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5">Deliveries</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoDelivery">
-            Nuevo delivery
-        </MudButton>
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" OnClick="AbrirReporteAsync">
+                Reporte de desempeño
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NuevoDelivery">
+                Nuevo delivery
+            </MudButton>
+        </div>
     </div>
 
     <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
@@ -36,6 +41,7 @@ else
             <MudTh>Nombre</MudTh>
             <MudTh>Teléfono</MudTh>
             <MudTh>Saldo pendiente</MudTh>
+            <MudTh>Antigüedad</MudTh>
             <MudTh>Activo</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
@@ -44,6 +50,16 @@ else
             <MudTd>@(context.Telefono ?? "—")</MudTd>
             <MudTd Style="@(context.SaldoPendiente > 0 ? "color:var(--mud-palette-error); font-weight:bold" : "")">
                 RD$ @context.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
+            </MudTd>
+            <MudTd>
+                @if (context.DiasAntiguedadSaldo is int dias)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="@ColorAntiguedad(dias)">@dias día@(dias == 1 ? "" : "s")</MudChip>
+                }
+                else
+                {
+                    <span>—</span>
+                }
             </MudTd>
             <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
             <MudTd>
@@ -72,6 +88,11 @@ else
     <DialogContent>
         <MudTextField T="string" Label="Nombre" @bind-Value="_form.Nombre" Required="true" Class="mb-2" />
         <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Class="mb-2" />
+        <MudNumericField T="decimal?" Label="Límite de saldo pendiente (opcional)" @bind-Value="_form.LimiteSaldoPendiente" Min="0" Class="mb-2" />
+        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+            Si se supera este monto, no se le podrán asignar más facturas hasta que abone.
+            Déjalo vacío para un repartidor de confianza sin límite.
+        </MudText>
         @if (_deliveryId is not null)
         {
             <MudCheckBox T="bool" @bind-Value="_form.Activo" Label="Activo" />
@@ -135,19 +156,27 @@ else
                     <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.NumeroFactura</MudTd>
-                    <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                    <MudTd>RD$ @context.MontoFactura.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
-                    <MudTd>RD$ @context.MontoDelivery.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
-                    <MudTd>@context.AsignadoPorNombre</MudTd>
+                    <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">@context.NumeroFactura</MudTd>
+                    <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.MontoFactura.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.MontoDelivery.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                    <MudTd>
+                        @context.AsignadoPorNombre
+                        @if (context.Quitada)
+                        {
+                            <MudTooltip Text="@($"Quitada por {context.QuitadoPorNombre} el {context.FechaQuitada?.ToLocalTime():dd/MM/yyyy HH:mm} — {context.MotivoQuitar}")">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Class="ml-1">Quitada</MudChip>
+                            </MudTooltip>
+                        }
+                    </MudTd>
                     <MudTd>
                         <MudTooltip Text="Reimprimir recibo informativo">
                             <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small" OnClick="() => ImprimirReciboAsync(context)" />
                         </MudTooltip>
-                        @if (PuedeGestionarAbonos)
+                        @if (!context.Quitada && PuedeGestionarAbonos)
                         {
                             <MudTooltip Text="Quitar asignación">
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => QuitarAsignacionAsync(context)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => AbrirQuitarAsignacion(context)" />
                             </MudTooltip>
                         }
                     </MudTd>
@@ -304,6 +333,80 @@ else
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="_quitandoAsignacion" Options="_opcionesDialogo">
+    <TitleContent>Quitar asignación — Factura @_facturaAQuitar?.NumeroFactura</TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+            La asignación no se borra: queda marcada como quitada (con este motivo, quién y
+            cuándo) en el historial del delivery, y su monto se resta del saldo pendiente.
+        </MudAlert>
+        <MudTextField T="string" Label="Motivo" @bind-Value="_motivoQuitar" Lines="2"
+                       Required="true" RequiredError="El motivo es obligatorio." Class="mb-2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _quitandoAsignacion = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarQuitarAsignacionAsync" Disabled="_procesando">
+            @if (_procesando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+            }
+            else
+            {
+                <MudText>Quitar asignación</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-Visible="_viendoReporte" Options="_opcionesDialogoGrande">
+    <TitleContent>Reporte de desempeño</TitleContent>
+    <DialogContent>
+        <MudGrid Class="mb-3">
+            <MudItem xs="6" sm="4">
+                <MudDatePicker Label="Desde" Date="_desdeReporte" DateChanged="OnDesdeReporteCambiadaAsync" Clearable="true" />
+            </MudItem>
+            <MudItem xs="6" sm="4">
+                <MudDatePicker Label="Hasta" Date="_hastaReporte" DateChanged="OnHastaReporteCambiadaAsync" Clearable="true" />
+            </MudItem>
+        </MudGrid>
+        <MudTable Items="_reporteDesempeno" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>Delivery</MudTh>
+                <MudTh>Entregas</MudTh>
+                <MudTh>Monto facturado</MudTh>
+                <MudTh>Monto abonado</MudTh>
+                <MudTh>Saldo pendiente</MudTh>
+                <MudTh>Antigüedad</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="item">
+                <MudTd>@item.DeliveryNombre</MudTd>
+                <MudTd>@item.CantidadEntregas</MudTd>
+                <MudTd>RD$ @item.MontoTotalFacturado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd>RD$ @item.MontoTotalAbonado.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                <MudTd Style="@(item.SaldoPendienteActual > 0 ? "color:var(--mud-palette-error); font-weight:bold" : "")">
+                    RD$ @item.SaldoPendienteActual.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
+                </MudTd>
+                <MudTd>
+                    @if (item.DiasAntiguedadSaldo is int dias)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@ColorAntiguedad(dias)">@dias día@(dias == 1 ? "" : "s")</MudChip>
+                    }
+                    else
+                    {
+                        <span>—</span>
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2">No hay deliveries registrados.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _viendoReporte = false">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @* ===== RECIBO INFORMATIVO DE DELIVERY (no es comprobante fiscal) ===== *@
 @if (_reciboAImprimir is not null)
 {
@@ -364,6 +467,15 @@ else
     private AbonoDeliveryDto? _abonoAAnular;
     private string _motivoAnulacion = string.Empty;
 
+    private bool _quitandoAsignacion;
+    private FacturaDeliveryDto? _facturaAQuitar;
+    private string _motivoQuitar = string.Empty;
+
+    private bool _viendoReporte;
+    private DateTime? _desdeReporte;
+    private DateTime? _hastaReporte;
+    private List<ReporteDesempenoDeliveryDto> _reporteDesempeno = [];
+
     private FacturaDeliveryDto? _reciboAImprimir;
 
     // Formato del recibo informativo: se toma de la caja activa de la sucursal (Central →
@@ -378,6 +490,13 @@ else
     };
 
     private bool PuedeGestionarAbonos => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
+
+    private static Color ColorAntiguedad(int dias) => dias switch
+    {
+        <= 3 => Color.Success,
+        <= 7 => Color.Warning,
+        _ => Color.Error
+    };
 
     private Guid SucursalId => Sesion.SucursalActivaId;
 
@@ -419,7 +538,13 @@ else
     private void EditarDelivery(DeliveryDto delivery)
     {
         _deliveryId = delivery.Id;
-        _form = new GuardarDeliveryRequestDto { Nombre = delivery.Nombre, Telefono = delivery.Telefono, Activo = delivery.Activo };
+        _form = new GuardarDeliveryRequestDto
+        {
+            Nombre = delivery.Nombre,
+            Telefono = delivery.Telefono,
+            Activo = delivery.Activo,
+            LimiteSaldoPendiente = delivery.LimiteSaldoPendiente
+        };
         _editando = true;
     }
 
@@ -596,19 +721,61 @@ else
         }
     }
 
-    private async Task QuitarAsignacionAsync(FacturaDeliveryDto factura)
+    private void AbrirQuitarAsignacion(FacturaDeliveryDto factura)
     {
-        if (_deliverySeleccionado is null) return;
+        _facturaAQuitar = factura;
+        _motivoQuitar = string.Empty;
+        _quitandoAsignacion = true;
+    }
 
-        var (exito, error) = await ApiClient.QuitarAsignacionFacturaDeliveryAsync(SucursalId, _deliverySeleccionado.Id, factura.Id);
-        if (!exito)
+    private async Task ConfirmarQuitarAsignacionAsync()
+    {
+        if (_deliverySeleccionado is null || _facturaAQuitar is null || _procesando) return;
+
+        if (string.IsNullOrWhiteSpace(_motivoQuitar))
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            Snackbar.Add("El motivo es obligatorio.", Severity.Error);
             return;
         }
 
-        Snackbar.Add("Asignación eliminada.", Severity.Success);
-        await RecargarCuentaAsync();
+        _procesando = true;
+        try
+        {
+            var (exito, error) = await ApiClient.QuitarAsignacionFacturaDeliveryAsync(SucursalId, _deliverySeleccionado.Id, _facturaAQuitar.Id, _motivoQuitar);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Asignación quitada.", Severity.Success);
+            _quitandoAsignacion = false;
+            await RecargarCuentaAsync();
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private async Task AbrirReporteAsync()
+    {
+        _desdeReporte = null;
+        _hastaReporte = null;
+        _reporteDesempeno = await ApiClient.ObtenerReporteDesempenoDeliveryAsync(SucursalId, _desdeReporte, _hastaReporte);
+        _viendoReporte = true;
+    }
+
+    private async Task OnDesdeReporteCambiadaAsync(DateTime? fecha)
+    {
+        _desdeReporte = fecha;
+        _reporteDesempeno = await ApiClient.ObtenerReporteDesempenoDeliveryAsync(SucursalId, _desdeReporte, _hastaReporte);
+    }
+
+    private async Task OnHastaReporteCambiadaAsync(DateTime? fecha)
+    {
+        _hastaReporte = fecha;
+        _reporteDesempeno = await ApiClient.ObtenerReporteDesempenoDeliveryAsync(SucursalId, _desdeReporte, _hastaReporte);
     }
 
     private async Task ImprimirReciboAsync(FacturaDeliveryDto factura)

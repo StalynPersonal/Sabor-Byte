@@ -505,6 +505,7 @@ else
                 <MudTh>Nombre</MudTh>
                 <MudTh>Teléfono</MudTh>
                 <MudTh>Saldo pendiente</MudTh>
+                <MudTh>Antigüedad</MudTh>
                 <MudTh>Activo</MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
@@ -513,6 +514,16 @@ else
                 <MudTd>@(context.Telefono ?? "—")</MudTd>
                 <MudTd Style="@(context.SaldoPendiente > 0 ? "color:var(--mud-palette-error); font-weight:bold" : "")">
                     RD$ @context.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
+                </MudTd>
+                <MudTd>
+                    @if (context.DiasAntiguedadSaldo is int dias)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@ColorAntiguedadDelivery(dias)">@dias día@(dias == 1 ? "" : "s")</MudChip>
+                    }
+                    else
+                    {
+                        <span>—</span>
+                    }
                 </MudTd>
                 <MudTd>@(context.Activo ? "Sí" : "No")</MudTd>
                 <MudTd>
@@ -566,19 +577,27 @@ else
                             <MudTh></MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd>@context.NumeroFactura</MudTd>
-                            <MudTd>@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
-                            <MudTd>RD$ @context.MontoFactura.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
-                            <MudTd>RD$ @context.MontoDelivery.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
-                            <MudTd>@context.AsignadoPorNombre</MudTd>
+                            <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">@context.NumeroFactura</MudTd>
+                            <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">@context.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.MontoFactura.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                            <MudTd Style="@(context.Quitada ? "text-decoration:line-through; opacity:0.6" : "")">RD$ @context.MontoDelivery.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudTd>
+                            <MudTd>
+                                @context.AsignadoPorNombre
+                                @if (context.Quitada)
+                                {
+                                    <MudTooltip Text="@($"Quitada por {context.QuitadoPorNombre} el {context.FechaQuitada?.ToLocalTime():dd/MM/yyyy HH:mm} — {context.MotivoQuitar}")">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Class="ml-1">Quitada</MudChip>
+                                    </MudTooltip>
+                                }
+                            </MudTd>
                             <MudTd>
                                 <MudTooltip Text="Reimprimir recibo informativo">
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small" OnClick="() => ImprimirReciboDeliveryAsync(context)" />
                                 </MudTooltip>
-                                @if (PuedeGestionarAbonosDelivery)
+                                @if (!context.Quitada && PuedeGestionarAbonosDelivery)
                                 {
                                     <MudTooltip Text="Quitar asignación">
-                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => QuitarAsignacionDeliveryAsync(context)" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => AbrirQuitarAsignacionDelivery(context)" />
                                     </MudTooltip>
                                 }
                             </MudTd>
@@ -730,6 +749,31 @@ else
                     else
                     {
                         <MudText>Anular abono</MudText>
+                    }
+                </MudButton>
+            </DialogActions>
+        </MudDialog>
+
+        <MudDialog @bind-Visible="_quitandoAsignacionDelivery" Options="_opcionesDialogo">
+            <TitleContent>Quitar asignación — Factura @_facturaAQuitarDelivery?.NumeroFactura</TitleContent>
+            <DialogContent>
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                    La asignación no se borra: queda marcada como quitada (con este motivo, quién y
+                    cuándo) en el historial del delivery, y su monto se resta del saldo pendiente.
+                </MudAlert>
+                <MudTextField T="string" Label="Motivo" @bind-Value="_motivoQuitarDelivery" Lines="2"
+                               Required="true" RequiredError="El motivo es obligatorio." Class="mb-2" />
+            </DialogContent>
+            <DialogActions>
+                <MudButton OnClick="() => _quitandoAsignacionDelivery = false">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmarQuitarAsignacionDeliveryAsync" Disabled="_procesandoDelivery">
+                    @if (_procesandoDelivery)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudText>Quitar asignación</MudText>
                     }
                 </MudButton>
             </DialogActions>
@@ -1643,9 +1687,20 @@ else
     private AbonoDeliveryDto? _abonoAAnularDelivery;
     private string _motivoAnulacionDelivery = string.Empty;
 
+    private bool _quitandoAsignacionDelivery;
+    private FacturaDeliveryDto? _facturaAQuitarDelivery;
+    private string _motivoQuitarDelivery = string.Empty;
+
     private FacturaDeliveryDto? _reciboDeliveryAImprimir;
 
     private bool PuedeGestionarAbonosDelivery => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
+
+    private static Color ColorAntiguedadDelivery(int dias) => dias switch
+    {
+        <= 3 => Color.Success,
+        <= 7 => Color.Warning,
+        _ => Color.Error
+    };
 
     // --- Pestaña Ventas guardadas ---
     private List<VentaSuspendidaResumenDto> _ventasSuspendidas = [];
@@ -2103,19 +2158,41 @@ else
         }
     }
 
-    private async Task QuitarAsignacionDeliveryAsync(FacturaDeliveryDto factura)
+    private void AbrirQuitarAsignacionDelivery(FacturaDeliveryDto factura)
     {
-        if (_deliverySeleccionado is null) return;
+        _facturaAQuitarDelivery = factura;
+        _motivoQuitarDelivery = string.Empty;
+        _quitandoAsignacionDelivery = true;
+    }
 
-        var (exito, error) = await ApiClient.QuitarAsignacionFacturaDeliveryAsync(SucursalId, _deliverySeleccionado.Id, factura.Id);
-        if (!exito)
+    private async Task ConfirmarQuitarAsignacionDeliveryAsync()
+    {
+        if (_deliverySeleccionado is null || _facturaAQuitarDelivery is null || _procesandoDelivery) return;
+
+        if (string.IsNullOrWhiteSpace(_motivoQuitarDelivery))
         {
-            Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+            Snackbar.Add("El motivo es obligatorio.", Severity.Error);
             return;
         }
 
-        Snackbar.Add("Asignación eliminada.", Severity.Success);
-        await RecargarCuentaDeliveryAsync();
+        _procesandoDelivery = true;
+        try
+        {
+            var (exito, error) = await ApiClient.QuitarAsignacionFacturaDeliveryAsync(SucursalId, _deliverySeleccionado.Id, _facturaAQuitarDelivery.Id, _motivoQuitarDelivery);
+            if (!exito)
+            {
+                Snackbar.Add(error ?? "Ocurrió un error.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Asignación quitada.", Severity.Success);
+            _quitandoAsignacionDelivery = false;
+            await RecargarCuentaDeliveryAsync();
+        }
+        finally
+        {
+            _procesandoDelivery = false;
+        }
     }
 
     private async Task ImprimirReciboDeliveryAsync(FacturaDeliveryDto factura)

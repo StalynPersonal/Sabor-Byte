@@ -135,13 +135,14 @@ public class DeliveriesController(DeliveryAppService deliveries) : ControllerBas
     // Quitar una asignación es una corrección de error, no una operación de rutina.
     [HttpDelete("{deliveryId:guid}/facturas/{facturaDeliveryId:guid}")]
     [Authorize(Roles = "Admin,Supervisor")]
-    public async Task<IActionResult> QuitarAsignacion([FromQuery] Guid sucursalId, Guid deliveryId, Guid facturaDeliveryId, CancellationToken ct)
+    public async Task<IActionResult> QuitarAsignacion(
+        [FromQuery] Guid sucursalId, Guid deliveryId, Guid facturaDeliveryId, [FromBody] QuitarAsignacionRequestDto request, CancellationToken ct)
     {
         if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
 
         try
         {
-            await deliveries.QuitarAsignacionAsync(sucursalId, deliveryId, facturaDeliveryId, ct);
+            await deliveries.QuitarAsignacionAsync(sucursalId, deliveryId, facturaDeliveryId, User.ObtenerUsuarioId(), request, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -185,6 +186,14 @@ public class DeliveriesController(DeliveryAppService deliveries) : ControllerBas
         {
             return BadRequest(new { mensaje = ex.Message });
         }
+    }
+
+    [HttpGet("reporte-desempeno")]
+    public async Task<IActionResult> ObtenerReporteDesempeno(
+        [FromQuery] Guid sucursalId, [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, CancellationToken ct)
+    {
+        if (!User.TieneAccesoASucursal(sucursalId)) return Forbid();
+        return Ok(await deliveries.ObtenerReporteDesempenoAsync(sucursalId, desde, hasta, ct));
     }
 
     [HttpPost("{deliveryId:guid}/abonos/{abonoId:guid}/anular")]

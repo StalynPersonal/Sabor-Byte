@@ -32,10 +32,12 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
                 Nombre = d.Nombre,
                 Telefono = d.Telefono,
                 Activo = d.Activo,
-                SaldoPendiente = d.SaldoPendiente
+                SaldoPendiente = d.SaldoPendiente,
+                LimiteSaldoPendiente = d.LimiteSaldoPendiente
             })
             .ToListAsync(ct);
 
+        await CompletarAntiguedadAsync(items, ct);
         return new ResultadoPaginado<DeliveryDto> { Items = items, Pagina = pagina, TamanoPagina = tamanoPagina, TotalRegistros = total };
     }
 
@@ -46,7 +48,7 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         if (!string.IsNullOrWhiteSpace(texto))
             query = query.Where(d => EF.Functions.Like(d.Nombre, $"%{texto}%"));
 
-        return await query
+        var items = await query
             .OrderBy(d => d.Nombre)
             .Select(d => new DeliveryDto
             {
@@ -54,9 +56,55 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
                 Nombre = d.Nombre,
                 Telefono = d.Telefono,
                 Activo = d.Activo,
-                SaldoPendiente = d.SaldoPendiente
+                SaldoPendiente = d.SaldoPendiente,
+                LimiteSaldoPendiente = d.LimiteSaldoPendiente
             })
             .ToListAsync(ct);
+
+        await CompletarAntiguedadAsync(items, ct);
+        return items;
+    }
+
+    // La antigüedad requiere aplicar los abonos FIFO sobre las facturas de cada delivery
+    // (ver CalcularDiasAntiguedadSaldoAsync) — no se puede expresar en una sola proyección
+    // SQL, así que se completa acá, en memoria, después de traer la página/lista.
+    private async Task CompletarAntiguedadAsync(List<DeliveryDto> items, CancellationToken ct)
+    {
+        foreach (var item in items)
+        {
+            if (item.SaldoPendiente > 0)
+                item.DiasAntiguedadSaldo = await CalcularDiasAntiguedadSaldoAsync(item.Id, ct);
+        }
+    }
+
+    // FIFO: se asume que los abonos cubren las facturas asignadas más antiguas primero
+    // (el modelo no liga un abono a una factura específica, solo a la cuenta del
+    // delivery en general) — la "antigüedad del saldo" es la fecha de la primera factura
+    // que los abonos acumulados todavía no alcanzan a cubrir completa.
+    private async Task<int?> CalcularDiasAntiguedadSaldoAsync(Guid deliveryId, CancellationToken ct)
+    {
+        var facturas = await db.FacturasDelivery
+            .Where(fd => fd.DeliveryId == deliveryId && !fd.Quitada)
+            .OrderBy(fd => fd.FechaAsignacion)
+            .Select(fd => new { fd.FechaAsignacion, fd.MontoFactura })
+            .ToListAsync(ct);
+
+        var acumuladoAbonado = await db.AbonosDelivery
+            .Where(a => a.DeliveryId == deliveryId && !a.Anulado)
+            .SumAsync(a => (decimal?)a.Monto, ct) ?? 0;
+
+        foreach (var factura in facturas)
+        {
+            if (acumuladoAbonado >= factura.MontoFactura)
+            {
+                acumuladoAbonado -= factura.MontoFactura;
+                continue;
+            }
+
+            return (int)(DateTime.UtcNow - factura.FechaAsignacion).TotalDays;
+        }
+
+        return null;
     }
 
     public async Task<Guid> CrearAsync(Guid sucursalId, Guid usuarioId, GuardarDeliveryRequestDto request, CancellationToken ct = default)
@@ -70,6 +118,7 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
             Nombre = request.Nombre,
             Telefono = request.Telefono,
             Activo = request.Activo,
+            LimiteSaldoPendiente = request.LimiteSaldoPendiente,
             CreadoPorUsuarioId = usuarioId
         };
 
@@ -89,6 +138,7 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         delivery.Nombre = request.Nombre;
         delivery.Telefono = request.Telefono;
         delivery.Activo = request.Activo;
+        delivery.LimiteSaldoPendiente = request.LimiteSaldoPendiente;
 
         await db.SaveChangesAsync(ct);
     }
@@ -123,7 +173,7 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
 
         var consulta =
             from f in query
-            join fd in db.FacturasDelivery on f.Id equals fd.FacturaId into asignaciones
+            join fd in db.FacturasDelivery.Where(fd => !fd.Quitada) on f.Id equals fd.FacturaId into asignaciones
             from fd in asignaciones.DefaultIfEmpty()
             join d in db.Deliveries on fd.DeliveryId equals d.Id into deliveries
             from d in deliveries.DefaultIfEmpty()
@@ -153,12 +203,17 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         var factura = await db.Facturas.FirstOrDefaultAsync(f => f.Id == request.FacturaId && f.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("La factura no existe.");
 
-        var yaAsignada = await db.FacturasDelivery.AnyAsync(fd => fd.FacturaId == factura.Id, ct);
+        var yaAsignada = await db.FacturasDelivery.AnyAsync(fd => fd.FacturaId == factura.Id && !fd.Quitada, ct);
         if (yaAsignada)
             throw new InvalidOperationException("Esta factura ya está asignada a un delivery.");
 
         if (request.MontoDelivery < 0)
             throw new InvalidOperationException("El monto del delivery no puede ser negativo.");
+
+        if (delivery.LimiteSaldoPendiente is decimal limite && delivery.SaldoPendiente + factura.Total > limite)
+            throw new InvalidOperationException(
+                $"Esta asignación superaría el límite de saldo pendiente de {delivery.Nombre} " +
+                $"(límite: {limite:N2}, saldo actual: {delivery.SaldoPendiente:N2}).");
 
         db.FacturasDelivery.Add(new FacturaDelivery
         {
@@ -177,12 +232,16 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task QuitarAsignacionAsync(Guid sucursalId, Guid deliveryId, Guid facturaDeliveryId, CancellationToken ct = default)
+    public async Task QuitarAsignacionAsync(
+        Guid sucursalId, Guid deliveryId, Guid facturaDeliveryId, Guid usuarioId, QuitarAsignacionRequestDto request, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Motivo))
+            throw new InvalidOperationException("El motivo es obligatorio.");
+
         var delivery = await db.Deliveries.FirstOrDefaultAsync(d => d.Id == deliveryId && d.SucursalId == sucursalId, ct)
             ?? throw new InvalidOperationException("El delivery no existe.");
 
-        var asignacion = await db.FacturasDelivery.FirstOrDefaultAsync(fd => fd.Id == facturaDeliveryId && fd.DeliveryId == deliveryId, ct)
+        var asignacion = await db.FacturasDelivery.FirstOrDefaultAsync(fd => fd.Id == facturaDeliveryId && fd.DeliveryId == deliveryId && !fd.Quitada, ct)
             ?? throw new InvalidOperationException("La asignación no existe.");
 
         // Sin clamp a 0: si ya se habían abonado más de lo que queda tras quitar esta
@@ -192,10 +251,17 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         // detrás que lo respaldara (bug real: factura 480 + abono 200 -> saldo 280; quitar
         // factura clampeaba a 0 en vez de -200; anular el abono sumaba 200 -> saldo fantasma
         // de 200 sin facturas asignadas).
-        db.FacturasDelivery.Remove(asignacion);
+        // Se marca Quitada en vez de borrarse: el kardex del delivery conserva el registro
+        // (ver FacturaDelivery.Quitada) y la factura queda libre para reasignarse a otro
+        // delivery (índice único filtrado a !Quitada).
+        asignacion.Quitada = true;
+        asignacion.FechaQuitada = DateTime.UtcNow;
+        asignacion.QuitadoPorUsuarioId = usuarioId;
+        asignacion.MotivoQuitar = request.Motivo;
         delivery.SaldoPendiente -= asignacion.MontoFactura;
 
         await db.SaveChangesAsync(ct);
+        await auditoria.RegistrarAsync(sucursalId, usuarioId, "QuitarAsignacionDelivery", "FacturaDelivery", asignacion.Id, request.Motivo, ct);
     }
 
     public async Task<ResumenCuentaDeliveryDto> ObtenerResumenCuentaAsync(Guid sucursalId, Guid deliveryId, CancellationToken ct = default)
@@ -206,7 +272,7 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
 
         return new ResumenCuentaDeliveryDto
         {
-            TotalFacturado = await db.FacturasDelivery.Where(fd => fd.DeliveryId == deliveryId).SumAsync(fd => fd.MontoFactura, ct),
+            TotalFacturado = await db.FacturasDelivery.Where(fd => fd.DeliveryId == deliveryId && !fd.Quitada).SumAsync(fd => fd.MontoFactura, ct),
             TotalAbonado = await db.AbonosDelivery.Where(a => a.DeliveryId == deliveryId && !a.Anulado).SumAsync(a => a.Monto, ct)
         };
     }
@@ -225,6 +291,8 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
             from fd in db.FacturasDelivery
             join f in db.Facturas on fd.FacturaId equals f.Id
             join u in db.Usuarios on fd.AsignadoPorUsuarioId equals u.Id
+            join uq in db.Usuarios on fd.QuitadoPorUsuarioId equals uq.Id into quitadores
+            from uq in quitadores.DefaultIfEmpty()
             where fd.DeliveryId == deliveryId &&
                   (desde == null || fd.FechaAsignacion >= desde) &&
                   (hasta == null || fd.FechaAsignacion <= hasta)
@@ -238,7 +306,11 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
                 MontoFactura = fd.MontoFactura,
                 MontoDelivery = fd.MontoDelivery,
                 FechaAsignacion = fd.FechaAsignacion,
-                AsignadoPorNombre = u.Nombre
+                AsignadoPorNombre = u.Nombre,
+                Quitada = fd.Quitada,
+                FechaQuitada = fd.FechaQuitada,
+                QuitadoPorNombre = uq != null ? uq.Nombre : null,
+                MotivoQuitar = fd.MotivoQuitar
             };
 
         var total = await query.CountAsync(ct);
@@ -346,5 +418,40 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
 
         await db.SaveChangesAsync(ct);
         await auditoria.RegistrarAsync(sucursalId, usuarioId, "AnulacionAbono", "AbonoDelivery", abono.Id, request.Motivo, ct);
+    }
+
+    // Movimiento del período (cantidad/monto facturado y abonado entre desde/hasta) +
+    // estado ACTUAL de la cuenta (saldo y antigüedad) — mezclar ambos es intencional: el
+    // período dice qué tan activo estuvo el delivery, el estado actual dice si quedó
+    // debiendo algo, sin importar cuándo se originó esa deuda.
+    public async Task<List<ReporteDesempenoDeliveryDto>> ObtenerReporteDesempenoAsync(
+        Guid sucursalId, DateTime? desde, DateTime? hasta, CancellationToken ct = default)
+    {
+        var deliveries = await db.Deliveries.Where(d => d.SucursalId == sucursalId).OrderBy(d => d.Nombre).ToListAsync(ct);
+        var resultado = new List<ReporteDesempenoDeliveryDto>();
+
+        foreach (var delivery in deliveries)
+        {
+            var facturasQuery = db.FacturasDelivery.Where(fd => fd.DeliveryId == delivery.Id && !fd.Quitada);
+            if (desde is not null) facturasQuery = facturasQuery.Where(fd => fd.FechaAsignacion >= desde.Value.Date);
+            if (hasta is not null) facturasQuery = facturasQuery.Where(fd => fd.FechaAsignacion < hasta.Value.Date.AddDays(1));
+
+            var abonosQuery = db.AbonosDelivery.Where(a => a.DeliveryId == delivery.Id && !a.Anulado);
+            if (desde is not null) abonosQuery = abonosQuery.Where(a => a.FechaPago >= desde.Value.Date);
+            if (hasta is not null) abonosQuery = abonosQuery.Where(a => a.FechaPago < hasta.Value.Date.AddDays(1));
+
+            resultado.Add(new ReporteDesempenoDeliveryDto
+            {
+                DeliveryId = delivery.Id,
+                DeliveryNombre = delivery.Nombre,
+                CantidadEntregas = await facturasQuery.CountAsync(ct),
+                MontoTotalFacturado = await facturasQuery.SumAsync(fd => (decimal?)fd.MontoFactura, ct) ?? 0,
+                MontoTotalAbonado = await abonosQuery.SumAsync(a => (decimal?)a.Monto, ct) ?? 0,
+                SaldoPendienteActual = delivery.SaldoPendiente,
+                DiasAntiguedadSaldo = delivery.SaldoPendiente > 0 ? await CalcularDiasAntiguedadSaldoAsync(delivery.Id, ct) : null
+            });
+        }
+
+        return resultado;
     }
 }

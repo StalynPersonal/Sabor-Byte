@@ -494,6 +494,7 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.Property(x => x.Nombre).HasMaxLength(150).IsRequired();
             b.Property(x => x.Telefono).HasMaxLength(30);
             b.Property(x => x.SaldoPendiente).HasColumnType("decimal(18,2)");
+            b.Property(x => x.LimiteSaldoPendiente).HasColumnType("decimal(18,2)");
             b.HasMany(x => x.Facturas).WithOne(f => f.Delivery).HasForeignKey(f => f.DeliveryId);
             b.HasMany(x => x.Abonos).WithOne(a => a.Delivery).HasForeignKey(a => a.DeliveryId);
         });
@@ -503,7 +504,11 @@ public class SaborByteDbContext(DbContextOptions<SaborByteDbContext> options) : 
             b.ToTable("FacturasDelivery", "deliveries");
             b.Property(x => x.MontoFactura).HasColumnType("decimal(18,2)");
             b.Property(x => x.MontoDelivery).HasColumnType("decimal(18,2)");
-            b.HasIndex(x => x.FacturaId).IsUnique();
+            b.Property(x => x.MotivoQuitar).HasMaxLength(300);
+            // Filtrado a !Quitada: una factura "quitada" de un delivery puede reasignarse
+            // a otro después — sin el filtro, el índice único la dejaría bloqueada para
+            // siempre aunque ya no esté vigente.
+            b.HasIndex(x => x.FacturaId).IsUnique().HasFilter("[Quitada] = 0");
         });
 
         modelBuilder.Entity<AbonoDelivery>(b =>

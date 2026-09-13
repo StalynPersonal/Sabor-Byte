@@ -15,6 +15,11 @@ public class Delivery
     // de recalcularse por SUM en cada lectura.
     public decimal SaldoPendiente { get; set; }
 
+    // Tope de saldo pendiente que se le permite acumular a este repartidor antes de
+    // bloquear nuevas asignaciones — null = sin límite (repartidor de confianza).
+    // Configurable por delivery individual, no un límite único por sucursal.
+    public decimal? LimiteSaldoPendiente { get; set; }
+
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public Guid CreadoPorUsuarioId { get; set; }
 
@@ -41,6 +46,15 @@ public class FacturaDelivery
 
     public DateTime FechaAsignacion { get; set; } = DateTime.UtcNow;
     public Guid AsignadoPorUsuarioId { get; set; }
+
+    // "Quitar" es corregir un error de asignación, no borrar historial — se marca en vez
+    // de eliminarse, para que el kardex del delivery siga mostrando que esa factura pasó
+    // por ahí. El índice único de FacturaId (ver DbContext) es filtrado a !Quitada, así
+    // que una factura "quitada" sí puede reasignarse a otro delivery después.
+    public bool Quitada { get; set; }
+    public DateTime? FechaQuitada { get; set; }
+    public Guid? QuitadoPorUsuarioId { get; set; }
+    public string? MotivoQuitar { get; set; }
 }
 
 public class AbonoDelivery

@@ -7,6 +7,11 @@ public class DeliveryDto
     public string? Telefono { get; set; }
     public bool Activo { get; set; }
     public decimal SaldoPendiente { get; set; }
+    public decimal? LimiteSaldoPendiente { get; set; }
+
+    // Días desde la factura asignada más antigua que los abonos (aplicados FIFO) todavía
+    // no alcanzan a cubrir — null si el saldo pendiente es 0.
+    public int? DiasAntiguedadSaldo { get; set; }
 }
 
 public class GuardarDeliveryRequestDto
@@ -14,6 +19,7 @@ public class GuardarDeliveryRequestDto
     public required string Nombre { get; set; }
     public string? Telefono { get; set; }
     public bool Activo { get; set; } = true;
+    public decimal? LimiteSaldoPendiente { get; set; }
 }
 
 public class FacturaAsignableDto
@@ -44,6 +50,26 @@ public class FacturaDeliveryDto
     public decimal MontoDelivery { get; set; }
     public DateTime FechaAsignacion { get; set; }
     public string AsignadoPorNombre { get; set; } = string.Empty;
+    public bool Quitada { get; set; }
+    public DateTime? FechaQuitada { get; set; }
+    public string? QuitadoPorNombre { get; set; }
+    public string? MotivoQuitar { get; set; }
+}
+
+public class QuitarAsignacionRequestDto
+{
+    public required string Motivo { get; set; }
+}
+
+public class ReporteDesempenoDeliveryDto
+{
+    public Guid DeliveryId { get; set; }
+    public string DeliveryNombre { get; set; } = string.Empty;
+    public int CantidadEntregas { get; set; }
+    public decimal MontoTotalFacturado { get; set; }
+    public decimal MontoTotalAbonado { get; set; }
+    public decimal SaldoPendienteActual { get; set; }
+    public int? DiasAntiguedadSaldo { get; set; }
 }
 
 public class AbonoDeliveryDto

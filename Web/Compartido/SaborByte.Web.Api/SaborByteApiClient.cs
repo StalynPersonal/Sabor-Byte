@@ -1098,11 +1098,26 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
     }
 
-    public async Task<(bool Exito, string? Error)> QuitarAsignacionFacturaDeliveryAsync(Guid sucursalId, Guid deliveryId, Guid facturaDeliveryId)
+    public async Task<(bool Exito, string? Error)> QuitarAsignacionFacturaDeliveryAsync(Guid sucursalId, Guid deliveryId, Guid facturaDeliveryId, string motivo)
     {
         AdjuntarToken();
-        var respuesta = await http.DeleteAsync($"api/deliveries/{deliveryId}/facturas/{facturaDeliveryId}?sucursalId={sucursalId}");
+        // HttpClient.DeleteAsync no admite cuerpo — se arma el request a mano para poder
+        // mandar el motivo (obligatorio) junto con el DELETE.
+        var request = new HttpRequestMessage(HttpMethod.Delete, $"api/deliveries/{deliveryId}/facturas/{facturaDeliveryId}?sucursalId={sucursalId}")
+        {
+            Content = JsonContent.Create(new QuitarAsignacionRequestDto { Motivo = motivo })
+        };
+        var respuesta = await http.SendAsync(request);
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<List<ReporteDesempenoDeliveryDto>> ObtenerReporteDesempenoDeliveryAsync(Guid sucursalId, DateTime? desde, DateTime? hasta)
+    {
+        AdjuntarToken();
+        var url = $"api/deliveries/reporte-desempeno?sucursalId={sucursalId}";
+        if (desde is not null) url += $"&desde={desde:yyyy-MM-dd}";
+        if (hasta is not null) url += $"&hasta={hasta:yyyy-MM-dd}";
+        return await http.GetFromJsonAsync<List<ReporteDesempenoDeliveryDto>>(url) ?? [];
     }
 
     public async Task<ResultadoPaginadoDto<AbonoDeliveryDto>> ListarAbonosDeliveryAsync(
