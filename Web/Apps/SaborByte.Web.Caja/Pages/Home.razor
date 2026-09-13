@@ -339,7 +339,7 @@ else
     </MudTabPanel>
 
     <MudTabPanel Text="Comandas abiertas">
-        <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-3" OnClick="CargarComandasAbiertasAsync">
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mb-3 ms-2" OnClick="CargarComandasAbiertasAsync">
             Actualizar
         </MudButton>
 
@@ -743,7 +743,7 @@ else
             interrumpe la venta y necesitas atender a otra persona mientras tanto.
         </MudText>
 
-        <div class="d-flex align-center gap-2 mb-4">
+        <div class="d-flex align-center gap-2 mb-4 ms-2">
             <MudTooltip Text="Guardar venta actual para después">
                 <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled"
                                Disabled="@(_carrito.Count == 0 || _procesandoAccion)" OnClick="AbrirGuardarVentaSuspendidaDialog" />
@@ -793,7 +793,7 @@ else
             que se cotizó.
         </MudText>
 
-        <div class="d-flex align-center gap-2 mb-4">
+        <div class="d-flex align-center gap-2 mb-4 ms-2">
             <MudTooltip Text="Nueva cotización">
                 <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled" OnClick="AbrirNuevaCotizacionAsync" />
             </MudTooltip>
