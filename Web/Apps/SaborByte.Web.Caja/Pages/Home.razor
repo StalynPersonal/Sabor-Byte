@@ -27,10 +27,44 @@
         .area-productos {
             max-height: none !important;
         }
+
+        .panel-productos {
+            position: static !important;
+            height: auto !important;
+        }
+    }
+
+    /* El riel de íconos de la izquierda reemplaza la cabecera nativa de MudTabs
+       (Venta / Comandas / Facturas / Deliveries / Ventas guardadas). Se ocultan tanto
+       el contenedor de la barra como su wrapper interno — dejar solo el wrapper oculto
+       deja la barra exterior con su alto reservado (franja en blanco arriba). */
+    .tabs-sin-cabecera .mud-tabs-tabbar,
+    .tabs-sin-cabecera .mud-tabs-tabbar-wrapper {
+        display: none !important;
+    }
+
+    .tabs-sin-cabecera .mud-tabs-panels {
+        margin-top: 0 !important;
+    }
+
+    /* El panel de productos debe ocupar toda la altura disponible, igual que el
+       Carrito — el MudTabs y el contenido de cada pestaña heredan ese alto. */
+    .tabs-altura-completa,
+    .tabs-altura-completa .mud-tabs-panels,
+    .tabs-altura-completa .mud-tab-panel {
+        height: 100%;
+    }
+
+    @@media (max-width: 959.98px) {
+        .tabs-altura-completa,
+        .tabs-altura-completa .mud-tabs-panels,
+        .tabs-altura-completa .mud-tab-panel {
+            height: auto;
+        }
     }
 
     .panel-carrito-inner {
-        overflow: hidden;
+        overflow-y: auto;
     }
 
     .panel-carrito-inner > * {
@@ -194,7 +228,9 @@ else if (_cerrando)
 }
 else
 {
-    <MudPaper Class="pa-3 mb-3 d-flex flex-wrap gap-4" Outlined="true">
+    <MudGrid>
+    <MudItem xs="12" md="8" Class="panel-productos" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 100px); display:flex; flex-direction:column; gap:8px;">
+    <MudPaper Class="pa-3 d-flex flex-wrap gap-4" Outlined="true" Style="flex:0 0 auto;">
         <MudText Typo="Typo.body2"><strong>Caja:</strong> @NumeroCajaActual</MudText>
         <MudText Typo="Typo.body2">
             <strong>Turno abierto:</strong>
@@ -203,18 +239,27 @@ else
         <MudText Typo="Typo.body2"><strong>Próximo N° de factura:</strong> @ProximoNumeroFacturaActual</MudText>
     </MudPaper>
 
-    <MudGrid>
-    <MudItem xs="12" md="8">
-    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4" @bind-ActivePanelIndex="_tabIndex">
+    <div class="d-flex" style="gap:8px; align-items:stretch; flex:1 1 auto; min-height:0;">
+    <MudPaper Class="pa-1 d-flex flex-column align-center py-2" Style="flex:0 0 56px; gap:4px;">
+        @foreach (var pestana in _pestanasVenta)
+        {
+            <MudTooltip Text="@pestana.Titulo" Placement="Placement.Right">
+                <MudIconButton Icon="@pestana.Icono" Color="@(_tabIndex == pestana.Indice ? Color.Primary : Color.Default)"
+                               OnClick="() => _tabIndex = pestana.Indice" />
+            </MudTooltip>
+        }
+    </MudPaper>
+    <div style="flex:1; min-width:0; height:100%;">
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="tabs-sin-cabecera tabs-altura-completa" @bind-ActivePanelIndex="_tabIndex">
     <MudTabPanel Text="Venta">
-    <div style="position:relative">
+    <div style="position:relative; display:flex; flex-direction:column; height:100%;">
     <MudOverlay Visible="_procesandoAccion" DarkBackground="true" Absolute="true" ZIndex="10">
         <div class="d-flex flex-column align-center">
             <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
             <MudText Typo="Typo.subtitle1" Class="mt-2" Color="Color.Surface">Procesando, espera un momento...</MudText>
         </div>
     </MudOverlay>
-            <MudGrid Class="mb-4">
+            <MudGrid Class="mb-4" Style="flex:0 0 auto;">
                 <MudItem xs="8">
                     <MudTextField T="string" Label="Buscar producto (código de barra o descripción)"
                                    @bind-Value="_textoBusqueda" Immediate="true" DebounceInterval="300"
@@ -231,12 +276,12 @@ else
                 </MudItem>
             </MudGrid>
 
-            <div class="area-productos" style="max-height: calc(100vh - 290px); overflow-y: auto; padding-right: 4px;">
+            <div class="area-productos" style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px;">
             <MudGrid>
                 @foreach (var producto in _productos)
                 {
                     var oferta = OfertaDeProducto(producto);
-                    <MudItem xs="6" sm="4" md="3" lg="2">
+                    <MudItem xs="6" sm="4" md="3">
                         <MudCard Class="@(producto.SinStock ? "" : "cursor-pointer")" Style="position:relative; height:140px; overflow:hidden" @onclick="async () => { if (!producto.SinStock) await AgregarAlCarritoAsync(producto); }">
                             @if (producto.SinStock)
                             {
@@ -686,6 +731,10 @@ else
         </MudText>
 
         <div class="d-flex align-center gap-2 mb-4">
+            <MudTooltip Text="Guardar venta actual para después">
+                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Secondary" Variant="Variant.Filled"
+                               Disabled="@(_carrito.Count == 0 || _procesandoAccion)" OnClick="AbrirGuardarVentaSuspendidaDialog" />
+            </MudTooltip>
             <MudTooltip Text="Actualizar">
                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="CargarVentasSuspendidasAsync" />
             </MudTooltip>
@@ -724,9 +773,11 @@ else
 
     </MudTabPanel>
     </MudTabs>
+    </div>
+    </div>
     </MudItem>
 
-    <MudItem xs="12" md="4" Class="panel-carrito" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 150px);">
+    <MudItem xs="12" md="4" Class="panel-carrito" Style="position: sticky; top: 16px; align-self: flex-start; height: calc(100vh - 100px);">
         <MudPaper Class="pa-4 panel-carrito-inner" Style="height: 100%; display: flex; flex-direction: column;">
             <MudText Typo="Typo.h6" Class="mb-2">Carrito</MudText>
 
@@ -798,30 +849,34 @@ else
                 }
             </MudSelect>
 
-            @if (_descuentoAutorizado)
-            {
-                <MudAlert Severity="Severity.Success" Dense="true" Class="my-2">
-                    Descuento autorizado (RD$ @_montoDescuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture))
-                </MudAlert>
-            }
-            else
-            {
-                <MudButton Size="Size.Small" Variant="Variant.Outlined" FullWidth="true" Class="my-2" OnClick="() => _mostrarDialogoDescuento = true">
-                    Aplicar descuento (requiere supervisor)
-                </MudButton>
-            }
+            <div class="d-flex align-center justify-space-between gap-2 my-2">
+                <div class="d-flex align-center gap-1">
+                    @if (_descuentoAutorizado)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                        <MudText Typo="Typo.body2" Color="Color.Success">Descuento autorizado: RD$ @_montoDescuento.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2">Descuento</MudText>
+                        <MudTooltip Text="Aplicar descuento (requiere supervisor)">
+                            <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary"
+                                           OnClick="() => _mostrarDialogoDescuento = true" />
+                        </MudTooltip>
+                    }
+                </div>
+                <div class="d-flex align-center gap-1">
+                    <MudText Typo="Typo.subtitle2">Forma(s) de pago</MudText>
+                    <MudTooltip Text="Agregar otra forma de pago">
+                        <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary"
+                                       OnClick="() => _pagos.Add(new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId })" />
+                    </MudTooltip>
+                </div>
+            </div>
 
             <MudText Typo="Typo.body2">Subtotal: RD$ @TotalCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             <MudText Typo="Typo.body2" Class="mb-1">ITBIS (18%): RD$ @ItbisCarrito.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
             <MudText Typo="Typo.h5" Class="font-weight-bold my-1">Total: RD$ @TotalConPropina.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</MudText>
-
-            <div class="d-flex align-center gap-1 mt-3 mb-1">
-                <MudText Typo="Typo.subtitle2">Forma(s) de pago</MudText>
-                <MudTooltip Text="Agregar otra forma de pago">
-                    <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary"
-                                   OnClick="() => _pagos.Add(new PagoVentaRequestDto { MetodoPagoId = MetodoPagoEfectivoId })" />
-                </MudTooltip>
-            </div>
             @foreach (var pago in _pagos)
             {
                 <div class="d-flex gap-2 align-center mb-2">
@@ -863,10 +918,6 @@ else
                 {
                     <MudText>Facturar</MudText>
                 }
-            </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" Class="mb-2"
-                       Disabled="@(_carrito.Count == 0 || _procesandoAccion)" OnClick="AbrirGuardarVentaSuspendidaDialog">
-                Guardar venta para después
             </MudButton>
         </MudPaper>
     </MudItem>
@@ -1827,6 +1878,16 @@ else
     // aplicar descuento y agregar productos extra igual que en una venta directa.
     private ComandaDto? _comandaOrigen;
     private int _tabIndex;
+
+    private record PestanaVenta(int Indice, string Titulo, string Icono);
+    private readonly List<PestanaVenta> _pestanasVenta =
+    [
+        new(0, "Venta", Icons.Material.Filled.PointOfSale),
+        new(1, "Comandas abiertas", Icons.Material.Filled.Receipt),
+        new(2, "Facturas", Icons.Material.Filled.ReceiptLong),
+        new(3, "Deliveries", Icons.Material.Filled.DeliveryDining),
+        new(4, "Ventas guardadas", Icons.Material.Filled.Bookmark)
+    ];
 
     private MudTable<FacturaResumenDto>? _tablaFacturasNota;
     private string _textoBusquedaNota = string.Empty;

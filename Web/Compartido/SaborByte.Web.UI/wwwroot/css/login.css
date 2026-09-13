@@ -70,6 +70,12 @@
     line-height: 1.2;
 }
 
+/* "Byte" en el nombre "SaborByte" siempre en naranja, en cualquier pantalla de
+   cualquier app — mismo bicolor que el logo/branding oficial. */
+.marca-acento {
+    color: #f4811f;
+}
+
 .panel-marca__subtitulo {
     font-size: 1.05rem;
     opacity: 0.85;
