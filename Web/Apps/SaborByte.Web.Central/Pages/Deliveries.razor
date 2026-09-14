@@ -651,6 +651,13 @@ else
         _desdeCuenta = DateTime.Today;
         _hastaCuenta = DateTime.Today;
         _resumenCuenta = await ApiClient.ObtenerResumenCuentaDeliveryAsync(SucursalId, delivery.Id);
+
+        // Refresca el flag de aviso por WhatsApp por si se activó/desactivó en Sucursales
+        // mientras esta pantalla ya estaba abierta, sin necesitar recargar toda la página.
+        var sucursal = await ApiClient.ObtenerSucursalAsync(SucursalId);
+        if (sucursal is not null)
+            _notificacionWhatsAppActiva = sucursal.NotificacionWhatsAppDeliveryActivo;
+
         _viendoCuenta = true;
         // Las tablas ya están montadas (se reusan entre deliveries) — hay que forzar la
         // recarga o seguirían mostrando los datos del delivery visto anteriormente.

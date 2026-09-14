@@ -2078,6 +2078,13 @@ else
         _desdeCuentaDelivery = DateTime.Today;
         _hastaCuentaDelivery = DateTime.Today;
         _resumenCuentaDelivery = await ApiClient.ObtenerResumenCuentaDeliveryAsync(SucursalId, delivery.Id);
+
+        // _sucursalActual se carga una sola vez al abrir Caja — si un Admin activa/desactiva
+        // el aviso por WhatsApp en Central mientras la caja ya está abierta, no se entera
+        // hasta recargar la página. Se refresca acá, justo al abrir la cuenta de un
+        // delivery, para que tome el valor vigente sin necesitar recargar toda la app.
+        _sucursalActual = await ApiClient.ObtenerSucursalAsync(SucursalId) ?? _sucursalActual;
+
         _viendoCuentaDelivery = true;
         // Las tablas ya están montadas (se reusan entre deliveries) — hay que forzar la
         // recarga o seguirían mostrando los datos del delivery visto anteriormente.
