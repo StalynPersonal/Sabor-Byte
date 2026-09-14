@@ -3,7 +3,9 @@ namespace SaborByte.Web.Api.Dtos;
 public enum TipoCliente
 {
     Fiscal,
-    Consumo
+    Consumo,
+    Especial,
+    Gubernamental
 }
 
 public class ClienteDto

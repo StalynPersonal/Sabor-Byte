@@ -22,9 +22,10 @@ else
     </div>
 
     <MudText Typo="Typo.body2" Class="mb-4">
-        Estas secuencias numeran las Facturas (tipo 31/32/41/43/44/45) y las Notas de Crédito/Débito
-        (tipo 34/33). Sin una secuencia activa y vigente para un tipo de comprobante, esas ventas o
-        notas se emiten igual pero sin NCF.
+        Estas secuencias numeran las Facturas (tipo 31/32/44/45, según el tipo de cliente) y las
+        Notas de Crédito (tipo 34). Si la sucursal tiene facturación electrónica activa y no hay
+        una secuencia configurada, activa y vigente para el tipo que corresponde, la venta se
+        bloquea — no se emite sin NCF en silencio.
     </MudText>
 
     <MudSelect T="Guid" Label="Sucursal" Value="_sucursalId" ValueChanged="OnSucursalCambiadaAsync" Class="mb-4" Style="max-width:400px">
@@ -72,10 +73,7 @@ else
         <MudSelect T="string" Label="Tipo de comprobante" @bind-Value="_form.TipoComprobante" Class="mb-2">
             <MudSelectItem Value="@("31")">31 — Crédito Fiscal</MudSelectItem>
             <MudSelectItem Value="@("32")">32 — Consumo</MudSelectItem>
-            <MudSelectItem Value="@("33")">33 — Nota de Débito</MudSelectItem>
             <MudSelectItem Value="@("34")">34 — Nota de Crédito</MudSelectItem>
-            <MudSelectItem Value="@("41")">41 — Compras</MudSelectItem>
-            <MudSelectItem Value="@("43")">43 — Gastos Menores</MudSelectItem>
             <MudSelectItem Value="@("44")">44 — Régimen Especial</MudSelectItem>
             <MudSelectItem Value="@("45")">45 — Gubernamental</MudSelectItem>
         </MudSelect>

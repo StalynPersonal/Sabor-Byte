@@ -59,13 +59,15 @@ else
         <MudTextField T="string" Label="Nombre / Razón social" @bind-Value="_form.NombreORazonSocial" Required="true" Class="mb-2" />
 
         <MudSelect T="TipoCliente" Label="Tipo de cliente" @bind-Value="_form.TipoCliente" Class="mb-2">
-            <MudSelectItem Value="TipoCliente.Consumo">Consumo (sin RNC)</MudSelectItem>
-            <MudSelectItem Value="TipoCliente.Fiscal">Fiscal (con RNC, crédito fiscal)</MudSelectItem>
+            <MudSelectItem Value="TipoCliente.Consumo">Consumo (sin RNC) — e-CF 32</MudSelectItem>
+            <MudSelectItem Value="TipoCliente.Fiscal">Fiscal (con RNC, crédito fiscal) — e-CF 31</MudSelectItem>
+            <MudSelectItem Value="TipoCliente.Especial">Régimen Especial — e-CF 44</MudSelectItem>
+            <MudSelectItem Value="TipoCliente.Gubernamental">Gubernamental — e-CF 45</MudSelectItem>
         </MudSelect>
 
         <MudTextField T="string" Label="RNC/Cédula" @bind-Value="_form.RncOCedula"
-                       Required="@(_form.TipoCliente == TipoCliente.Fiscal)"
-                       HelperText="@(_form.TipoCliente == TipoCliente.Fiscal ? "Obligatorio para clientes Fiscal" : null)"
+                       Required="@(_form.TipoCliente != TipoCliente.Consumo)"
+                       HelperText="@(_form.TipoCliente != TipoCliente.Consumo ? $"Obligatorio para clientes {_form.TipoCliente}" : null)"
                        Class="mb-2" />
         <MudTextField T="string" Label="Teléfono" @bind-Value="_form.Telefono" Required="@(!_esGenericoActual)" Class="mb-2" />
         <MudTextField T="string" Label="Email" @bind-Value="_form.Email" Class="mb-2" />

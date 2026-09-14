@@ -1,9 +1,15 @@
 namespace SaborByte.Dominio.Clientes;
 
+// Determina qué tipo de e-CF/NCF le corresponde a este cliente al facturar (ver
+// VentaAppService.AsignarNcfSiAplicaAsync) — cada valor mapea 1:1 a un tipo de
+// comprobante DGII. Los valores nuevos se agregan al final para no correr el ordinal
+// de los existentes, ya guardado como int en la base.
 public enum TipoCliente
 {
-    Fiscal,   // tiene RNC, puede recibir crédito fiscal (e-CF 31)
-    Consumo   // persona física sin RNC
+    Fiscal,        // tiene RNC, crédito fiscal — e-CF 31
+    Consumo,       // persona física sin RNC — e-CF 32
+    Especial,      // régimen especial — e-CF 44
+    Gubernamental  // entidad del gobierno — e-CF 45
 }
 
 public class Cliente

@@ -8,9 +8,11 @@ namespace SaborByte.Aplicacion.Facturacion;
 
 public class SecuenciaNcfAppService(IAppDbContext db)
 {
-    // Tipos de comprobante fiscal reconocidos por DGII (con o sin e-CF). Se valida contra
-    // esta lista para no dejar registrar un tipo inventado que después nadie use.
-    private static readonly HashSet<string> TiposValidos = ["31", "32", "33", "34", "41", "43", "44", "45"];
+    // Tipos de comprobante fiscal reconocidos por DGII que este negocio realmente usa. Se
+    // valida contra esta lista para no dejar registrar un tipo inventado que después nadie
+    // use. 33 (Nota de Débito), 41 (Compras) y 43 (Gastos Menores) se excluyen a propósito
+    // — no se usan por el momento (decisión del negocio, no una limitación técnica).
+    private static readonly HashSet<string> TiposValidos = ["31", "32", "34", "44", "45"];
 
     public async Task<ResultadoPaginado<SecuenciaNcfDto>> ListarAsync(
         Guid sucursalId, int pagina, int tamanoPagina, CancellationToken ct = default)

@@ -161,8 +161,11 @@ public class ClienteAppService(IAppDbContext db)
 
         var rnc = NormalizarRnc(request.RncOCedula);
 
-        if (request.TipoCliente == TipoCliente.Fiscal && rnc is null)
-            throw new InvalidOperationException("El RNC/Cédula es obligatorio para un cliente Fiscal.");
+        // Fiscal, Especial y Gubernamental emiten e-CF 31/44/45 respectivamente — los tres
+        // exigen identificar al comprador ante DGII (ver ValidadorComprobante en el módulo
+        // de facturación electrónica). Solo Consumo puede quedar sin RNC/Cédula.
+        if (request.TipoCliente != TipoCliente.Consumo && rnc is null)
+            throw new InvalidOperationException($"El RNC/Cédula es obligatorio para un cliente de tipo {request.TipoCliente}.");
 
         if (rnc is not null)
         {

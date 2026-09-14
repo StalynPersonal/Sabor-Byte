@@ -200,8 +200,11 @@ public class VentaAppService(
         var cambio = ValidarPagosYCalcularCambio(request.Pagos, factura.Total, metodosPago);
         factura.Cambio = cambio;
 
+        // Primero el NCF (si aplica): si falla por secuencia sin configurar/vencida/agotada,
+        // no debe quedar un hueco en Caja.ProximoNumeroFactura por una venta que nunca se
+        // llegó a completar — por eso se reserva ANTES del número interno, no después.
+        await AsignarNcfSiAplicaAsync(sucursalId, sucursal.EcfActivo, cliente.TipoCliente, factura, ct);
         await AsignarNumeroFacturaAsync(sucursal, turno.CajaId, factura, ct);
-        await AsignarNcfSiAplicaAsync(sucursalId, sucursal.EcfActivo, factura, ct);
 
         db.Facturas.Add(factura);
 
@@ -426,7 +429,33 @@ public class VentaAppService(
     // "SecuenciaProxima == numeroReservado" hace que, bajo concurrencia, solo una de las
     // transacciones actualice la fila con ese valor; la otra recibe 0 filas y reintenta con
     // el valor ya avanzado.
-    private async Task AsignarNcfSiAplicaAsync(Guid sucursalId, bool ecfActivo, Factura factura, CancellationToken ct)
+    // Cada tipo de cliente emite un tipo de e-CF distinto ante DGII — ver
+    // Dominio.Clientes.TipoCliente y ValidadorComprobante (FacturacionElectronica) para el
+    // mismo mapeo del lado de la firma/envío.
+    private static readonly Dictionary<Dominio.Clientes.TipoCliente, string> TipoComprobantePorTipoCliente = new()
+    {
+        [Dominio.Clientes.TipoCliente.Fiscal] = "31",
+        [Dominio.Clientes.TipoCliente.Consumo] = "32",
+        [Dominio.Clientes.TipoCliente.Especial] = "44",
+        [Dominio.Clientes.TipoCliente.Gubernamental] = "45"
+    };
+
+    private static string NombreTipoComprobante(string tipo) => tipo switch
+    {
+        "31" => "Crédito Fiscal",
+        "32" => "Consumo",
+        "44" => "Régimen Especial",
+        "45" => "Gubernamental",
+        _ => tipo
+    };
+
+    // Antes, si no aparecía NINGUNA secuencia vigente (de cualquier tipo, sin filtrar por
+    // el que correspondía al cliente), la venta se dejaba pasar en silencio sin NCF
+    // (EstadoDgii.NoAplica) — con la sucursal en modo e-CF activo, eso es justo lo que NO
+    // debe pasar: hay que bloquear la venta y decir exactamente por qué (sin configurar,
+    // vencida o agotada), no facturarla "a medias" sin que nadie se entere.
+    private async Task AsignarNcfSiAplicaAsync(
+        Guid sucursalId, bool ecfActivo, Dominio.Clientes.TipoCliente tipoCliente, Factura factura, CancellationToken ct)
     {
         // Si la sucursal no tiene activada "Facturación electrónica (e-CF/DGII)", nunca se
         // asigna NCF — aunque exista una secuencia configurada y vigente. El checkbox de la
@@ -437,30 +466,46 @@ public class VentaAppService(
             return;
         }
 
+        var tipoComprobante = TipoComprobantePorTipoCliente[tipoCliente];
+        var nombreTipo = NombreTipoComprobante(tipoComprobante);
+
         while (true)
         {
-            var secuencia = await db.SecuenciasNcf.AsNoTracking().FirstOrDefaultAsync(s =>
-                s.SucursalId == sucursalId &&
-                s.Activa &&
-                s.FechaVencimiento > DateTime.UtcNow &&
-                s.SecuenciaProxima <= s.SecuenciaFinal, ct);
+            var candidatas = await db.SecuenciasNcf.AsNoTracking()
+                .Where(s => s.SucursalId == sucursalId && s.TipoComprobante == tipoComprobante)
+                .ToListAsync(ct);
 
-            if (secuencia is null)
-            {
-                factura.EstadoDgii = EstadoDgii.NoAplica;
-                return;
-            }
+            if (candidatas.Count == 0)
+                throw new InvalidOperationException(
+                    $"No hay ninguna secuencia de NCF configurada para el tipo {tipoComprobante} ({nombreTipo}). " +
+                    "Configúrala en Central → Secuencias NCF antes de facturar a este tipo de cliente.");
 
-            var numeroReservado = secuencia.SecuenciaProxima;
+            var activa = candidatas.FirstOrDefault(s => s.Activa);
+            if (activa is null)
+                throw new InvalidOperationException(
+                    $"La secuencia de NCF tipo {tipoComprobante} ({nombreTipo}) existe pero está desactivada. " +
+                    "Actívala en Central → Secuencias NCF.");
+
+            if (activa.FechaVencimiento <= DateTime.UtcNow)
+                throw new InvalidOperationException(
+                    $"La secuencia de NCF tipo {tipoComprobante} ({nombreTipo}) venció el {activa.FechaVencimiento:dd/MM/yyyy}. " +
+                    "Registra una nueva en Central → Secuencias NCF.");
+
+            if (activa.SecuenciaProxima > activa.SecuenciaFinal)
+                throw new InvalidOperationException(
+                    $"La secuencia de NCF tipo {tipoComprobante} ({nombreTipo}) se agotó (llegó al final: {activa.SecuenciaFinal}). " +
+                    "Registra una nueva en Central → Secuencias NCF.");
+
+            var numeroReservado = activa.SecuenciaProxima;
             var filasActualizadas = await db.SecuenciasNcf
-                .Where(s => s.Id == secuencia.Id && s.SecuenciaProxima == numeroReservado)
+                .Where(s => s.Id == activa.Id && s.SecuenciaProxima == numeroReservado)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.SecuenciaProxima, x => x.SecuenciaProxima + 1), ct);
 
             if (filasActualizadas == 0)
                 continue; // otra venta concurrente ya reservó este número; reintentar con el valor actualizado
 
-            factura.NumeroNcf = secuencia.FormatearNumero(numeroReservado);
-            factura.TipoComprobante = secuencia.TipoComprobante;
+            factura.NumeroNcf = activa.FormatearNumero(numeroReservado);
+            factura.TipoComprobante = activa.TipoComprobante;
             // Llegado aquí ecfActivo ya es true (si no, se salió arriba) — queda "Pendiente"
             // hasta que el gateway lo envíe a DGII más abajo en CrearVentaAsync, así si el
             // proceso se cae entre este punto y esa llamada, el estado refleja "en camino".
