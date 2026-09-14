@@ -539,6 +539,19 @@ else
             }
 
             Snackbar.Add($"Comanda #{comanda!.NumeroComanda} enviada a cocina.", Severity.Success);
+
+            // Refresco liviano de stock (no todo el catálogo) por si algún producto enviado
+            // quedó en cero — sin esto, la franja "SIN STOCK" quedaba desactualizada hasta
+            // recargar la página (mismo ajuste que en Caja/Home.razor FacturarAsync).
+            var idsEnviados = _pedido.Select(l => l.ProductoId).Distinct().ToList();
+            var stocks = await ApiClient.ObtenerStockProductosAsync(idsEnviados, sucursalId);
+            foreach (var stock in stocks)
+            {
+                var producto = _productos.FirstOrDefault(p => p.Id == stock.ProductoId);
+                if (producto is not null)
+                    producto.StockActual = stock.StockActual;
+            }
+
             _pedido.Clear();
             _mesaId = null;
             _mesas = await ApiClient.ListarMesasAsync(sucursalId);

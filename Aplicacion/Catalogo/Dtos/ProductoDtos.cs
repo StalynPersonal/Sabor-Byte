@@ -151,3 +151,11 @@ public class GuardarCategoriaRequestDto
     public int Orden { get; set; }
     public bool Activo { get; set; } = true;
 }
+
+// Refresco liviano de stock tras una venta — evita recargar el catálogo completo solo
+// para actualizar la franja "SIN STOCK" de los pocos productos que se acaban de vender.
+public class StockProductoDto
+{
+    public Guid ProductoId { get; set; }
+    public decimal StockActual { get; set; }
+}

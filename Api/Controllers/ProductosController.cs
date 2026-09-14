@@ -25,6 +25,15 @@ public class ProductosController(ProductoAppService productos) : ControllerBase
         return Ok(await productos.BuscarAsync(texto ?? string.Empty, categoriaId, sucursalId, ct));
     }
 
+    [HttpGet("stock")]
+    public async Task<IActionResult> ObtenerStock([FromQuery] Guid sucursalId, [FromQuery] List<Guid> ids, CancellationToken ct)
+    {
+        if (!User.IsInRole("Admin") && !User.TieneAccesoASucursal(sucursalId))
+            return Forbid();
+
+        return Ok(await productos.ObtenerStockAsync(ids, sucursalId, ct));
+    }
+
     [HttpGet("todos")]
     public async Task<IActionResult> Listar(
         [FromQuery] int pagina, [FromQuery] int tamanoPagina,

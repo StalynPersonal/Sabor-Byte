@@ -57,6 +57,15 @@ public class ProductoAppService(IAppDbContext db)
             .ToListAsync(ct);
     }
 
+    // Refresco liviano tras una venta: solo el stock de los productos vendidos, no todo el
+    // catálogo (ver Caja/Home.razor FacturarAsync) — el resto de los campos que determinan
+    // "SIN STOCK" (Inventariable, PermiteVentaConStockNegativo) no cambian con una venta.
+    public async Task<List<StockProductoDto>> ObtenerStockAsync(List<Guid> productoIds, Guid sucursalId, CancellationToken ct = default) =>
+        await db.StockPorSucursal
+            .Where(s => s.SucursalId == sucursalId && productoIds.Contains(s.ProductoId))
+            .Select(s => new StockProductoDto { ProductoId = s.ProductoId, StockActual = s.StockActual })
+            .ToListAsync(ct);
+
     // Listado paginado para el módulo Central, con filtros de búsqueda. sucursalId es
     // opcional y solo se usa para traer el stock de esa sucursal en cada fila de Insumo.
     public async Task<ResultadoPaginado<ProductoDetalleDto>> ListarAsync(

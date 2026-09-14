@@ -3173,6 +3173,10 @@ else
         _ultimaVenta = resultado;
         _lineasUltimaVenta = [.. _carrito];
 
+        // Capturado ANTES de vaciar el carrito: itemsAEnviar puede ser la misma referencia
+        // que _carrito (ver arriba), así que _carrito.Clear() lo vaciaría a él también.
+        var idsVendidos = itemsAEnviar.Select(l => l.ProductoId).Distinct().ToList();
+
         _carrito.Clear();
         _comandaOrigen = null;
         _porcentajePropina = 0;
@@ -3183,6 +3187,18 @@ else
         _pagos = [new() { MetodoPagoId = MetodoPagoEfectivoId }];
         _cajas = await ApiClient.ListarCajasAsync(sucursalId);
         await CargarComandasAbiertasAsync();
+
+        // Refresco liviano de stock (no todo el catálogo) por si algún producto vendido
+        // quedó en cero — sin esto, la franja "SIN STOCK" quedaba desactualizada hasta
+        // salir y volver a entrar (_productos solo se recargaba al cambiar de categoría o
+        // al abrir turno).
+        var stocksActualizados = await ApiClient.ObtenerStockProductosAsync(idsVendidos, sucursalId);
+        foreach (var stock in stocksActualizados)
+        {
+            var producto = _productos.FirstOrDefault(p => p.Id == stock.ProductoId);
+            if (producto is not null)
+                producto.StockActual = stock.StockActual;
+        }
 
         StateHasChanged();
         // Sin esta espera, "print" a veces se dispara antes de que el navegador termine de

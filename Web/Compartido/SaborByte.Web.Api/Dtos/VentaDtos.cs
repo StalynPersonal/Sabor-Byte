@@ -26,6 +26,14 @@ public class ProductoResumenDto
     public bool SinStock => Inventariable && StockActual <= 0 && !PermiteVentaConStockNegativo;
 }
 
+// Refresco liviano de stock tras una venta — evita recargar el catálogo completo solo
+// para actualizar la franja "SIN STOCK" de los productos que se acaban de vender.
+public class StockProductoDto
+{
+    public Guid ProductoId { get; set; }
+    public decimal StockActual { get; set; }
+}
+
 public class ItemVentaDto
 {
     public Guid ProductoId { get; set; }

@@ -78,6 +78,15 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return await http.GetFromJsonAsync<List<ProductoResumenDto>>(url) ?? [];
     }
 
+    public async Task<List<StockProductoDto>> ObtenerStockProductosAsync(List<Guid> productoIds, Guid sucursalId)
+    {
+        if (productoIds.Count == 0) return [];
+
+        AdjuntarToken();
+        var idsQuery = string.Join("&", productoIds.Select(id => $"ids={id}"));
+        return await http.GetFromJsonAsync<List<StockProductoDto>>($"api/productos/stock?sucursalId={sucursalId}&{idsQuery}") ?? [];
+    }
+
     public async Task<List<CajaResumenDto>> ListarCajasAsync(Guid sucursalId)
     {
         AdjuntarToken();
