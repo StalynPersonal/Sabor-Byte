@@ -2671,7 +2671,10 @@ else
     private async Task VerificarTurnoAbiertoAsync()
     {
         _turnoBloqueadoOtroDia = null;
-        EstadoCajaSignal.EstablecerTurnoBloqueado(false);
+        // Se hasta true en todos los casos salvo el único donde sí hay un turno abierto y
+        // operable (más abajo) — sin un turno abierto no debería poder ir a Caja, Cerrar
+        // turno ni Gastos desde el AppBar, igual que cuando el turno está bloqueado.
+        EstadoCajaSignal.EstablecerTurnoBloqueado(true);
         var turnoAbierto = await ApiClient.ObtenerTurnoAbiertoAsync(_cajaSeleccionadaId);
         if (turnoAbierto is null)
             return;
@@ -2679,12 +2682,12 @@ else
         if (turnoAbierto.EsDeOtroDia)
         {
             _turnoBloqueadoOtroDia = turnoAbierto;
-            EstadoCajaSignal.EstablecerTurnoBloqueado(true);
             return;
         }
 
         _turnoCajaId = turnoAbierto.TurnoCajaId;
         _turnoAbierto = turnoAbierto;
+        EstadoCajaSignal.EstablecerTurnoBloqueado(false);
         await BuscarAsync();
         await CargarComandasAbiertasAsync();
     }
