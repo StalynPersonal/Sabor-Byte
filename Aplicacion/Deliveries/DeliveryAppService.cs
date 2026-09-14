@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SaborByte.Aplicacion.Comun;
 using SaborByte.Aplicacion.Deliveries.Dtos;
 using SaborByte.Aplicacion.Interfaces;
+using SaborByte.Dominio.Comun;
 using SaborByte.Dominio.Deliveries;
 
 namespace SaborByte.Aplicacion.Deliveries;
@@ -164,7 +165,17 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
         var cajasActivasIds = db.Cajas.Where(c => c.SucursalId == sucursalId && c.Activa).Select(c => c.Id);
         var turnosDeCajasActivasIds = db.TurnosCaja.Where(t => cajasActivasIds.Contains(t.CajaId)).Select(t => t.Id);
 
-        var query = db.Facturas.Where(f => f.SucursalId == sucursalId && turnosDeCajasActivasIds.Contains(f.CajaTurnoId));
+        // Solo facturas de HOY (calendario RD) y que todavía no estén asignadas a ningún
+        // delivery — asignar una factura vieja o ya asignada no tiene sentido de negocio
+        // (el delivery se despacha el mismo día que se factura).
+        var desdeHoy = HorarioRd.HoyUtc();
+        var hastaHoy = desdeHoy.AddDays(1);
+
+        var query = db.Facturas.Where(f =>
+            f.SucursalId == sucursalId &&
+            turnosDeCajasActivasIds.Contains(f.CajaTurnoId) &&
+            f.FechaEmision >= desdeHoy && f.FechaEmision < hastaHoy &&
+            !db.FacturasDelivery.Any(fd => fd.FacturaId == f.Id && !fd.Quitada));
 
         if (!string.IsNullOrWhiteSpace(texto))
             query = query.Where(f =>
@@ -173,10 +184,6 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
 
         var consulta =
             from f in query
-            join fd in db.FacturasDelivery.Where(fd => !fd.Quitada) on f.Id equals fd.FacturaId into asignaciones
-            from fd in asignaciones.DefaultIfEmpty()
-            join d in db.Deliveries on fd.DeliveryId equals d.Id into deliveries
-            from d in deliveries.DefaultIfEmpty()
             join c in db.Clientes on f.ClienteId equals c.Id into clientes
             from c in clientes.DefaultIfEmpty()
             orderby f.FechaEmision descending
@@ -187,8 +194,8 @@ public class DeliveryAppService(IAppDbContext db, IAuditoriaService auditoria)
                 NumeroNcf = f.NumeroNcf,
                 FechaEmision = f.FechaEmision,
                 Total = f.Total,
-                YaAsignada = fd != null,
-                DeliveryNombreActual = d != null ? d.Nombre : null,
+                YaAsignada = false,
+                DeliveryNombreActual = null,
                 ClienteNombre = f.ClienteNombre,
                 ClienteTelefono = c != null ? c.Telefono : null
             };
