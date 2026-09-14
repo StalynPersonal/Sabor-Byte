@@ -45,7 +45,7 @@ public class ReportesController(ReporteAppService reportes) : ControllerBase
         if (!User.TieneAccesoASucursal(sucursalId))
             return Forbid();
 
-        return Ok(await reportes.ObtenerDashboardAsync(sucursalId, ct));
+        return Ok(await reportes.ObtenerDashboardAsync(sucursalId, User.ObtenerSucursalesPermitidas(), ct));
     }
 
     [HttpPost("ventas-resumen-por-dia")]

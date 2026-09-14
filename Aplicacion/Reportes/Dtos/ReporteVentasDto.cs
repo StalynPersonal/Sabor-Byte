@@ -181,4 +181,25 @@ public class DashboardResumenDto
     public decimal NotasCreditoHoyTotal { get; set; }
     public List<VentaPorHoraDto> VentasPorHoraHoy { get; set; } = [];
     public List<VentaPorProductoDto> TopProductosHoy { get; set; } = [];
+
+    // Solo tiene sentido mostrarlas cuando hay más de una caja/sucursal — con una sola,
+    // sería el mismo número que VentasHoyTotal repetido.
+    public List<VentaPorCajaHoyDto> VentasPorCajaHoy { get; set; } = [];
+    public List<VentaPorSucursalHoyDto> VentasPorSucursalHoy { get; set; } = [];
+}
+
+public class VentaPorCajaHoyDto
+{
+    public Guid CajaId { get; set; }
+    public string CajaNumero { get; set; } = string.Empty;
+    public decimal Total { get; set; }
+    public int CantidadFacturas { get; set; }
+}
+
+public class VentaPorSucursalHoyDto
+{
+    public Guid SucursalId { get; set; }
+    public string SucursalNombre { get; set; } = string.Empty;
+    public decimal Total { get; set; }
+    public int CantidadFacturas { get; set; }
 }

@@ -144,6 +144,52 @@
     </MudItem>
 </MudGrid>
 
+@if (_dashboard.VentasPorCajaHoy.Count > 0 || _dashboard.VentasPorSucursalHoy.Count > 0)
+{
+    <MudGrid Class="mb-4">
+        @if (_dashboard.VentasPorCajaHoy.Count > 0)
+        {
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">Ventas de hoy por caja</MudText>
+                    <MudTable Items="_dashboard.VentasPorCajaHoy" Hover="true" Dense="true" T="VentaPorCajaHoyDto">
+                        <HeaderContent>
+                            <MudTh>Caja</MudTh>
+                            <MudTh>Facturas</MudTh>
+                            <MudTh>Total</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            <MudTd>Caja @item.CajaNumero</MudTd>
+                            <MudTd>@item.CantidadFacturas</MudTd>
+                            <MudTd>RD$ @item.Total.ToString("N2")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+        @if (_dashboard.VentasPorSucursalHoy.Count > 0)
+        {
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">Ventas de hoy por sucursal</MudText>
+                    <MudTable Items="_dashboard.VentasPorSucursalHoy" Hover="true" Dense="true" T="VentaPorSucursalHoyDto">
+                        <HeaderContent>
+                            <MudTh>Sucursal</MudTh>
+                            <MudTh>Facturas</MudTh>
+                            <MudTh>Total</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            <MudTd>@item.SucursalNombre</MudTd>
+                            <MudTd>@item.CantidadFacturas</MudTd>
+                            <MudTd>RD$ @item.Total.ToString("N2")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
 <MudDivider Class="my-6" />
 
 <div class="d-flex flex-wrap justify-end align-center mb-4 gap-2">

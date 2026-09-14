@@ -477,7 +477,8 @@ public class ReporteAppService(IAppDbContext db)
 
     // KPIs del día para el dashboard de Inicio: ventas de hoy, turnos abiertos, CxC/CxP
     // pendientes y alertas de stock bajo, todo scopeado a una sola sucursal.
-    public async Task<DashboardResumenDto> ObtenerDashboardAsync(Guid sucursalId, CancellationToken ct = default)
+    public async Task<DashboardResumenDto> ObtenerDashboardAsync(
+        Guid sucursalId, IReadOnlyCollection<Guid> sucursalesPermitidas, CancellationToken ct = default)
     {
         // "Hoy" según el calendario de República Dominicana (UTC-4, sin horario de
         // verano), no el día UTC del servidor — sin esto, ventas de la tarde/noche (hora
@@ -533,6 +534,42 @@ public class ReporteAppService(IAppDbContext db)
             .Select(n => n.Monto)
             .ToListAsync(ct);
 
+        // Desglose por caja: solo tiene sentido dentro de la sucursal activa (una caja
+        // pertenece a una única sucursal). Se omite si solo hay una caja con ventas hoy —
+        // sería repetir VentasHoyTotal sin aportar nada.
+        var ventasPorCajaCrudo = await (
+            from f in db.Facturas
+            join t in db.TurnosCaja on f.CajaTurnoId equals t.Id
+            join c in db.Cajas on t.CajaId equals c.Id
+            where f.SucursalId == sucursalId && f.FechaEmision >= desde && f.FechaEmision <= hasta
+            group f by new { c.Id, c.Numero } into g
+            orderby g.Key.Numero
+            select new VentaPorCajaHoyDto
+            {
+                CajaId = g.Key.Id,
+                CajaNumero = g.Key.Numero,
+                Total = g.Sum(x => x.Total),
+                CantidadFacturas = g.Count()
+            }).ToListAsync(ct);
+
+        // Desglose por sucursal: solo si el usuario tiene acceso a más de una — con una
+        // sola sería el mismo total repetido.
+        var ventasPorSucursalHoy = sucursalesPermitidas.Count > 1
+            ? await (
+                from f in db.Facturas
+                join s in db.Sucursales on f.SucursalId equals s.Id
+                where sucursalesPermitidas.Contains(f.SucursalId) && f.FechaEmision >= desde && f.FechaEmision <= hasta
+                group f by new { s.Id, s.Nombre } into g
+                orderby g.Key.Nombre
+                select new VentaPorSucursalHoyDto
+                {
+                    SucursalId = g.Key.Id,
+                    SucursalNombre = g.Key.Nombre,
+                    Total = g.Sum(x => x.Total),
+                    CantidadFacturas = g.Count()
+                }).ToListAsync(ct)
+            : [];
+
         return new DashboardResumenDto
         {
             VentasHoyTotal = totalVendidoHoy,
@@ -551,7 +588,9 @@ public class ReporteAppService(IAppDbContext db)
             NotasCreditoHoyCantidad = notasCreditoHoy.Count,
             NotasCreditoHoyTotal = notasCreditoHoy.Sum(),
             VentasPorHoraHoy = await VentasPorHoraAsync(sucursalId, rangoHoy, ct),
-            TopProductosHoy = (await VentasPorProductoAsync(sucursalId, rangoHoy, ct)).Take(5).ToList()
+            TopProductosHoy = (await VentasPorProductoAsync(sucursalId, rangoHoy, ct)).Take(5).ToList(),
+            VentasPorCajaHoy = ventasPorCajaCrudo.Count > 1 ? ventasPorCajaCrudo : [],
+            VentasPorSucursalHoy = ventasPorSucursalHoy
         };
     }
 }
