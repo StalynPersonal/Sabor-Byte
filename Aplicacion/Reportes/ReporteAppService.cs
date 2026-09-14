@@ -534,9 +534,8 @@ public class ReporteAppService(IAppDbContext db)
             .Select(n => n.Monto)
             .ToListAsync(ct);
 
-        // Desglose por caja: solo tiene sentido dentro de la sucursal activa (una caja
-        // pertenece a una única sucursal). Se omite si solo hay una caja con ventas hoy —
-        // sería repetir VentasHoyTotal sin aportar nada.
+        // Desglose por caja, dentro de la sucursal activa (una caja pertenece a una única
+        // sucursal). Se muestra siempre, aunque haya una sola caja con ventas hoy.
         var ventasPorCajaCrudo = await (
             from f in db.Facturas
             join t in db.TurnosCaja on f.CajaTurnoId equals t.Id
@@ -552,23 +551,19 @@ public class ReporteAppService(IAppDbContext db)
                 CantidadFacturas = g.Count()
             }).ToListAsync(ct);
 
-        // Desglose por sucursal: solo si el usuario tiene acceso a más de una — con una
-        // sola sería el mismo total repetido.
-        var ventasPorSucursalHoy = sucursalesPermitidas.Count > 1
-            ? await (
-                from f in db.Facturas
-                join s in db.Sucursales on f.SucursalId equals s.Id
-                where sucursalesPermitidas.Contains(f.SucursalId) && f.FechaEmision >= desde && f.FechaEmision <= hasta
-                group f by new { s.Id, s.Nombre } into g
-                orderby g.Key.Nombre
-                select new VentaPorSucursalHoyDto
-                {
-                    SucursalId = g.Key.Id,
-                    SucursalNombre = g.Key.Nombre,
-                    Total = g.Sum(x => x.Total),
-                    CantidadFacturas = g.Count()
-                }).ToListAsync(ct)
-            : [];
+        var ventasPorSucursalHoy = await (
+            from f in db.Facturas
+            join s in db.Sucursales on f.SucursalId equals s.Id
+            where sucursalesPermitidas.Contains(f.SucursalId) && f.FechaEmision >= desde && f.FechaEmision <= hasta
+            group f by new { s.Id, s.Nombre } into g
+            orderby g.Key.Nombre
+            select new VentaPorSucursalHoyDto
+            {
+                SucursalId = g.Key.Id,
+                SucursalNombre = g.Key.Nombre,
+                Total = g.Sum(x => x.Total),
+                CantidadFacturas = g.Count()
+            }).ToListAsync(ct);
 
         return new DashboardResumenDto
         {
@@ -589,7 +584,7 @@ public class ReporteAppService(IAppDbContext db)
             NotasCreditoHoyTotal = notasCreditoHoy.Sum(),
             VentasPorHoraHoy = await VentasPorHoraAsync(sucursalId, rangoHoy, ct),
             TopProductosHoy = (await VentasPorProductoAsync(sucursalId, rangoHoy, ct)).Take(5).ToList(),
-            VentasPorCajaHoy = ventasPorCajaCrudo.Count > 1 ? ventasPorCajaCrudo : [],
+            VentasPorCajaHoy = ventasPorCajaCrudo,
             VentasPorSucursalHoy = ventasPorSucursalHoy
         };
     }
