@@ -1703,16 +1703,18 @@ else
     private bool PuedeGestionarAbonosDelivery => Sesion.Roles.Contains("Admin") || Sesion.Roles.Contains("Supervisor");
     private bool _notificacionWhatsAppActiva => _sucursalActual?.NotificacionWhatsAppDeliveryActivo ?? false;
 
-    // wa.me abre WhatsApp Web/app con el número y el mensaje ya escritos — no envía nada
-    // por sí solo. Nombre de ventana fijo para reutilizar la misma pestaña en avisos
-    // sucesivos en vez de acumular una por cada uno.
+    // web.whatsapp.com directo (no wa.me): wa.me redirige a web.whatsapp.com y ese salto
+    // entre dominios le hace perder al navegador la asociación por nombre de ventana, así
+    // que cada aviso abría una pestaña nueva en vez de reutilizar la anterior. Yendo
+    // directo al dominio final, "whatsapp-envio" sí identifica la misma pestaña entre
+    // avisos sucesivos. No envía nada por sí solo — solo abre el chat con el mensaje listo.
     private async Task AvisarPorWhatsAppDeliveryAsync(FacturaDeliveryDto factura)
     {
         if (string.IsNullOrWhiteSpace(factura.ClienteTelefono)) return;
 
         var mensaje = $"Hola {factura.ClienteNombre}, tu pedido de {_empresa?.Nombre} va en camino con " +
                       $"{_deliverySeleccionado?.Nombre}. ¡Gracias por tu compra!";
-        var url = $"https://wa.me/{NormalizarTelefonoWhatsApp(factura.ClienteTelefono)}?text={Uri.EscapeDataString(mensaje)}";
+        var url = $"https://web.whatsapp.com/send?phone={NormalizarTelefonoWhatsApp(factura.ClienteTelefono)}&text={Uri.EscapeDataString(mensaje)}";
         await JS.InvokeVoidAsync("open", url, "whatsapp-envio");
     }
 
