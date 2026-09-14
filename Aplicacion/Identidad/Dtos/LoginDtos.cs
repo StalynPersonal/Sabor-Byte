@@ -43,6 +43,11 @@ public class SeleccionarSucursalActivaRequestDto
     public Guid SucursalId { get; set; }
 }
 
+public class SeleccionarCajaActivaRequestDto
+{
+    public Guid CajaId { get; set; }
+}
+
 public class SesionActivaDto
 {
     public Guid UsuarioId { get; set; }

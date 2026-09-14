@@ -13,6 +13,12 @@ public class SesionActiva
     // Null hasta que el usuario elige sucursal (si tiene más de una asignada).
     public Guid? SucursalId { get; set; }
 
+    // Null hasta que el usuario elige/retoma una caja en la app Caja — permite distinguir
+    // "quién abrió el turno" (dato fijo del turno) de "quién está operando esa caja ahora"
+    // (puede ser otra persona: María abrió el turno, se retiró, y Juan siguió facturando
+    // en el mismo turno sin necesidad de cerrarlo). Ver CajaAppService.ObtenerEstadoAsync.
+    public Guid? CajaId { get; set; }
+
     public DateTime FechaInicio { get; set; } = DateTime.UtcNow;
     public DateTime FechaUltimaActividad { get; set; } = DateTime.UtcNow;
     public DateTime? FechaCierre { get; set; }

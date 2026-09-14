@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SaborByte.Infraestructura.Persistencia;
 
 #nullable disable
 
-namespace SaborByte.Infraestructura.Persistencia.Migraciones
+namespace SaborByte.Infraestructura.Persistencia.Migraciones.SaborByte
 {
     [DbContext(typeof(SaborByteDbContext))]
-    partial class SaborByteDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914012128_AgregaIpAperturaATurnoCaja")]
+    partial class AgregaIpAperturaATurnoCaja
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1137,9 +1140,6 @@ namespace SaborByte.Infraestructura.Persistencia.Migraciones
 
                     b.Property<DateTime?>("FechaRespuestaDgii")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("IpOrigen")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Itbis")
                         .HasColumnType("decimal(18,2)");

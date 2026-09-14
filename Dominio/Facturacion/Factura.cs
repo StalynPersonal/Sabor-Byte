@@ -31,6 +31,11 @@ public class Factura
     public string? SucursalCodigo { get; set; }
     public string? CajaCodigo { get; set; }
 
+    // IP real de la máquina que facturó (capturada del lado del servidor, no del request).
+    // Sirve para detectar si un turno se está operando desde más de una IP a la vez — ver
+    // CajaAppService.ObtenerEstadoAsync.
+    public string? IpOrigen { get; set; }
+
     public Guid? ComandaId { get; set; }
 
     // Número interno correlativo, independiente del NCF fiscal (que solo existe si hay una

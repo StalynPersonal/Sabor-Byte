@@ -130,7 +130,8 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             CodigoCaja = caja.Numero,
             UsuarioAperturaId = usuarioId,
             MontoAperturaEfectivo = request.MontoAperturaEfectivo,
-            Estado = EstadoTurnoCaja.Abierto
+            Estado = EstadoTurnoCaja.Abierto,
+            IpApertura = request.IpOrigen
         };
 
         db.TurnosCaja.Add(turno);
@@ -179,6 +180,64 @@ public class CajaAppService(IAppDbContext db, IAuditoriaService auditoria)
             orderby c.Numero
             select new TurnoAbiertoResumenDto { TurnoCajaId = t.Id, CajaNumero = c.Numero, NumeroTurno = t.NumeroTurno }
         ).ToListAsync(ct);
+
+    // "Ver estado" en Central → Cajas: separa "quién abrió el turno" (dato fijo) de "quién
+    // está operando esta caja ahora" (SesionActiva.CajaId — puede ser otra persona: María
+    // abrió el turno, se retiró, y Juan siguió facturando sin cerrar/reabrir nada).
+    public async Task<EstadoCajaDto> ObtenerEstadoAsync(
+        Guid cajaId, IReadOnlyCollection<Guid> sucursalesPermitidas, CancellationToken ct = default)
+    {
+        var turno = await (
+            from t in db.TurnosCaja
+            join c in db.Cajas on t.CajaId equals c.Id
+            where t.CajaId == cajaId && t.Estado == EstadoTurnoCaja.Abierto && sucursalesPermitidas.Contains(c.SucursalId)
+            select t
+        ).FirstOrDefaultAsync(ct);
+
+        // Mismo umbral de "activo ahora" que Usuarios activos (ver AutenticacionAppService.
+        // ListarActivasAsync) — una pestaña abierta y olvidada no debería figurar como que
+        // el usuario sigue ahí.
+        var limiteActividad = DateTime.UtcNow.AddMinutes(-15);
+        var usuariosActivosAhora = await db.SesionesActivas
+            .Where(s => s.CajaId == cajaId && s.FechaCierre == null && s.FechaUltimaActividad >= limiteActividad)
+            .Join(db.Usuarios, s => s.UsuarioId, u => u.Id, (s, u) => u.Nombre)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (turno is null)
+        {
+            return new EstadoCajaDto
+            {
+                TurnoAbierto = false,
+                UsuariosActivosAhora = usuariosActivosAhora
+            };
+        }
+
+        var usuarioAperturaNombre = await db.Usuarios.Where(u => u.Id == turno.UsuarioAperturaId).Select(u => u.Nombre).FirstOrDefaultAsync(ct);
+
+        var facturasTurno = await db.Facturas.Where(f => f.CajaTurnoId == turno.Id).Select(f => new { f.Total, f.IpOrigen }).ToListAsync(ct);
+
+        // IPs distintas a la de apertura vistas facturando en este turno — evidencia de que
+        // se está operando (o se operó) desde más de un lugar sin cerrar/reabrir el turno.
+        var otrasIpsDetectadas = facturasTurno
+            .Where(f => !string.IsNullOrWhiteSpace(f.IpOrigen) && f.IpOrigen != turno.IpApertura)
+            .Select(f => f.IpOrigen!)
+            .Distinct()
+            .ToList();
+
+        return new EstadoCajaDto
+        {
+            TurnoAbierto = true,
+            NumeroTurno = turno.NumeroTurno,
+            FechaHoraApertura = turno.FechaHoraApertura,
+            UsuarioAperturaNombre = usuarioAperturaNombre,
+            IpApertura = turno.IpApertura,
+            TotalFacturadoTurno = facturasTurno.Sum(f => f.Total),
+            CantidadFacturasTurno = facturasTurno.Count,
+            UsuariosActivosAhora = usuariosActivosAhora,
+            OtrasIpsDetectadas = otrasIpsDetectadas
+        };
+    }
 
     public async Task<ResumenTurnoDto> ObtenerResumenAsync(
         Guid turnoCajaId, IReadOnlyCollection<Guid> sucursalesPermitidas, CancellationToken ct = default)

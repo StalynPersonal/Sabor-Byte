@@ -60,6 +60,19 @@ public class TurnoAbiertoDto
     public bool EsDeOtroDia { get; set; }
 }
 
+public class EstadoCajaDto
+{
+    public bool TurnoAbierto { get; set; }
+    public int? NumeroTurno { get; set; }
+    public DateTime? FechaHoraApertura { get; set; }
+    public string? UsuarioAperturaNombre { get; set; }
+    public string? IpApertura { get; set; }
+    public decimal TotalFacturadoTurno { get; set; }
+    public int CantidadFacturasTurno { get; set; }
+    public List<string> UsuariosActivosAhora { get; set; } = [];
+    public List<string> OtrasIpsDetectadas { get; set; } = [];
+}
+
 public class DenominacionCierreDto
 {
     public Guid MetodoPagoId { get; set; }

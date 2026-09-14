@@ -40,6 +40,13 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         return (true, null);
     }
 
+    public async Task<(bool Exito, string? Error)> SeleccionarCajaActivaAsync(Guid cajaId)
+    {
+        AdjuntarToken();
+        var respuesta = await http.PostAsJsonAsync("api/auth/sesion/caja", new SeleccionarCajaActivaRequestDto { CajaId = cajaId });
+        return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
     public async Task CerrarSesionAsync()
     {
         AdjuntarToken();
@@ -95,6 +102,12 @@ public class SaborByteApiClient(HttpClient http, SesionCliente sesion)
         AdjuntarToken();
         var respuesta = await http.PutAsJsonAsync($"api/caja/gestion/{cajaId}?sucursalId={sucursalId}", request);
         return respuesta.IsSuccessStatusCode ? (true, null) : (false, await LeerMensajeErrorAsync(respuesta));
+    }
+
+    public async Task<EstadoCajaDto?> ObtenerEstadoCajaAsync(Guid cajaId)
+    {
+        AdjuntarToken();
+        return await http.GetFromJsonAsync<EstadoCajaDto>($"api/caja/{cajaId}/estado");
     }
 
     public async Task<List<TurnoAbiertoResumenDto>> ListarTurnosAbiertosAsync(Guid sucursalId)

@@ -84,6 +84,10 @@ public class CajaController(CajaAppService cajaAppService) : ControllerBase
         return Ok(await cajaAppService.ObtenerTurnoAbiertoAsync(cajaId, User.ObtenerSucursalesPermitidas(), ct));
     }
 
+    [HttpGet("{cajaId:guid}/estado")]
+    public async Task<IActionResult> ObtenerEstado(Guid cajaId, CancellationToken ct) =>
+        Ok(await cajaAppService.ObtenerEstadoAsync(cajaId, User.ObtenerSucursalesPermitidas(), ct));
+
     [HttpPost("turnos/abrir")]
     public async Task<IActionResult> AbrirTurno(AbrirTurnoRequestDto request, CancellationToken ct)
     {

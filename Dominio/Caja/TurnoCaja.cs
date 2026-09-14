@@ -26,6 +26,11 @@ public class TurnoCaja
     public Guid UsuarioAperturaId { get; set; }
     public Guid? UsuarioCierreId { get; set; }
 
+    // IP real de la máquina que abrió este turno (capturada del lado del servidor, no del
+    // request — no se puede falsear). Guardada aparte de Caja.IpPermitida porque esa es la
+    // configuración esperada, esta es lo que realmente pasó en ese turno puntual.
+    public string? IpApertura { get; set; }
+
     public DateTime FechaHoraApertura { get; set; } = DateTime.UtcNow;
     public DateTime? FechaHoraCierre { get; set; }
 

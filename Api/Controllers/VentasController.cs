@@ -21,7 +21,8 @@ public class VentasController(VentaAppService ventas) : ControllerBase
 
         try
         {
-            var resultado = await ventas.CrearVentaAsync(sucursalId, User.ObtenerUsuarioId(), request, ct);
+            var ipOrigen = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var resultado = await ventas.CrearVentaAsync(sucursalId, User.ObtenerUsuarioId(), request, ipOrigen, ct);
             return Ok(resultado);
         }
         catch (InvalidOperationException ex)

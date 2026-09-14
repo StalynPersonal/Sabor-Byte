@@ -2670,6 +2670,11 @@ else
     // de un día anterior, forzar el cierre antes de dejar operar.
     private async Task VerificarTurnoAbiertoAsync()
     {
+        // Deja constancia de "quién está usando esta caja ahora" (SesionActiva.CajaId) —
+        // separado de quién abrió el turno, para el ícono "Ver estado" en Central → Cajas.
+        if (_cajaSeleccionadaId != Guid.Empty)
+            await ApiClient.SeleccionarCajaActivaAsync(_cajaSeleccionadaId);
+
         _turnoBloqueadoOtroDia = null;
         // Se hasta true en todos los casos salvo el único donde sí hay un turno abierto y
         // operable (más abajo) — sin un turno abierto no debería poder ir a Caja, Cerrar

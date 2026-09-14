@@ -47,6 +47,22 @@ public class AuthController(AutenticacionAppService autenticacion, UsuarioAppSer
         }
     }
 
+    [HttpPost("sesion/caja")]
+    [Authorize]
+    public async Task<IActionResult> SeleccionarCajaActiva(SeleccionarCajaActivaRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            await autenticacion.SeleccionarCajaActivaAsync(
+                User.ObtenerSesionActivaId(), User.ObtenerUsuarioId(), request.CajaId, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
     // Autoservicio: cualquier usuario autenticado (no solo Admin) puede cambiar su propia
     // contraseña — por eso vive en AuthController y no en UsuariosController (que es
     // Admin-only a nivel de clase).

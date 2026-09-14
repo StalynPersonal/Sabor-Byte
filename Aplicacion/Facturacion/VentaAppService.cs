@@ -18,7 +18,7 @@ public class VentaAppService(
     IFacturacionElectronicaGateway facturacionElectronica)
 {
     public async Task<VentaResultadoDto> CrearVentaAsync(
-        Guid sucursalId, Guid usuarioId, CrearVentaRequestDto request, CancellationToken ct = default)
+        Guid sucursalId, Guid usuarioId, CrearVentaRequestDto request, string? ipOrigen = null, CancellationToken ct = default)
     {
         // Facturar desde una comanda existente (mesero -> cocina -> caja): los items de la
         // comanda se toman de la comanda, no del request, para que caja no pueda inventar/
@@ -123,6 +123,7 @@ public class VentaAppService(
             ClienteRncOCedula = cliente.RncOCedula,
             SucursalCodigo = caja.CodigoSucursal,
             CajaCodigo = caja.Numero,
+            IpOrigen = ipOrigen,
             ComandaId = comandaOrigen?.Id,
             CreadoPorUsuarioId = usuarioId,
             FechaEmision = DateTime.UtcNow

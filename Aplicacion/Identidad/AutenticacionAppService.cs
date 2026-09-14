@@ -93,6 +93,19 @@ public class AutenticacionAppService(
         await db.SaveChangesAsync(ct);
     }
 
+    // Se llama desde la app Caja al elegir/retomar una caja — deja constancia de "quién
+    // está operando esta caja ahora", que puede ser distinto de quién abrió el turno (ver
+    // CajaAppService.ObtenerEstadoAsync).
+    public async Task SeleccionarCajaActivaAsync(Guid sesionActivaId, Guid usuarioId, Guid cajaId, CancellationToken ct = default)
+    {
+        var sesion = await db.SesionesActivas.FirstOrDefaultAsync(s => s.Id == sesionActivaId && s.UsuarioId == usuarioId, ct)
+            ?? throw new InvalidOperationException("La sesión no existe.");
+
+        sesion.CajaId = cajaId;
+        sesion.FechaUltimaActividad = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task CerrarSesionAsync(Guid sesionActivaId, Guid usuarioId, CancellationToken ct = default)
     {
         var sesion = await db.SesionesActivas.FirstOrDefaultAsync(s => s.Id == sesionActivaId && s.UsuarioId == usuarioId, ct);

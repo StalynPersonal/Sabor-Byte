@@ -44,6 +44,9 @@ else
             <MudTd>@context.ProximoNumeroFactura</MudTd>
             <MudTd>@TextoFormato(context.FormatoImpresion)</MudTd>
             <MudTd>
+                <MudTooltip Text="Ver estado">
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="() => VerEstadoAsync(context)" />
+                </MudTooltip>
                 <MudTooltip Text="Editar">
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditarCaja(context)" />
                 </MudTooltip>
@@ -51,6 +54,66 @@ else
         </RowTemplate>
     </MudTable>
 }
+
+<MudDialog @bind-Visible="_viendoEstado" Options="_opcionesDialogo">
+    <TitleContent>Estado — Caja @_cajaViendoEstado?.Numero</TitleContent>
+    <DialogContent>
+        @if (_cargandoEstado)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else if (_estadoCaja is not null)
+        {
+            @if (!_estadoCaja.TurnoAbierto)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No hay ningún turno abierto en esta caja ahora mismo.</MudAlert>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2"><strong>Turno:</strong> #@_estadoCaja.NumeroTurno</MudText>
+                <MudText Typo="Typo.body2">
+                    <strong>Abierto:</strong> @_estadoCaja.FechaHoraApertura?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                    por @(_estadoCaja.UsuarioAperturaNombre ?? "?")
+                </MudText>
+                @if (!string.IsNullOrWhiteSpace(_estadoCaja.IpApertura))
+                {
+                    <MudText Typo="Typo.body2"><strong>IP de apertura:</strong> @_estadoCaja.IpApertura</MudText>
+                }
+                @if (_estadoCaja.OtrasIpsDetectadas.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                        También se detectó actividad facturando desde: @string.Join(", ", _estadoCaja.OtrasIpsDetectadas)
+                    </MudAlert>
+                }
+                <MudText Typo="Typo.body2" Class="mt-2">
+                    <strong>Facturado en este turno:</strong> RD$ @_estadoCaja.TotalFacturadoTurno.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)
+                    (@_estadoCaja.CantidadFacturasTurno factura(s))
+                </MudText>
+            }
+
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Logueado ahora mismo en esta caja</MudText>
+            @if (_estadoCaja.UsuariosActivosAhora.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Nadie tiene esta caja abierta en su pantalla ahora mismo.</MudText>
+            }
+            else
+            {
+                @foreach (var nombre in _estadoCaja.UsuariosActivosAhora)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="mr-1 mb-1">@nombre</MudChip>
+                }
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-1">
+                    Puede ser distinto de quién abrió el turno — por ejemplo, si esa persona
+                    se retiró y otra continuó facturando en la misma caja.
+                </MudText>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _viendoEstado = false">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
 
 <MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
     <TitleContent>@(_cajaId is null ? "Nueva caja" : "Editar caja")</TitleContent>
@@ -102,6 +165,11 @@ else
     private Guid? _cajaId;
     private GuardarCajaRequestDto _form = new();
 
+    private bool _viendoEstado;
+    private bool _cargandoEstado;
+    private CajaDto? _cajaViendoEstado;
+    private EstadoCajaDto? _estadoCaja;
+
     private string? _codigoSucursal => _sucursales.FirstOrDefault(s => s.Id == _sucursalSeleccionadaId)?.Codigo;
 
     protected override async Task OnInitializedAsync()
@@ -139,6 +207,16 @@ else
 
     private string VistaPreviaNumeroFactura() =>
         $"{_codigoSucursal ?? "??"}{(string.IsNullOrEmpty(_form.Numero) ? "??" : _form.Numero)}{_form.ProximoNumeroFactura:D5}";
+
+    private async Task VerEstadoAsync(CajaDto caja)
+    {
+        _cajaViendoEstado = caja;
+        _estadoCaja = null;
+        _cargandoEstado = true;
+        _viendoEstado = true;
+        _estadoCaja = await ApiClient.ObtenerEstadoCajaAsync(caja.Id);
+        _cargandoEstado = false;
+    }
 
     private void NuevaCaja()
     {

@@ -86,6 +86,25 @@ public class TurnoAbiertoDto
     public bool EsDeOtroDia { get; set; }
 }
 
+// Para el ícono "Ver estado" en Central → Cajas: distingue "quién abrió el turno" (dato
+// fijo, no cambia) de "quién está operando esta caja ahora" (puede ser otra persona —
+// ver SesionActiva.CajaId), más cuánto lleva facturado en lo que va del turno.
+public class EstadoCajaDto
+{
+    public bool TurnoAbierto { get; set; }
+    public int? NumeroTurno { get; set; }
+    public DateTime? FechaHoraApertura { get; set; }
+    public string? UsuarioAperturaNombre { get; set; }
+    public string? IpApertura { get; set; }
+    public decimal TotalFacturadoTurno { get; set; }
+    public int CantidadFacturasTurno { get; set; }
+    public List<string> UsuariosActivosAhora { get; set; } = [];
+
+    // IPs distintas a IpApertura detectadas facturando en este turno — evidencia de uso
+    // desde más de un lugar sin cerrar/reabrir el turno.
+    public List<string> OtrasIpsDetectadas { get; set; } = [];
+}
+
 public class ResumenTurnoDto
 {
     public Guid TurnoCajaId { get; set; }

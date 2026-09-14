@@ -36,6 +36,11 @@ public class SeleccionarSucursalActivaRequestDto
     public Guid SucursalId { get; set; }
 }
 
+public class SeleccionarCajaActivaRequestDto
+{
+    public Guid CajaId { get; set; }
+}
+
 public class CambiarPasswordRequestDto
 {
     public string PasswordActual { get; set; } = string.Empty;
