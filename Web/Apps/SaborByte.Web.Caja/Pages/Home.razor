@@ -553,7 +553,12 @@ else
                             <MudText Typo="Typo.body1"><strong>RD$ @_deliverySeleccionado.SaldoPendiente.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)</strong></MudText>
                         </MudItem>
                     </MudGrid>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3">
+                        Totales de toda la cuenta del delivery — no cambian con el filtro de fechas de abajo, que solo afecta el historial.
+                    </MudText>
 
+                    <MudDivider Class="mb-3" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Historial</MudText>
                     <MudGrid Class="mb-3">
                         <MudItem xs="6" sm="4">
                             <MudDatePicker Label="Desde" Date="_desdeCuentaDelivery" DateChanged="OnDesdeCuentaDeliveryCambiadaAsync" Clearable="true" />
