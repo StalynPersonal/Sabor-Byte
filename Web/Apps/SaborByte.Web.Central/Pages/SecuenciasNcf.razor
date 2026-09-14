@@ -35,6 +35,12 @@ else
         }
     </MudSelect>
 
+    @if (_sucursalId == Guid.Empty)
+    {
+        <MudText Typo="Typo.body2">Cargando...</MudText>
+    }
+    else
+    {
     <MudTable @ref="_tabla" ServerData="CargarPaginaAsync" Hover="true" Dense="true" T="SecuenciaNcfDto">
         <HeaderContent>
             <MudTh>Serie</MudTh>
@@ -64,6 +70,7 @@ else
             <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" />
         </PagerContent>
     </MudTable>
+    }
 }
 
 <MudDialog @bind-Visible="_editando" Options="_opcionesDialogo">
