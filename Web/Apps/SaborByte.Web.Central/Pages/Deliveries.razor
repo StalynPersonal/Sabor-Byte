@@ -538,11 +538,12 @@ else
         _empresaNombre = empresa?.Nombre ?? "";
     }
 
-    // web.whatsapp.com directo (no wa.me): wa.me redirige a web.whatsapp.com y ese salto
-    // entre dominios le hace perder al navegador la asociación por nombre de ventana, así
-    // que cada aviso abría una pestaña nueva en vez de reutilizar la anterior. Yendo
-    // directo al dominio final, "whatsapp-envio" sí identifica la misma pestaña entre
-    // avisos sucesivos. No envía nada por sí solo — solo abre el chat con el mensaje listo.
+    // web.whatsapp.com directo (no wa.me, que solo redirige ahí) — y la apertura/reutilización
+    // de la pestaña se maneja en JS (ver window.abrirWhatsApp en wwwroot/index.html): WhatsApp
+    // Web borra window.name al cargar, así que reusar "por nombre" desde acá nunca funcionaba
+    // más allá del primer aviso. Guardando la referencia real de la ventana del lado de JS sí
+    // se reutiliza de forma confiable. No envía nada por sí solo — solo abre el chat con el
+    // mensaje listo.
     private async Task AvisarPorWhatsAppAsync(FacturaDeliveryDto factura)
     {
         if (string.IsNullOrWhiteSpace(factura.ClienteTelefono)) return;
@@ -550,7 +551,7 @@ else
         var mensaje = $"Hola {factura.ClienteNombre}, tu pedido de {_empresaNombre} va en camino con " +
                       $"{_deliverySeleccionado?.Nombre}. ¡Gracias por tu compra!";
         var url = $"https://web.whatsapp.com/send?phone={NormalizarTelefonoWhatsApp(factura.ClienteTelefono)}&text={Uri.EscapeDataString(mensaje)}";
-        await JS.InvokeVoidAsync("open", url, "whatsapp-envio");
+        await JS.InvokeVoidAsync("abrirWhatsApp", url);
     }
 
     // Asume República Dominicana: un teléfono de 10 dígitos sin código de país se le

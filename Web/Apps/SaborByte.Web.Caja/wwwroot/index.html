@@ -37,6 +37,22 @@
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
     <script>navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });</script>
+    <script>
+        // window.open(url, nombre) solo reutiliza la pestaña si el navegador sigue
+        // encontrando ese nombre — WhatsApp Web borra window.name al cargar (protección
+        // anti-tracking común en varios sitios), así que la próxima llamada nunca lo
+        // encontraba y siempre abría una pestaña nueva. Guardando la referencia real de la
+        // ventana acá (no por nombre) sí se puede reutilizar de forma confiable.
+        window.avisarWhatsAppVentana = null;
+        window.abrirWhatsApp = function (url) {
+            if (window.avisarWhatsAppVentana && !window.avisarWhatsAppVentana.closed) {
+                window.avisarWhatsAppVentana.location.href = url;
+                window.avisarWhatsAppVentana.focus();
+            } else {
+                window.avisarWhatsAppVentana = window.open(url, 'whatsapp-envio');
+            }
+        };
+    </script>
 </body>
 
 </html>
